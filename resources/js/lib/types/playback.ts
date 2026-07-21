@@ -1,0 +1,54 @@
+export type PlaybackMode = 'direct' | 'proxy';
+
+export interface PlaybackState {
+    isPlaying: boolean;
+    positionSeconds: number;
+    durationSeconds: number;
+    playbackRate: number;
+    videoUrl: string | null;
+    playbackMode: PlaybackMode;
+    stateVersion: number;
+    serverTimestamp: number | null;
+    updatedAt: string;
+}
+
+export interface PlaybackStateResponse {
+    is_playing: boolean;
+    position_seconds: number;
+    duration_seconds: number;
+    playback_rate: number;
+    video_url: string | null;
+    playback_mode: PlaybackMode;
+    state_version: number;
+    server_timestamp: number | null;
+    updated_at: string;
+}
+
+export interface PlaybackSyncResponse {
+    status: string;
+    state_version: number;
+    server_timestamp: number;
+    playback_mode?: PlaybackMode;
+}
+
+export function toPlaybackState(data: PlaybackStateResponse): PlaybackState {
+    return {
+        isPlaying: data.is_playing,
+        positionSeconds: data.position_seconds,
+        durationSeconds: data.duration_seconds,
+        playbackRate: data.playback_rate,
+        videoUrl: data.video_url,
+        playbackMode: data.playback_mode,
+        stateVersion: data.state_version,
+        serverTimestamp: data.server_timestamp,
+        updatedAt: data.updated_at,
+    };
+}
+
+export function computeExpectedPosition(state: PlaybackState, clientTimestampNow: number): number {
+    if (!state.isPlaying || !state.serverTimestamp) {
+        return state.positionSeconds;
+    }
+    const elapsed = clientTimestampNow - state.serverTimestamp;
+    return state.positionSeconds + elapsed * state.playbackRate;
+}

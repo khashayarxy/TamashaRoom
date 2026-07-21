@@ -1,0 +1,91 @@
+---
+name: output-conventions
+description: File naming, import order, comment style, formatting, linting, and commit message conventions for TamashaRoom. Use for any new file, any commit message, or when formatting/organizing code.
+---
+
+# Output Conventions
+
+Full detail: `docs/SYSTEM.md`, Chapter 28 (Output Rules).
+
+## File Naming — kebab-case, matching the export
+
+| Type | Convention | Example |
+|---|---|---|
+| Components | `kebab-case.tsx` | `member-list.tsx`, `room-chat.tsx` |
+| Hooks | `use-kebab-case.ts` | `use-playback-sync.ts` |
+| Utilities | `kebab-case.ts` | `date-utils.ts` |
+| Types | `kebab-case.ts` or `types.ts` | `room-types.ts` |
+| Tests | `kebab-case.test.ts` | `member-list.test.tsx` |
+
+## Import Order
+
+Group in this order, separated by blank lines:
+1. React / Inertia
+2. Third-party libraries
+3. Absolute imports (`@/components`, `@/lib`)
+4. Relative imports (`./`, `../`)
+5. Type-only imports (marked with `type`)
+
+```ts
+import { useState } from 'react';
+import { router } from '@inertiajs/react';
+
+import { useQuery } from '@tanstack/react-query';
+import { z } from 'zod';
+
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+
+import { MemberList } from './member-list';
+import type { Room } from './types';
+```
+
+## Comments Explain "Why," Not "What"
+
+```ts
+// ✅ Good
+// We poll every 1-2s here, not push, because this hosting has no WebSocket
+// server (docs/SYSTEM.md 18.05, Rule 2).
+const { state } = usePlaybackSync(roomId);
+
+// ❌ Bad
+// Increment count
+const increment = () => setCount(c => c + 1);
+// TODO: fix this later
+```
+
+## Commit Messages — Conventional Commits
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+[optional footer]
+```
+
+| Type | Use for |
+|---|---|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `refactor` | Neither a fix nor a feature |
+| `perf` | Performance improvement |
+| `test` | Adding/correcting tests |
+| `docs` | Documentation |
+| `style` | Formatting only, no code change |
+| `chore` | Build process, dependencies |
+
+Examples:
+```
+feat(rooms): add kick-member confirmation dialog
+fix(playback): resolve drift on reconnect after backgrounding tab
+refactor(presence): extract usePresenceHeartbeat from MemberList
+```
+
+## Before Any Code Is Delivered
+
+- Formatted with Prettier (`npm run format`); PHP formatted with Pint (`./vendor/bin/pint`).
+- Zero ESLint errors (`npm run lint`); TypeScript compiles with `strict: true`
+  (`npm run type-check`).
+- File names kebab-case; imports grouped and ordered.
+- No `console.log` (except `console.error` for real errors).
+- No commented-out code; no TODO without a ticket reference.
