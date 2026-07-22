@@ -6,74 +6,35 @@
 </p>
 
 <p align="center" dir="rtl">
-تماشاخونه — هم‌زمان فیلم ببینید
+تماشاروم — با دوستانتان فیلم ببینید، انگار کنار هم هستید
 </p>
 
 ---
 
-**TamashaRoom** is a synchronized watch-party platform for Persian-speaking users. Create a private room, share the invite link, and watch an external video together — play, pause, seek, and position stay in sync for everyone in the room. No video files are stored on the server; only external links are supported.
+**TamashaRoom** is a synchronized watch-party platform for Persian speakers. Friends scattered across cities — or across the world — open the same video together and watch it in real-time sync: when one person pauses, everyone pauses; when one seeks, everyone follows. No counting down to hit play at the same time, no "wait, where are you now?" over the phone.
 
-## How It Works
+The idea is simple: you create a private room, share an invite link, and suddenly you're watching together again, with in-room chat, soft subtitles, and a shared sense of presence. The video plays from an external link — nothing is stored on our servers, just the state that keeps everyone in sync.
 
-1. A user creates a room and provides a video source URL (any external video)
-2. An invite link is generated and shared with friends
-3. Everyone who joins sees playback synchronized — when the host plays, pauses, or seeks, the change propagates to all members within 1–2 seconds
-4. In-room chat, subtitle support, and member presence are included out of the box
+It started as a late-night thought: *why is it so hard to watch a movie with someone who isn't in your living room?* This is the answer, piece by piece.
 
-## Tech Stack
+> 🌐 [tamasharoom.ir](https://tamasharoom.ir) — coming soon
 
-| Layer | Technology |
+---
+
+## Built With
+
+| | |
 |---|---|
-| Backend | Laravel 13, PHP 8.4, MySQL/MariaDB |
-| Frontend | React 19, Inertia.js 2, TypeScript (strict) |
-| Styling | Tailwind CSS 4, RTL-first (Persian) |
-| State | Zustand (UI), Inertia (server data) |
-| Build | Vite 5 |
-| Testing | PHPUnit, Vitest + React Testing Library, Playwright |
+| **Backend** | Laravel 13, PHP 8.4, MySQL / MariaDB |
+| **Frontend** | React 19, Inertia.js 2, TypeScript (strict) |
+| **Styling** | Tailwind CSS 4, RTL-first (Persian) |
+| **Build** | Vite 5 |
+| **Infrastructure** | Shared cPanel hosting — Apache, single-core, no Docker, no Redis, no WebSockets (polling-based sync, WebSocket-ready architecture) |
 
-## Hosting Constraint
+---
 
-TamashaRoom is designed for **shared cPanel hosting** — Apache, PHP 8.4, MySQL, 2 GB RAM, 1 CPU core, 20 GB storage. No Docker, no Redis, no WebSockets, no persistent background workers, no root access.
+## Proprietary Notice
 
-Playback sync (normally a WebSocket feature) works via polling: state changes are written as broadcastable events, and the frontend polls for them every 1–2 seconds. The architecture is transport-agnostic — migrating to Laravel Reverb on a future VPS means changing `BROADCAST_CONNECTION`, not rewriting the feature.
+TamashaRoom is **not open source**. The source code is made publicly viewable on GitHub as a portfolio and reference, but it is not licensed for reuse, forking, modification, or redistribution. All rights are reserved.
 
-## Local Setup
-
-```bash
-# Clone and install
-git clone <repo-url> tamasharoom
-cd tamasharoom
-composer install
-npm install
-
-# Environment
-cp .env.example .env
-php artisan key:generate
-
-# Database (SQLite for local dev)
-touch database/database.sqlite
-php artisan migrate
-
-# Development servers
-php artisan serve      # Laravel at http://localhost:8000
-npm run dev            # Vite HMR
-```
-
-## Quality Commands
-
-```bash
-npm run lint           # ESLint
-npm run type-check     # TypeScript strict check
-npm run format         # Prettier
-./vendor/bin/pint      # Laravel Pint (PHP)
-npm run test           # Vitest (frontend)
-php artisan test       # PHPUnit (backend)
-```
-
-## Deployment
-
-See `docs/DEPLOYMENT.md` for the production cPanel deployment sequence (migrations, storage symlink, cron, queue worker).
-
-## License
-
-MIT
+You may look, learn, and be inspired — but you may not copy, deploy, or distribute this code or any derivative of it without explicit written permission.
