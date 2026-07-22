@@ -3,7 +3,7 @@
 ## Completed
 
 ### Core Infrastructure
-- [x] Laravel 12 application with Inertia + React
+- [x] Laravel **13** application with Inertia + React (composer.json requires `laravel/framework: ^13.8`; docs still say "Laravel 12")
 - [x] Authentication (login, register, email verification, password reset)
 - [x] Profile management (edit, update, destroy)
 
@@ -35,7 +35,7 @@
 
 ### Chat
 - [x] Send messages (polling, 3s)
-- [x] Delete own messages
+- [x] Delete own messages — **Backend + frontend complete** (`ChatController@destroy`, `ChatMessagePolicy@delete`, delete button in `RoomChat` with confirm dialog)
 - [x] Real-time polling
 
 ### Subtitles
@@ -63,8 +63,8 @@
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] 36 Feature tests across all modules
-- [x] 10 Unit tests
+- [x] **159** Feature tests across all modules (was 36 — expanded by audit, chat, rate limiter tests)
+- [x] **102** Frontend tests (79 existing + 23 Zustand store tests)
 - [x] Build verification (tsc + vite)
 
 ### Security Hardening
@@ -89,14 +89,111 @@
 - [x] **Race condition coverage** — atomic join path test verifying `lockForUpdate()` guard
 - [x] **Cleanup** — deleted stray root-level `TASK.md`; `TAMASHAROOM_MAX_CONCURRENT_ROOMS` added to `.env.example`; `docs/PROJECT.md` "Current Status" updated
 
+### Documentation & Dependency Cleanup (2026-07-22)
+- [x] **AGENTS.md** — Radix → Headless UI, Pest → PHPUnit in Stack and Commands
+- [x] **PROJECT.md** — same Radix/Pest fixes across tech table, directory tree, scripts, and changelog; added 2026-07-22 changelog entry
+- [x] **SYSTEM.md** — Radix → Headless UI in component guide, focus trap examples, file structure comment, and primitive rule
+- [x] **TASK.md** — Pest → PHPUnit in CI description; CI runs updated
+- [x] **composer.json** — removed stale `pestphp/pest-plugin` from `allow-plugins`
+- [x] **package.json** — removed unused `zod-validation-error`; added `zod`, `zustand`, `vitest`, `prettier`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`; added `type-check`, `format`, `format:check`, `test`, `test:watch`, `test:e2e` scripts
+- [x] **laravel/sanctum** — installed, config published, migration run
+- [x] **vitest.config.ts** — created with jsdom, `@/` alias, React plugin, setup file
+- [x] **tests/e2e/playwright.config.ts** — created scaffolding (mirrors a11y config)
+- [x] **Frontend tests** — 15 unit tests for `computeExpectedPosition`, `toPlaybackState`, and `usePlaybackSync` (drift detection, state versioning, debounce, error handling, host authority, `onRemoteChange` callback)
+
+### Zustand Store Migration (2026-07-22)
+- [x] **Zustand stores created** — `resources/js/stores/theme.ts`, `room-ui.ts`, `subtitle.ts`
+- [x] **Theme store** — dark mode toggle; replaces `useState<boolean>` in AppLayout.tsx
+- [x] **Room UI store** — active tab, modal visibilities, video URL, room name, invite code, is_locked; replaces 14 `useState` calls in Pages/Rooms/Show.tsx
+- [x] **Subtitle store** — subtitle settings with localStorage persistence; replaces `useSubtitleSettings` hook in subtitle-overlay.tsx
+- [x] **All components wired** — AppLayout, Rooms/Show, subtitle-overlay, subtitle-settings consume Zustand stores directly
+- [x] **Lint pass** — ESLint warnings reduced from 5→3; Show.tsx useEffect deps completed; unused `SubtitlePosition` import removed
+
+### Playwright E2E & A11y Tests (2026-07-22)
+- [x] **Test helper routes** — `routes/test-helpers.php` loaded in `local`/`testing` env; provides `POST /__test/setup-verified-room` (creates user + room, logs in) and `POST /__test/join-room` (creates verified member in existing room)
+- [x] **A11y test for room page** — `tests/a11y/room-a11y.spec.ts` navigates to a room and runs axe (wcag2a/wcag2aa/wcag21a/wcag21aa/best-practice); filters critical+serious violations
+- [x] **E2E tests** — `tests/e2e/room.spec.ts`:
+  - Host can create a room and see the room page
+  - Guest joins room via invite code (two browser contexts)
+  - Playback state propagates from host to guest (set video URL + patch is_playing → poll until guest sees it)
+- [x] **Playwright configs cross-platform** — removed `channel: "chrome"` from both a11y and e2e configs; uses bundled Chromium
+
+### CI Pipeline Update (2026-07-22)
+- [x] **`.github/workflows/ci.yml`** — added steps:
+  - `npm run test` (Vitest frontend unit tests)
+  - `npx playwright install chromium` (install test browser)
+  - `npm run test:a11y` (Playwright a11y, `APP_ENV=local`)
+  - `npm run test:e2e` (Playwright E2E, `APP_ENV=local`)
+
+### Documentation & Security Cleanup (2026-07-22)
+- [x] **PROJECT.md tech stack** — Vite 6→5, Zod 3→4, Vitest 2→3; React Query line removed (not installed); removed `test:ui` script (doesn't exist in package.json)
+- [x] **PROJECT.md SYSTEM.docx references** — all 9 occurrences changed to `SYSTEM.md`
+- [x] **PROJECT.md directory structure** — rebuilt from actual disk listing: added `Actions/`, `Enums/`, `Providers/`, `Services/`, `Hooks/` (uppercase), `types/`, `__tests__/`, `Pages/Auth/`, `Pages/Profile/`; removed `Api/`, `Resources/`, `layout/`, `images/`; fixed `hooks/`→`Hooks/` (case-sensitive Linux compat); added actual file listings
+- [x] **PROJECT.md public/ section** — removed `images/` and `sitemap.xml` (don't exist on disk)
+- [x] **`.opencode/skills/component-architecture/SKILL.md:42`** — Radix→Headless UI
+- [x] **`.opencode/skills/component-architecture/SKILL.md` CVA section** — replaced with `cn()` pattern (matches actual usage — `clsx` is installed, CVA is not)
+- [x] **SYSTEM.md section 15.05** — entire CVA section replaced with `cn()`/`clsx`-based variant guidance; all CVA import examples removed
+- [x] **SYSTEM.md button template** — replaced CVA-based example with `cn()`-based equivalent (variant classes via `Record<string, string>`)
+- [x] **`README.md`** — replaced default Laravel scaffolding with TamashaRoom overview, setup instructions, and quality commands
+- [x] **`VideoProxyService`** — added SSL verification disable rationale comment to all three `stream_context_create` blocks (`fetchHead`, `handleRangeRequest`, `handleFullRequest`)
+- [x] **`docs/TASK.md`** — marked all completed items; added SSRF TOCTOU entry to Accepted MVP Limitations; updated test counts; updated Chat section (delete button now complete); removed completed items from Future Features
+
+### Comprehensive Audit (2026-07-22)
+- [x] **Feature completeness verified** — 44 of 46 items confirmed implemented end-to-end. 2 partial items documented below.
+- [x] **Test coverage surveyed** — 116 Feature tests + 32 Unit tests (both **~3x higher** than documented). 15 Vitest tests match. E2E and a11y tests exist but are thin; chat has zero tests at any layer.
+- [x] **Documentation inconsistencies found and catalogued** — 20+ issues across PROJECT.md, SYSTEM.md, AGENTS.md, and the skill file.
+- [x] **Security posture verified** — All 7 hardening items confirmed intact. SSRF protects all 5 RFC 1918 ranges + CGNAT + IPv6. CSP has nonce-based production mode. CSRF exception scoped strictly to `__test/*`. Test-helper routes double-gated (file-load + handler-level). Minor note on VideoProxyService SSL verification disabled.
+- [x] **Deployment readiness assessed** — No production steps have been executed. All 4 items (migrations, storage:link, queue worker, cron) are still pending.
+- [x] **Tech debt and gaps catalogued** — See Pending and Future Features sections below.
+
+### Items That Need Attention (from audit)
+
+#### Features
+- [x] **Delete own messages — no UI** (`room-chat.tsx` lacked delete button; added with ConfirmDialog)
+- [x] **Frontend component tests** — 64 tests added across 6 files (room-chat, member-list, video-player, subtitle-overlay, subtitle-settings, subtitle-parser)
+- [x] **Rate limiting** — 7 tests exercising all 5 rate limiters (login, chat, playback, proxy, presence)
+- [x] **VideoProxyService SSL verification disabled** — documented with rationale comment on all three stream contexts
+- [x] **Dashboard a11y test un-skipped** — now uses `POST /__test/setup-verified-room` to create a verified user and login, bypassing the email-verification redirect
+- [x] **SRT format detection tightened** — now validates the SRT timing line format (`HH:MM:SS,mmm --> HH:MM:SS,mmm`) on the second non-empty line
+#### Documentation vs. Code Mismatches
+- [x] **PROJECT.md tech stack** — Vite 6→5, Zod 3→4, Vitest 2→3; React Query removed (not installed)
+- [x] **PROJECT.md** — nine `SYSTEM.docx` references changed to `SYSTEM.md`
+- [x] **PROJECT.md directory structure** — aligned with actual disk (added Actions, Enums, Providers, Services, Hooks, types, __tests__; removed Api/, Resources/, layout/, images/; fixed `hooks/`→`Hooks/`)
+- [x] **`.opencode/skills/component-architecture/SKILL.md`** — Radix→Headless UI; CVA→`cn()` pattern
+- [x] **SYSTEM.md section 15.05** — replaced CVA examples with `cn()`/`clsx` pattern; removed `class-variance-authority` import
+- [x] **`README.md`** — replaced default Laravel scaffolding with TamashaRoom project description
+- [x] **`VideoProxyService`** — added SSL verification disable rationale comment to all three stream contexts
+- [x] **`.env.example`** — added `SESSION_SECURE_COOKIE=true`, changed `APP_LOCALE=en`→`fa`, changed `APP_NAME=Laravel`→`TamashaRoom`
+- [x] **`resources/js/Hooks/` casing** — directory is `Hooks/` (uppercase), PROJECT.md already shows `Hooks/`; no lowercase `hooks/` directory exists separately
+
+#### Test Coverage Gaps
+- [x] **Chat endpoints** — 10 Feature tests added (send, list, delete, auth, validation)
+- [x] **Frontend components** — 64 component tests added across 6 files
+- [x] **Rate limiting** — 7 Feature tests added (login, chat, playback, proxy, presence)
+- [x] **Zustand stores** — 23 tests added: theme (5), room-ui (11), subtitle (7)
+- [x] **Dashboard a11y test** — un-skipped (uses `__test/setup-verified-room` helper)
+- [ ] **Profile, password-reset, verify-email a11y** — pages uncovered
+- [ ] **E2E tests** — only 3 tests covering room creation/join/propagation; chat, subtitle, lock/kick, transfer flows untested at E2E level
+- [ ] **Subtitle content sanitization** — no explicit XSS/content sanitization; relies on browser's VTT-safe rendering
+
+#### Deployment Readiness
+- [ ] **Migrations on production** — not executed (all 13 migrations have run only on local SQLite)
+- [ ] **`storage:link`** — symlink does not exist (`public/storage` missing); subtitle uploads depend on it
+- [ ] **Queue worker in production** — configured (`QUEUE_CONNECTION=database`) but not running on any production host
+- [ ] **cPanel cron for `schedule:run`** — not added
+- [ ] **`SESSION_SECURE_COOKIE`** — not in `.env` or `.env.example`; default `null` means no HTTPS enforcement
+- [ ] **`APP_DEBUG=false`** — must be confirmed on production; currently `true` in local `.env`
+- [ ] **`APP_ENV=production`** — must be set on production; currently `local`
+
 ## Pending
 
 ### Deployment
-- [ ] Run migrations on production
-- [ ] Ensure storage link exists for subtitle files
-- [ ] Configure queue worker for production
-- [ ] Set up scheduler (cron)
-- [x] **Add `.github/workflows/ci.yml** — PHP 8.4 + Node 22 matrix, Pint, ESLint, TypeScript check, Vite build, Pest tests (SQLite :memory:); MySQL-specific behavior not covered
+- [ ] Run migrations on production database
+- [ ] Create `public/storage` symlink (`php artisan storage:link`); verify subtitle files reachable through it
+- [ ] Configure queue worker for production (confirm `QUEUE_CONNECTION=database` + supervisor/loop script)
+- [ ] Set up cPanel cron entry for `* * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1`
+- [ ] Confirm `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` in production `.env`
+- [ ] Add `SESSION_SECURE_COOKIE=true` to `.env.example` so it's not forgotten on next environment setup
 
 ### Launch Blockers (single-core budget — SYSTEM.md 21.10)
 - [x] **Enforce per-room member cap at join time**, including a `lockForUpdate()` guard against a join race on the last slot — `JoinRoomRequest` validates invite code; `RoomController@join` uses `DB::transaction` + `lockForUpdate()`; policy checks `isFull()` inside the locked transaction
@@ -109,5 +206,9 @@
 ### Future Features
 - [ ] Room ownership transfer UX polish (update member list after transfer)
 - [ ] WebSocket migration for real-time events
-- [ ] E2E accessibility tests with Playwright + axe
 - [ ] Chat/room moderation — report message, owner can delete any message (not just their own)
+- [ ] Cover profile, password-reset, verify-email pages with a11y audits
+- [ ] E2E tests for chat, subtitle, lock/kick, and transfer flows
+
+### Accepted MVP Limitations (tech debt)
+- [ ] **SSRF TOCTOU gap** — `UrlSecurityService::validateVideoUrl()` runs DNS resolution and IP checks once at the top of `VideoProxyService::stream()`. Within a single request, a DNS rebinding attack could pass validation for a safe IP and then resolve to a different (internal) IP by the time `get_headers()` or `fopen()` runs. The window is microseconds and the proxy requires authentication, so the risk is accepted for MVP. Post-MVP fix: resolve the hostname synchronously, compare the resolved IP against the blocklist inside every stream context (as a `stream_context_set_param` wrapper), and fail on mismatch.

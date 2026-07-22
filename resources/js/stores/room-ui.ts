@@ -1,0 +1,45 @@
+import { create } from 'zustand';
+
+interface RoomUiState {
+    activeTab: 'chat' | 'members';
+    showSetVideo: boolean;
+    videoUrl: string;
+    showSubSettings: boolean;
+    showSubManager: boolean;
+    showRoomSettings: boolean;
+    roomName: string;
+    roomInviteCode: string;
+    roomIsLocked: boolean;
+
+    setActiveTab: (tab: 'chat' | 'members') => void;
+    setShowSetVideo: (v: boolean) => void;
+    setVideoUrl: (v: string) => void;
+    setShowSubSettings: (v: boolean) => void;
+    setShowSubManager: (v: boolean) => void;
+    setShowRoomSettings: (v: boolean) => void;
+    setRoomName: (v: string) => void;
+    setRoomInviteCode: (v: string) => void;
+    setRoomIsLocked: (v: boolean) => void;
+}
+
+export const useRoomUiStore = create<RoomUiState>((set) => ({
+    activeTab: 'chat',
+    showSetVideo: false,
+    videoUrl: '',
+    showSubSettings: false,
+    showSubManager: false,
+    showRoomSettings: false,
+    roomName: '',
+    roomInviteCode: '',
+    roomIsLocked: false,
+
+    setActiveTab: (activeTab) => set({ activeTab }),
+    setShowSetVideo: (showSetVideo) => set({ showSetVideo }),
+    setVideoUrl: (videoUrl) => set({ videoUrl }),
+    setShowSubSettings: (showSubSettings) => set({ showSubSettings }),
+    setShowSubManager: (showSubManager) => set({ showSubManager }),
+    setShowRoomSettings: (showRoomSettings) => set({ showRoomSettings }),
+    setRoomName: (roomName) => set({ roomName }),
+    setRoomInviteCode: (roomInviteCode) => set({ roomInviteCode }),
+    setRoomIsLocked: (roomIsLocked) => set({ roomIsLocked }),
+}));

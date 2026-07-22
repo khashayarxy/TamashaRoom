@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeadersMiddleware
@@ -14,21 +15,15 @@ class SecurityHeadersMiddleware
     {
         $response = $next($request);
 
-        if (! $response->isSuccessful() && ! $response->isRedirection() && $response->getStatusCode() !== 401 && $response->getStatusCode() !== 403) {
-            return $response;
-        }
-
         $response->headers->set('X-Frame-Options', 'DENY', true);
         $response->headers->set('X-Content-Type-Options', 'nosniff', true);
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin', true);
 
         $permissions = implode(', ', [
             'accelerometer=()',
-            'ambient-light-sensor=()',
             'autoplay=()',
             'camera=()',
             'display-capture=()',
-            'document-domain=()',
             'encrypted-media=()',
             'fullscreen=(self)',
             'geolocation=()',
@@ -47,8 +42,40 @@ class SecurityHeadersMiddleware
         ]);
         $response->headers->set('Permissions-Policy', $permissions, true);
 
-        $nonce = base64_encode(random_bytes(16));
-        $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; media-src 'self' https:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
+        if (app()->environment('local')) {
+            $viteDevOrigin = 'http://127.0.0.1:5173';
+            $viteDevWs = 'ws://127.0.0.1:5173';
+
+            $csp = "default-src 'self'; "
+                ."script-src 'self' 'unsafe-inline' {$viteDevOrigin}; "
+                ."style-src 'self' 'unsafe-inline' {$viteDevOrigin}; "
+                ."img-src 'self' data: blob: https:; "
+                ."font-src 'self' data:; "
+                ."connect-src 'self' https: {$viteDevOrigin} {$viteDevWs}; "
+                ."media-src 'self' https:; "
+                ."frame-src 'none'; "
+                ."object-src 'none'; "
+                ."base-uri 'self'; "
+                ."form-action 'self'";
+        } else {
+            $nonce = base64_encode(random_bytes(16));
+
+            view()->share('cspNonce', $nonce);
+            Vite::useCspNonce($nonce);
+
+            $csp = "default-src 'self'; "
+                ."script-src 'self' 'nonce-{$nonce}'; "
+                ."style-src 'self' 'unsafe-inline'; "
+                ."img-src 'self' data: blob: https:; "
+                ."font-src 'self' data:; "
+                ."connect-src 'self' https:; "
+                ."media-src 'self' https:; "
+                ."frame-src 'none'; "
+                ."object-src 'none'; "
+                ."base-uri 'self'; "
+                ."form-action 'self'";
+        }
+
         $response->headers->set('Content-Security-Policy', $csp, true);
 
         if (app()->environment('production')) {

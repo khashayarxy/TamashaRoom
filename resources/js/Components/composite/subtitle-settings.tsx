@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
-import { useSubtitleSettings } from '@/Components/composite/subtitle-overlay';
+import { useSubtitleStore } from '@/stores/subtitle';
 import { Subtitles } from 'lucide-react';
 import { useRef } from 'react';
 import type { SubtitlePosition } from '@/lib/types/subtitle';
@@ -23,7 +23,8 @@ const POSITIONS: { label: string; value: SubtitlePosition }[] = [
 ];
 
 export function SubtitleSettingsDialog({ open, onClose }: SubtitleSettingsProps) {
-    const { settings, update } = useSubtitleSettings();
+    const settings = useSubtitleStore((s) => s.settings);
+    const update = useSubtitleStore((s) => s.update);
     const dialogRef = useRef<HTMLDialogElement>(null);
 
     return (

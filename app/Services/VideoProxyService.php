@@ -75,6 +75,12 @@ class VideoProxyService
                 'header' => "User-Agent: TamashaRoom/1.0\r\n",
             ],
             'ssl' => [
+                // SSL verification disabled for external video source compatibility
+                // (self-signed, expired, or misconfigured certs on third-party hosts).
+                // This is an accepted MVP trade-off: the proxy does not handle sensitive
+                // data, and the risk is limited to the proxied video URL (already validated
+                // by UrlSecurityService for SSRF). Re-enable with a proper CA bundle
+                // if the proxy is ever used for authenticated/internal streams.
                 'verify_peer' => false,
                 'verify_peer_name' => false,
             ],
@@ -176,6 +182,7 @@ class VideoProxyService
                 ],
             ],
             'ssl' => [
+                // SSL verification disabled — see fetchHead() for rationale (same trade-off).
                 'verify_peer' => false,
                 'verify_peer_name' => false,
             ],
@@ -218,6 +225,7 @@ class VideoProxyService
                 'header' => "User-Agent: TamashaRoom/1.0\r\n",
             ],
             'ssl' => [
+                // SSL verification disabled — see fetchHead() for rationale (same trade-off).
                 'verify_peer' => false,
                 'verify_peer_name' => false,
             ],

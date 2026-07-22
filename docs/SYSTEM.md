@@ -777,46 +777,44 @@ For every implementation decision, run this checklist:
 
 **Decision**: How to implement a modal dialog.
 
-**Pattern Check**: The project uses Radix UI primitives for accessibility.
+**Pattern Check**: The project uses Headless UI (@headlessui/react) for interactive primitives (Dialog, Transition) and native `<dialog>` elements for simple modals.
 
 **Simplest Implementation**:
 
   
-import \* as Dialog from '@radix-ui/react-dialog';  
-<br/>export function ConfirmModal({ open, onOpenChange, onConfirm, title, description }) {  
+import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from '@headlessui/react';  
+<br/>export function ConfirmModal({ open, onClose, onConfirm, title, description }) {  
 return (  
-&lt;Dialog.Root open={open} onOpenChange={onOpenChange}&gt;  
-&lt;Dialog.Portal&gt;  
-&lt;Dialog.Overlay className="fixed inset-0 bg-black/50" /&gt;  
-&lt;Dialog.Content className="fixed center-absolute bg-white rounded-lg p-6"&gt;  
-&lt;Dialog.Title&gt;{title}&lt;/Dialog.Title&gt;  
-&lt;Dialog.Description&gt;{description}&lt;/Dialog.Description&gt;  
-&lt;div className="flex gap-2 mt-4"&gt;  
-&lt;Dialog.Close asChild&gt;  
-&lt;Button variant="secondary"&gt;Cancel&lt;/Button&gt;  
-&lt;/Dialog.Close&gt;  
+&lt;Dialog open={open} onClose={onClose} className="relative z-50"&gt;  
+&lt;DialogBackdrop className="fixed inset-0 bg-black/50" /&gt;  
+&lt;div className="fixed inset-0 flex items-center justify-center p-4"&gt;  
+&lt;DialogPanel className="w-full max-w-md rounded-xl bg-white p-6"&gt;  
+&lt;DialogTitle&gt;{title}&lt;/DialogTitle&gt;  
+&lt;p className="mt-2 text-sm text-gray-600"&gt;{description}&lt;/p&gt;  
+&lt;div className="mt-4 flex gap-2"&gt;  
+&lt;Button variant="secondary" onClick={onClose}&gt;Cancel&lt;/Button&gt;  
 &lt;Button variant="destructive" onClick={onConfirm}&gt;Confirm&lt;/Button&gt;  
 &lt;/div&gt;  
-&lt;/Dialog.Content&gt;  
-&lt;/Dialog.Portal&gt;  
-&lt;/Dialog.Root&gt;  
+&lt;/DialogPanel&gt;  
+&lt;/div&gt;  
+&lt;/Dialog&gt;  
 );  
 }  
 
 **Why this is correct**:
 
-- Uses existing pattern (Radix primitives).
+- Uses existing pattern (Headless UI primitives).
 - Simple: no custom portal logic, no custom focus trapping.
-- Readable: declarative, follows Radix conventions.
+- Readable: declarative, follows Headless UI conventions.
 - Testable: props are explicit, behavior is predictable.
 - Performant: no unnecessary state, no effect hooks.
-- Accessible: Radix handles focus trapping, aria attributes, escape key.
+- Accessible: Headless UI handles focus trapping, aria attributes, escape key.
 - Consistent: uses project's Button component.
 
 **What NOT to do**:
 
 - Build a custom modal from scratch with createPortal, useEffect for focus trapping, and manual aria attributes.
-- Use a third-party modal library when Radix is already in the project.
+- Use a third-party modal library when Headless UI is already in the project.
 - Add 20 props "just in case" (animation direction, custom overlay color, etc.).
 
 ### Common Mistakes
@@ -5187,7 +5185,7 @@ return (
 **Examples**: Button, Input, Select, Dialog, DropdownMenu, Tabs, Accordion  
 **Rules**:
 
-- Built on top of primitives or Radix UI.
+- Built on top of Headless UI (@headlessui/react), custom Tailwind components, or native HTML elements.
 - Accessible by default.
 - Themed through design tokens.
 - Documented with usage examples.
@@ -5333,7 +5331,7 @@ File structure is the physical manifestation of architecture. A developer should
 
   
 components/  
-├── ui/ # UI components (shadcn/ui style)  
+├── ui/ # UI components (custom, Tailwind-styled)  
 │ ├── button.tsx  
 │ ├── input.tsx  
 │ ├── dialog.tsx  
@@ -5375,18 +5373,14 @@ components/
 
 ### File Template
 
-  
+   
 // components/ui/button.tsx  
 import \* as React from 'react';  
-import { cva, type VariantProps } from 'class-variance-authority';  
 import { cn } from '@/lib/utils';  
 <br/>// ───────────────────────────────────────────  
-// 1. Variants definition  
+// 1. Variant classes  
 // ───────────────────────────────────────────  
-const buttonVariants = cva(  
-'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',  
-{  
-variants: {  
+const variantClasses: Record&lt;string, Record&lt;string, string&gt;&gt; = {  
 variant: {  
 primary: 'bg-primary text-white hover:bg-primary-dark',  
 secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',  
@@ -5398,29 +5392,29 @@ sm: 'h-8 px-3',
 md: 'h-10 px-4',  
 lg: 'h-12 px-6',  
 },  
-},  
-defaultVariants: {  
-variant: 'primary',  
-size: 'md',  
-},  
-}  
-);  
+};  
 <br/>// ───────────────────────────────────────────  
 // 2. Props interface  
 // ───────────────────────────────────────────  
 export interface ButtonProps  
-extends React.ButtonHTMLAttributes&lt;HTMLButtonElement&gt;,  
-VariantProps&lt;typeof buttonVariants&gt; {  
+extends React.ButtonHTMLAttributes&lt;HTMLButtonElement&gt; {  
+variant?: keyof (typeof variantClasses)['variant'];  
+size?: keyof (typeof variantClasses)['size'];  
 loading?: boolean;  
 }  
 <br/>// ───────────────────────────────────────────  
 // 3. Component implementation  
 // ───────────────────────────────────────────  
 const Button = React.forwardRef&lt;HTMLButtonElement, ButtonProps&gt;(  
-({ className, variant, size, loading, children, ...props }, ref) => {  
+({ className, variant = 'primary', size = 'md', loading, children, ...props }, ref) => {  
 return (  
 <button  
-className={cn(buttonVariants({ variant, size }), className)}  
+className={cn(  
+'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',  
+variantClasses.variant[variant],  
+variantClasses.size[size],  
+className,  
+)}  
 ref={ref}  
 disabled={props.disabled || loading}  
 {...props}  
@@ -5432,7 +5426,7 @@ disabled={props.disabled || loading}
 }  
 );  
 Button.displayName = 'Button';  
-<br/>export { Button, buttonVariants };  
+<br/>export { Button };
 
 ### The File Section Rule
 
@@ -5547,93 +5541,74 @@ Submit
 - Is there a prop that could be replaced with composition?
 - Would adding a new use case require a new prop?
 
-## 15.05 Component Variants with class-variance-authority
+## 15.05 Component Variants with `cn()`
 
 ### Rule
 
-Use class-variance-authority (CVA) for component variants. Do not manually concatenate classes.
+Use the `cn()` utility (wraps `clsx`) for conditional Tailwind classes. Do not manually concatenate classes.
 
-### Why CVA Matters
+### Why `cn()` Works
 
-Variants are the primary mechanism for component customization. Without a system, variant logic becomes a mess of ternary operators and string concatenation. CVA provides type-safe, composable, maintainable variants. (See Chapter 20.07, Component Extraction.)
+Variants are the primary mechanism for component customization. Without a system, variant logic becomes a mess of ternary operators and string concatenation. `cn()` (backed by `clsx`) provides clean, composable conditional classes. (See Chapter 20.07, Component Extraction.)
 
-### Why CVA
+### Benefits
 
-- **Type-safe**: Variants are typed. No typos in class names.
-- **Composable**: Compound variants handle complex combinations.
+- **Simple**: No extra library beyond the already-installed `clsx`.
+- **Type-safe**: Variant config objects can be typed with `Record` or `as const`.
 - **Maintainable**: All styles in one place. No scattered class names.
-- **Documented**: The variant object serves as documentation.
+- **Flexible**: Compound or combination logic uses standard Boolean expressions.
 
-### Example: Input with CVA
+### Example: Input with `cn()`
 
-  
-import { cva, type VariantProps } from 'class-variance-authority';  
-<br/>const inputVariants = cva(  
-'flex w-full rounded-md border bg-transparent px-3 py-2 text-sm transition-colors',  
-{  
-variants: {  
+   
+// types/variants.ts — shared variant definitions  
+export const inputVariantClasses = {  
 variant: {  
 default: 'border-gray-300 focus:border-primary focus:ring-1 focus:ring-primary',  
 error: 'border-error focus:border-error focus:ring-1 focus:ring-error',  
 disabled: 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed',  
-},  
+} as const,  
 size: {  
 sm: 'h-8',  
 md: 'h-10',  
 lg: 'h-12',  
-},  
-},  
-defaultVariants: {  
-variant: 'default',  
-size: 'md',  
-},  
-}  
+} as const,  
+};  
+<br/>// components/ui/input.tsx  
+import { cn } from '@/lib/utils';  
+<br/>const Input = ({ variant = 'default', size = 'md', className, ...props }) => {  
+return (  
+<input  
+className={cn(  
+'flex w-full rounded-md border bg-transparent px-3 py-2 text-sm transition-colors',  
+inputVariantClasses.variant[variant],  
+inputVariantClasses.size[size],  
+className,  
+)}  
+{...props}  
+/>  
 );  
-<br/>// Usage  
-&lt;input className={cn(inputVariants({ variant: 'error', size: 'sm' }))} /&gt;  
+};
 
-### The CVA Rules
+### The Variant Rules
 
-1\. **One CVA per component**: Do not split variants across files.
+1\. **Variant names are semantic**: `variant: 'error'` not `variant: 'red'`.
 
-2\. **Variant names are semantic**: variant: 'error' not variant: 'red'.
+2\. **Default variants are explicit**: Always provide defaults in destructuring.
 
-3\. **Default variants are explicit**: Always define defaultVariants.
-
-4\. **Compound variants for complex states**: Use compoundVariants for combinations.
-
-  
-// Compound variants for complex states  
-const buttonVariants = cva(  
-'inline-flex items-center justify-center rounded-md',  
-{  
-variants: {  
-variant: { primary: 'bg-primary', secondary: 'bg-gray-100' },  
-size: { sm: 'h-8', md: 'h-10', lg: 'h-12' },  
-},  
-compoundVariants: \[  
-// Large primary buttons get extra padding  
-{ variant: 'primary', size: 'lg', className: 'px-8' },  
-// Small secondary buttons get reduced opacity  
-{ variant: 'secondary', size: 'sm', className: 'opacity-80' },  
-\],  
-defaultVariants: { variant: 'primary', size: 'md' },  
-}  
-);  
+3\. **Use Boolean expressions for combined states**: `isDisabled && 'opacity-50'` instead of compound variant configs.
 
 ### Common Mistakes
 
-- Manually concatenating Tailwind classes with template literals.
-- Using className prop to override variants instead of adding new variants.
-- Not typing variant props (losing autocomplete and type safety).
-- Creating variants that are just color changes (use design tokens instead).
+- Manually concatenating Tailwind classes with template literals (`\`...\``).
+- Using `className` prop to override visual styles instead of adding new variants.
+- Not typing variant config objects (losing autocomplete).
 
 ### Self Review Questions
 
-- Are all variants defined in a single CVA object?
 - Are variant names semantic (not visual)?
-- Are default variants explicitly defined?
-- Are compound variants used for complex combinations?
+- Are default variants assigned via destructuring defaults?
+- Are Boolean expressions used for conditional classes instead of ternary chains?
 
 ## 15.06 Component Documentation
 
@@ -8529,28 +8504,25 @@ Submit
 
 ### Focus Traps
 
-Modals and drawers must trap focus while open. Use Radix UI or similar primitives that handle this automatically.
+Modals and drawers must trap focus while open. Use Headless UI or native `<dialog>` elements that handle this automatically.
 
   
-// ✅ Correct: Radix Dialog handles focus trap  
-import \* as Dialog from '@radix-ui/react-dialog';  
-<br/>&lt;Dialog.Root&gt;  
-&lt;Dialog.Trigger&gt;Open&lt;/Dialog.Trigger&gt;  
-&lt;Dialog.Portal&gt;  
-&lt;Dialog.Overlay /&gt;  
-&lt;Dialog.Content&gt;  
+// ✅ Correct: Headless UI Dialog handles focus trap  
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';  
+<br/>&lt;Dialog open={isOpen} onClose={setIsOpen}&gt;  
+&lt;DialogPanel&gt;  
 {/\* Focus is trapped here \*/}  
-&lt;Dialog.Close&gt;Close&lt;/Dialog.Close&gt;  
-&lt;/Dialog.Content&gt;  
-&lt;/Dialog.Portal&gt;  
-&lt;/Dialog.Root&gt;  
+&lt;DialogTitle&gt;Confirm&lt;/DialogTitle&gt;  
+&lt;button onClick={() => setIsOpen(false)}&gt;Close&lt;/button&gt;  
+&lt;/DialogPanel&gt;  
+&lt;/Dialog&gt;  
 
 ### Focus Restoration
 
 When a modal closes, focus must return to the element that opened it.
 
   
-// Radix UI handles this automatically  
+// Headless UI Dialog and native &lt;dialog&gt; handle this automatically  
 // If building custom: save ref to trigger, restore on close  
 
 ## 22.05 Screen Reader Support

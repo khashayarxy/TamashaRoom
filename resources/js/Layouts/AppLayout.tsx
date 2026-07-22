@@ -1,7 +1,8 @@
 import { Button } from '@/Components/ui/button';
 import { Link, usePage } from '@inertiajs/react';
 import { Home, LogOut, Moon, Plus, Sun, Tv, User } from 'lucide-react';
-import { PropsWithChildren, useState } from 'react';
+import { PropsWithChildren } from 'react';
+import { useThemeStore } from '@/stores/theme';
 
 interface UserData {
     id: number;
@@ -12,19 +13,8 @@ interface UserData {
 export default function AppLayout({ children }: PropsWithChildren) {
     const { auth } = usePage<{ auth: { user: UserData } }>().props;
     const user = auth.user;
-    const [dark, setDark] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return document.documentElement.classList.contains('dark');
-        }
-        return false;
-    });
-
-    const toggleDark = () => {
-        const next = !dark;
-        setDark(next);
-        document.documentElement.classList.toggle('dark', next);
-        localStorage.setItem('theme', next ? 'dark' : 'light');
-    };
+    const dark = useThemeStore((s) => s.dark);
+    const toggleDark = useThemeStore((s) => s.toggle);
 
     const navItems = [
         { href: route('dashboard'), label: 'داشبورد', icon: Home },

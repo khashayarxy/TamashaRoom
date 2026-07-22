@@ -18,8 +18,8 @@ are supported. MVP language is Persian (RTL) only.
 ## Stack
 
 Laravel 12 (PHP 8.4) + Inertia.js 2 + React 19 + TypeScript (strict) + Vite 6 +
-MySQL/MariaDB + Tailwind CSS 4 + Radix (shadcn-style) + Zustand (UI state only)
-+ React Query (client-only refetch) + Pest (backend tests) + Vitest/RTL/Playwright
+MySQL/MariaDB + Tailwind CSS 4 + Headless UI (@headlessui/react) + Zustand (UI state only)
++ React Query (client-only refetch) + PHPUnit (backend tests) + Vitest/RTL/Playwright
 (frontend tests).
 
 ## The One Constraint That Shapes Everything
@@ -71,7 +71,7 @@ npm run format               # Prettier
 npm run test                 # Frontend unit tests (Vitest)
 npm run test:e2e             # E2E (Playwright)
 npm run test:a11y            # Accessibility audit (@axe-core/playwright)
-php artisan test              # Backend feature/unit tests (Pest)
+php artisan test              # Backend feature/unit tests (PHPUnit)
 
 # Database
 php artisan migrate

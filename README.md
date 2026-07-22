@@ -1,58 +1,79 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://via.placeholder.com/400x100/1e293b/ffffff?text=TamashaRoom">
+    <img alt="TamashaRoom" src="https://via.placeholder.com/400x100/ffffff/1e293b?text=TamashaRoom" width="400">
+  </picture>
 </p>
 
-## About Laravel
+<p align="center" dir="rtl">
+تماشاخونه — هم‌زمان فیلم ببینید
+</p>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**TamashaRoom** is a synchronized watch-party platform for Persian-speaking users. Create a private room, share the invite link, and watch an external video together — play, pause, seek, and position stay in sync for everyone in the room. No video files are stored on the server; only external links are supported.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## How It Works
 
-## Learning Laravel
+1. A user creates a room and provides a video source URL (any external video)
+2. An invite link is generated and shared with friends
+3. Everyone who joins sees playback synchronized — when the host plays, pauses, or seeks, the change propagates to all members within 1–2 seconds
+4. In-room chat, subtitle support, and member presence are included out of the box
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Tech Stack
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Layer | Technology |
+|---|---|
+| Backend | Laravel 13, PHP 8.4, MySQL/MariaDB |
+| Frontend | React 19, Inertia.js 2, TypeScript (strict) |
+| Styling | Tailwind CSS 4, RTL-first (Persian) |
+| State | Zustand (UI), Inertia (server data) |
+| Build | Vite 5 |
+| Testing | PHPUnit, Vitest + React Testing Library, Playwright |
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Hosting Constraint
 
-## Agentic Development
+TamashaRoom is designed for **shared cPanel hosting** — Apache, PHP 8.4, MySQL, 2 GB RAM, 1 CPU core, 20 GB storage. No Docker, no Redis, no WebSockets, no persistent background workers, no root access.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Playback sync (normally a WebSocket feature) works via polling: state changes are written as broadcastable events, and the frontend polls for them every 1–2 seconds. The architecture is transport-agnostic — migrating to Laravel Reverb on a future VPS means changing `BROADCAST_CONNECTION`, not rewriting the feature.
+
+## Local Setup
 
 ```bash
-composer require laravel/boost --dev
+# Clone and install
+git clone <repo-url> tamasharoom
+cd tamasharoom
+composer install
+npm install
 
-php artisan boost:install
+# Environment
+cp .env.example .env
+php artisan key:generate
+
+# Database (SQLite for local dev)
+touch database/database.sqlite
+php artisan migrate
+
+# Development servers
+php artisan serve      # Laravel at http://localhost:8000
+npm run dev            # Vite HMR
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Quality Commands
 
-## Contributing
+```bash
+npm run lint           # ESLint
+npm run type-check     # TypeScript strict check
+npm run format         # Prettier
+./vendor/bin/pint      # Laravel Pint (PHP)
+npm run test           # Vitest (frontend)
+php artisan test       # PHPUnit (backend)
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Deployment
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+See `docs/DEPLOYMENT.md` for the production cPanel deployment sequence (migrations, storage symlink, cron, queue worker).
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT

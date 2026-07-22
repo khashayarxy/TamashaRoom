@@ -48,7 +48,7 @@ class ChatController extends Controller
         return response()->json($message, 201);
     }
 
-    public function destroy(Request $request, ChatMessage $message): JsonResponse
+    public function destroy(Request $request, Room $room, ChatMessage $message): JsonResponse
     {
         $this->authorize('delete', $message);
 

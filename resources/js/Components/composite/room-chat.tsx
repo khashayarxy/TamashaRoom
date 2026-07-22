@@ -1,8 +1,9 @@
 import api from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { usePage } from '@inertiajs/react';
-import { Send, User } from 'lucide-react';
+import { Send, Trash2, User } from 'lucide-react';
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import { ConfirmDialog } from '@/Components/composite/confirm-dialog';
 
 interface Message {
     id: number;
@@ -23,6 +24,8 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomC
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [body, setBody] = useState('');
     const [sending, setSending] = useState(false);
+    const [deleting, setDeleting] = useState<number | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
     const listRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -66,6 +69,21 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomC
         }
     };
 
+    const deleteMessage = async (messageId: number) => {
+        setDeleting(messageId);
+        try {
+            await api.delete(`/chat/${roomId}/messages/${messageId}`);
+            setMessages((prev) => prev.filter((m) => m.id !== messageId));
+        } catch {
+            // silently fail — the polling will correct the list
+        } finally {
+            setDeleting(null);
+            setConfirmDelete(null);
+        }
+    };
+
+    const isOwn = (userId: number) => userId === auth.user.id;
+
     return (
         <div className="flex flex-col h-full">
             <div
@@ -75,14 +93,14 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomC
                 {messages.map((msg) => (
                     <div
                         key={msg.id}
-                        className={`flex gap-2 ${msg.user_id === auth.user.id ? 'flex-row-reverse' : ''}`}
+                        className={`flex gap-2 group ${isOwn(msg.user_id) ? 'flex-row-reverse' : ''}`}
                     >
                         <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                             <User className="h-4 w-4 text-primary" />
                         </div>
                         <div
-                            className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                                msg.user_id === auth.user.id
+                            className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm relative ${
+                                isOwn(msg.user_id)
                                     ? 'bg-primary text-primary-foreground'
                                     : 'bg-secondary text-secondary-foreground'
                             }`}
@@ -92,6 +110,16 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomC
                             <div className="text-[10px] opacity-60 mt-1">
                                 {timeAgo(msg.created_at)}
                             </div>
+                            {isOwn(msg.user_id) && (
+                                <button
+                                    onClick={() => setConfirmDelete(msg.id)}
+                                    disabled={deleting === msg.id}
+                                    className="absolute -top-1.5 -end-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                    aria-label="حذف پیام"
+                                >
+                                    <Trash2 className="h-3 w-3" />
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -115,6 +143,17 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomC
                     <Send className="h-4 w-4" />
                 </button>
             </form>
+
+            <ConfirmDialog
+                open={confirmDelete !== null}
+                onClose={() => setConfirmDelete(null)}
+                onConfirm={() => confirmDelete !== null && deleteMessage(confirmDelete)}
+                title="حذف پیام"
+                description="آیا از حذف این پیام اطمینان دارید؟ این عمل قابل بازگشت نیست."
+                confirmLabel="حذف شود"
+                confirmVariant="destructive"
+                loading={deleting !== null}
+            />
         </div>
     );
 }

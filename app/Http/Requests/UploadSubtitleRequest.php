@@ -81,7 +81,20 @@ class UploadSubtitleRequest extends FormRequest
             return 'vtt';
         }
 
-        if (preg_match('/^\d+$/', $trimmed)) {
+        if (! preg_match('/^\d+$/', $trimmed)) {
+            return null;
+        }
+
+        $secondLine = strtok("\r\n");
+        while ($secondLine !== false && trim($secondLine) === '') {
+            $secondLine = strtok("\r\n");
+        }
+
+        if ($secondLine === false) {
+            return null;
+        }
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}[.,]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[.,]\d{3}$/', trim($secondLine))) {
             return 'srt';
         }
 

@@ -39,7 +39,7 @@ Every component belongs to exactly one. This determines its directory.
 
 Rules per category:
 - **Primitives**: style-only, never import UI components or composites.
-- **UI components**: built on primitives or Radix, accessible by default, no
+- **UI components**: built on primitives or Headless UI, accessible by default, no
   business logic, themed through design tokens.
 - **Composites**: compose UI components rather than recreating them, may
   hold local state, co-located with the feature they serve.
@@ -61,22 +61,22 @@ ticket to fix it properly. If a component needs a visual variant, add a
 variant to its CVA config (see below) — don't let a consumer override it
 from outside.
 
-## Variants: class-variance-authority (CVA)
+## Variants with `cn()`
 
-One `cva()` call per component. Variant names are semantic
-(`variant: 'error'`), never visual (`variant: 'red'`). Always define
-`defaultVariants` explicitly. Use `compoundVariants` for combinations rather
-than conditional class logic.
+Use the `cn()` utility (wraps `clsx`) for conditional classes. Variant names
+are semantic (`variant: 'error'`), never visual (`variant: 'red'`). The `cn()`
+helper is already available at `@/lib/utils` (see its definition in `utils.ts`).
 
 ```ts
-const inputVariants = cva(
+import { cn } from '@/lib/utils';
+
+const inputClasses = cn(
   'flex w-full rounded-md border bg-transparent px-3 py-2 text-sm',
-  {
-    variants: {
-      variant: { default: 'border-gray-300', error: 'border-error' },
-      size: { sm: 'h-8', md: 'h-10', lg: 'h-12' },
-    },
-    defaultVariants: { variant: 'default', size: 'md' },
+  variant === 'error' && 'border-error',
+  size === 'sm' && 'h-8',
+  size === 'md' && 'h-10',
+  size === 'lg' && 'h-12',
+);
   }
 );
 ```

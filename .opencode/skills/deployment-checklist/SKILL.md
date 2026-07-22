@@ -26,7 +26,7 @@ Run in this exact order. Each step depends on the one before it.
 
 ```bash
 # 1. Pull the deployed commit
-git pull origin main
+git pull origin master
 
 # 2. Install PHP dependencies (no dev deps, optimized autoloader)
 composer install --no-dev --optimize-autoloader

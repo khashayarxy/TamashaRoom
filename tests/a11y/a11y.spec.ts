@@ -26,26 +26,9 @@ test.describe("Accessibility audit", () => {
     expect(serious).toEqual([]);
   });
 
-  test.skip("Dashboard page has no critical or serious a11y violations", async ({ page }) => {
-    // Requires a user with email_verified_at set before accessing /dashboard
-    // The registration flow creates unverified users, and the 'verified' middleware
-    // redirects to the verification-notice page. To run this test, seed a user
-    // with verified email and authenticate via the login form first.
-    const email = `test-${Date.now()}@example.com`;
-
-    await page.goto("/register");
-    await page.waitForLoadState("networkidle");
-
-    await page.fill('input[name="name"]', "Test User");
-    await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', "password123");
-    await page.fill('input[name="password_confirmation"]', "password123");
-
-    const [response] = await Promise.all([
-      page.waitForResponse((resp) => resp.url().includes("/register") && resp.request().method() === "POST"),
-      page.getByRole("button", { name: /register/i }).click(),
-    ]);
-    expect([200, 201, 302, 303]).toContain(response.status());
+  test("Dashboard page has no critical or serious a11y violations", async ({ page }) => {
+    const resp = await page.request().post("/__test/setup-verified-room");
+    expect(resp.ok()).toBeTruthy();
 
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");

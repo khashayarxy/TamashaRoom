@@ -12,6 +12,7 @@ import { usePresence } from '@/Hooks/use-presence';
 import AppLayout from '@/Layouts/AppLayout';
 import { copyToClipboard } from '@/lib/utils';
 import api from '@/lib/api';
+import { useRoomUiStore } from '@/stores/room-ui';
 import type { SubtitleTrack, SubtitleCue } from '@/lib/types/subtitle';
 import { Copy, MessageSquare, Subtitles, Trash2, Tv, Upload, Users, X } from 'lucide-react';
 import { usePage } from '@inertiajs/react';
@@ -64,20 +65,29 @@ function saveActiveTrackId(roomId: number, trackId: number | null) {
 }
 
 export default function ShowRoom({ room }: ShowRoomProps) {
-    const [activeTab, setActiveTab] = useState<'chat' | 'members'>('chat');
-    const [showSetVideo, setShowSetVideo] = useState(false);
-    const [videoUrl, setVideoUrl] = useState('');
-    const [showSubSettings, setShowSubSettings] = useState(false);
-    const [showSubManager, setShowSubManager] = useState(false);
-    const [showRoomSettings, setShowRoomSettings] = useState(false);
+    const activeTab = useRoomUiStore((s) => s.activeTab);
+    const setActiveTab = useRoomUiStore((s) => s.setActiveTab);
+    const showSetVideo = useRoomUiStore((s) => s.showSetVideo);
+    const setShowSetVideo = useRoomUiStore((s) => s.setShowSetVideo);
+    const videoUrl = useRoomUiStore((s) => s.videoUrl);
+    const setVideoUrl = useRoomUiStore((s) => s.setVideoUrl);
+    const showSubSettings = useRoomUiStore((s) => s.showSubSettings);
+    const setShowSubSettings = useRoomUiStore((s) => s.setShowSubSettings);
+    const showSubManager = useRoomUiStore((s) => s.showSubManager);
+    const setShowSubManager = useRoomUiStore((s) => s.setShowSubManager);
+    const showRoomSettings = useRoomUiStore((s) => s.showRoomSettings);
+    const setShowRoomSettings = useRoomUiStore((s) => s.setShowRoomSettings);
+    const roomName = useRoomUiStore((s) => s.roomName);
+    const setRoomName = useRoomUiStore((s) => s.setRoomName);
+    const roomInviteCode = useRoomUiStore((s) => s.roomInviteCode);
+    const setRoomInviteCode = useRoomUiStore((s) => s.setRoomInviteCode);
+    const roomIsLocked = useRoomUiStore((s) => s.roomIsLocked);
+    const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
     const [tracks, setTracks] = useState<SubtitleTrack[]>([]);
     const [activeTrackId, setActiveTrackId] = useState<number | null>(() => loadActiveTrackId(room.id));
     const [cues, setCues] = useState<SubtitleCue[]>([]);
     const [subLoading, setSubLoading] = useState(false);
     const [subError, setSubError] = useState<string | null>(null);
-    const [roomName, setRoomName] = useState(room.name);
-    const [roomInviteCode, setRoomInviteCode] = useState(room.invite_code);
-    const [roomIsLocked, setRoomIsLocked] = useState(room.is_locked);
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,6 +95,12 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const { settings } = useSubtitleSettings();
     const { auth } = usePage().props;
     const isOwner = auth.user.id === room.user_id;
+
+    useEffect(() => {
+        setRoomName(room.name);
+        setRoomInviteCode(room.invite_code);
+        setRoomIsLocked(room.is_locked);
+    }, [room.id, room.name, room.invite_code, room.is_locked, setRoomName, setRoomInviteCode, setRoomIsLocked]);
 
     const setVideo = async () => {
         if (!videoUrl.trim()) return;

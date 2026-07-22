@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSubtitleStore } from '@/stores/subtitle';
 import type { SubtitleCue, SubtitleSettings } from '@/lib/types/subtitle';
-
-const SETTINGS_KEY = 'tamasharoom-subtitle-settings';
 
 export { type SubtitleCue, type SubtitleSettings };
 
@@ -87,31 +86,9 @@ export function parseSubtitle(text: string): SubtitleCue[] {
     return text.includes('WEBVTT') ? parseVtt(text) : parseSrt(text);
 }
 
-function loadSettings(): SubtitleSettings {
-    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
-    try {
-        const raw = localStorage.getItem(SETTINGS_KEY);
-        if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-    } catch { /* ignore */ }
-    return DEFAULT_SETTINGS;
-}
-
-function saveSettings(s: SubtitleSettings) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-}
-
 export function useSubtitleSettings() {
-    const [settings, setSettings] = useState<SubtitleSettings>(loadSettings);
-
-    const update = useCallback((partial: Partial<SubtitleSettings>) => {
-        setSettings((prev) => {
-            const next = { ...prev, ...partial };
-            saveSettings(next);
-            return next;
-        });
-    }, []);
-
+    const settings = useSubtitleStore((s) => s.settings);
+    const update = useSubtitleStore((s) => s.update);
     return { settings, update };
 }
 
