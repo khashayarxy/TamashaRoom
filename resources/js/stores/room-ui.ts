@@ -10,6 +10,7 @@ interface RoomUiState {
     roomName: string;
     roomInviteCode: string;
     roomIsLocked: boolean;
+    ownerId: number;
 
     setActiveTab: (tab: 'chat' | 'members') => void;
     setShowSetVideo: (v: boolean) => void;
@@ -20,6 +21,7 @@ interface RoomUiState {
     setRoomName: (v: string) => void;
     setRoomInviteCode: (v: string) => void;
     setRoomIsLocked: (v: boolean) => void;
+    setOwnerId: (v: number) => void;
 }
 
 export const useRoomUiStore = create<RoomUiState>((set) => ({
@@ -32,6 +34,7 @@ export const useRoomUiStore = create<RoomUiState>((set) => ({
     roomName: '',
     roomInviteCode: '',
     roomIsLocked: false,
+    ownerId: 0,
 
     setActiveTab: (activeTab) => set({ activeTab }),
     setShowSetVideo: (showSetVideo) => set({ showSetVideo }),
@@ -42,4 +45,5 @@ export const useRoomUiStore = create<RoomUiState>((set) => ({
     setRoomName: (roomName) => set({ roomName }),
     setRoomInviteCode: (roomInviteCode) => set({ roomInviteCode }),
     setRoomIsLocked: (roomIsLocked) => set({ roomIsLocked }),
+    setOwnerId: (ownerId) => set({ ownerId }),
 }));

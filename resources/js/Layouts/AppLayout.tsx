@@ -34,7 +34,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                                 <Link
                                     key={item.href}
                                     href={item.href}
-                                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                                 >
                                     <item.icon className="h-4 w-4" />
                                     {item.label}

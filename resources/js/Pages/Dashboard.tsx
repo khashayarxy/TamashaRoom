@@ -172,7 +172,7 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                                 e.stopPropagation();
                                                 deleteRoom(room);
                                             }}
-                                            className="flex items-center gap-1 text-xs text-destructive hover:underline mr-auto p-1"
+                                            className="flex items-center gap-1 text-xs text-destructive hover:underline ms-auto p-1"
                                             aria-label="حذف اتاق"
                                         >
                                             <Trash2 className="h-3 w-3" />

@@ -1,7 +1,17 @@
 import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]): string {
-    return clsx(inputs);
+    return twMerge(clsx(inputs));
+}
+
+const persianDigits: Record<string, string> = {
+    '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴',
+    '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹',
+};
+
+export function toPersianDigits(num: number | string): string {
+    return String(num).replace(/[0-9]/g, (d) => persianDigits[d] || d);
 }
 
 export function formatDuration(seconds: number): string {
@@ -32,4 +42,13 @@ export function timeAgo(date: Date | string): string {
 
 export function copyToClipboard(text: string): Promise<void> {
     return navigator.clipboard.writeText(text);
+}
+
+const HTML_TAG_RE = /<[^>]*>/g;
+
+export function sanitizeText(text: string): string {
+    return text
+        .replace(HTML_TAG_RE, '')
+        .replace(/\u0000/g, '')
+        .trim();
 }

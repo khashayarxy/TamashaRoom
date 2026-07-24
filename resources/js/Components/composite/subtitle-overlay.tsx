@@ -1,3 +1,4 @@
+import { sanitizeText } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
 import { useSubtitleStore } from '@/stores/subtitle';
 import type { SubtitleCue, SubtitleSettings } from '@/lib/types/subtitle';
@@ -44,7 +45,7 @@ export function parseVtt(text: string): SubtitleCue[] {
         const cueLines: string[] = [];
         while (i < lines.length && lines[i].trim() !== '') {
             if (!/^NOTE\s/.test(lines[i])) {
-                cueLines.push(lines[i].replace(/<[^>]*>/g, ''));
+                cueLines.push(sanitizeText(lines[i]));
             }
             i++;
         }
@@ -76,7 +77,7 @@ export function parseSrt(text: string): SubtitleCue[] {
         const end = toMs(timeMatch[5], timeMatch[6], timeMatch[7], timeMatch[8]);
         const textLines = lines.filter((l) => !l.includes('-->') && !/^\d+$/.test(l.trim()));
         if (textLines.length > 0) {
-            cues.push({ start, end, text: textLines.join('\n') });
+            cues.push({ start, end, text: textLines.map(sanitizeText).join('\n') });
         }
     }
     return cues;
@@ -166,7 +167,7 @@ export function SubtitleOverlay({ videoRef, cues, settings, loading, error, clas
                 {currentText.split('\n').map((line, i) => (
                     <span key={i}>
                         {i > 0 && <br />}
-                        {line}
+                        {sanitizeText(line)}
                     </span>
                 ))}
             </div>

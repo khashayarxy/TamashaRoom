@@ -83,6 +83,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const setRoomInviteCode = useRoomUiStore((s) => s.setRoomInviteCode);
     const roomIsLocked = useRoomUiStore((s) => s.roomIsLocked);
     const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
+    const ownerId = useRoomUiStore((s) => s.ownerId);
+    const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
     const [tracks, setTracks] = useState<SubtitleTrack[]>([]);
     const [activeTrackId, setActiveTrackId] = useState<number | null>(() => loadActiveTrackId(room.id));
     const [cues, setCues] = useState<SubtitleCue[]>([]);
@@ -100,7 +102,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         setRoomName(room.name);
         setRoomInviteCode(room.invite_code);
         setRoomIsLocked(room.is_locked);
-    }, [room.id, room.name, room.invite_code, room.is_locked, setRoomName, setRoomInviteCode, setRoomIsLocked]);
+        setOwnerId(room.owner.id);
+    }, [room.id, room.name, room.invite_code, room.is_locked, room.owner.id, setRoomName, setRoomInviteCode, setRoomIsLocked, setOwnerId]);
 
     const setVideo = async () => {
         if (!videoUrl.trim()) return;
@@ -198,7 +201,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         setActiveTab('members');
     };
 
-    const handleTransfer = (_userId: number) => {
+    const handleTransfer = (userId: number) => {
+        setOwnerId(userId);
         setActiveTab('members');
     };
 
@@ -210,7 +214,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         <h1 className="text-xl font-bold">{roomName}</h1>
                         <p className="text-sm text-muted-foreground">
                             ساخته شده توسط {room.owner.name}
-                            {roomIsLocked && <span className="mr-2 text-yellow-500">(قفل)</span>}
+                            {roomIsLocked && <span className="ms-2 text-yellow-500">(قفل)</span>}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -308,7 +312,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     <div className="w-full space-y-1">
                                         <button
                                             onClick={() => setActiveTrackId(null)}
-                                            className={`w-full text-right px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                                            className={`w-full text-end px-3 py-1.5 rounded-lg text-sm transition-colors ${
                                                 activeTrackId === null
                                                     ? 'bg-primary/20 text-primary'
                                                     : 'text-muted-foreground hover:bg-secondary'
@@ -327,10 +331,10 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                             >
                                                 <button
                                                     onClick={() => setActiveTrackId(track.id)}
-                                                    className="flex-1 text-right truncate"
+                                                    className="flex-1 text-end truncate"
                                                 >
                                                     {track.label}
-                                                    <span className="text-xs mr-2 opacity-60">
+                                                    <span className="text-xs me-2 opacity-60">
                                                         .{track.original_extension}
                                                     </span>
                                                 </button>
@@ -427,7 +431,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             <MemberList
                                 members={presenceMembers}
                                 roomId={room.id}
-                                ownerId={room.owner.id}
+                                ownerId={ownerId}
                                 connected={connected}
                                 currentUserId={auth.user.id}
                                 isLocked={roomIsLocked}

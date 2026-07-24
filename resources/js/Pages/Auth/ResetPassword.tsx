@@ -30,11 +30,11 @@ export default function ResetPassword({
 
     return (
         <GuestLayout>
-            <Head title="Reset Password" />
+            <Head title="بازنشانی رمز عبور" />
 
             <form onSubmit={submit}>
                 <div>
-                    <InputLabel htmlFor="email" value="Email" />
+                    <InputLabel htmlFor="email" value="ایمیل" />
 
                     <TextInput
                         id="email"
@@ -50,7 +50,7 @@ export default function ResetPassword({
                 </div>
 
                 <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
+                    <InputLabel htmlFor="password" value="رمز عبور جدید" />
 
                     <TextInput
                         id="password"
@@ -69,7 +69,7 @@ export default function ResetPassword({
                 <div className="mt-4">
                     <InputLabel
                         htmlFor="password_confirmation"
-                        value="Confirm Password"
+                        value="تکرار رمز عبور جدید"
                     />
 
                     <TextInput
@@ -91,7 +91,7 @@ export default function ResetPassword({
 
                 <div className="mt-4 flex items-center justify-end">
                     <PrimaryButton className="ms-4" disabled={processing}>
-                        Reset Password
+                        بازنشانی رمز عبور
                     </PrimaryButton>
                 </div>
             </form>
