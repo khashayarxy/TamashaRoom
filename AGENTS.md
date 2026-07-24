@@ -17,9 +17,9 @@ are supported. MVP language is Persian (RTL) only.
 
 ## Stack
 
-Laravel 12 (PHP 8.4) + Inertia.js 2 + React 19 + TypeScript (strict) + Vite 6 +
+Laravel 13 (PHP 8.4) + Inertia.js 2 + React 19 + TypeScript (strict) + Vite 5 +
 MySQL/MariaDB + Tailwind CSS 4 + Headless UI (@headlessui/react) + Zustand (UI state only)
-+ React Query (client-only refetch) + PHPUnit (backend tests) + Vitest/RTL/Playwright
++ PHPUnit (backend tests) + Vitest/RTL/Playwright
 (frontend tests).
 
 ## The One Constraint That Shapes Everything
@@ -30,7 +30,7 @@ background workers, no root access.**
 
 Playback sync (the product's core mechanic) would normally use WebSockets.
 Instead: state changes are written as a Laravel broadcastable Event, and the
-frontend polls for it every 1-2 seconds. This is deliberate and transport-agnostic
+frontend polls for it every 3 seconds (adjustable post-MVP). This is deliberate and transport-agnostic
 — moving to real-time later means installing Laravel Reverb on a VPS and
 flipping `BROADCAST_CONNECTION`, not rewriting the feature. **Never build new
 room-state features against direct polling of a model — always go through the

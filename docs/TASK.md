@@ -3,7 +3,7 @@
 ## Completed
 
 ### Core Infrastructure
-- [x] Laravel **13** application with Inertia + React (composer.json requires `laravel/framework: ^13.8`; docs still say "Laravel 12")
+- [x] Laravel **13** application with Inertia + React (composer.json requires `laravel/framework: ^13.8`; AGENTS.md fixed from "Laravel 12")
 - [x] Authentication (login, register, email verification, password reset)
 - [x] Profile management (edit, update, destroy)
 
@@ -63,7 +63,7 @@
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **159** Feature tests across all modules (was 36 — expanded by audit, chat, rate limiter tests)
+- [x] **170** tests across all modules (136 Feature + 34 Unit — expanded by audit, chat, rate limiter tests)
 - [x] **102** Frontend tests (79 existing + 23 Zustand store tests)
 - [x] Build verification (tsc + vite)
 

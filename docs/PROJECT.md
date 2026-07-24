@@ -138,12 +138,13 @@ database/
 resources/
 ├── css/
 │   ├── app.css                     # Tailwind imports
-│   └── fonts.css                   # @font-face — Vazirmatn, Inter
+│   └── fonts.css                   # @font-face — Vazirmatn
 ├── js/
 │   ├── __tests__/                  # Component and unit tests (Vitest)
 │   ├── app.tsx                     # Inertia entry point
 │   ├── Components/
 │   │   ├── composite/              # Domain-specific composites
+│   │   │   ├── confirm-dialog.tsx
 │   │   │   ├── member-list.tsx
 │   │   │   ├── room-chat.tsx
 │   │   │   ├── room-settings.tsx
@@ -153,8 +154,9 @@ resources/
 │   │   │   └── video-player.tsx
 │   │   └── ui/                     # Primitive components (custom, Tailwind-styled)
 │   │       ├── button.tsx
-│   │       ├── confirm-dialog.tsx
-│   │       └── spinner.tsx
+│   │       ├── card.tsx
+│   │       ├── dialog.tsx
+│   │       └── input.tsx
 │   ├── Hooks/                      # Custom React hooks
 │   │   ├── use-playback-sync.ts    # today: polling; later: Echo — same return shape (SYSTEM.md 18.05)
 │   │   ├── use-polling-reload.ts
@@ -254,7 +256,6 @@ npm run type-check         # TypeScript check
 
 # Testing
 npm run test               # Unit tests (Vitest)
-
 npm run test:e2e           # E2E tests (Playwright)
 npm run test:a11y          # Accessibility audit (@axe-core/playwright)
 php artisan test            # Backend feature/unit tests (PHPUnit)

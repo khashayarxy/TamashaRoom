@@ -268,7 +268,7 @@ Break the problem into its smallest meaningful parts.
 
 **Common Mistakes**:
 
-- Jumping to "I'll use React Query for this" before understanding the data requirements.
+- Jumping to "I'll add a client-side data-fetching library for this" before understanding the data requirements.
 - Assuming the API already exists and matches your mental model.
 - Ignoring error states because "we'll handle that later."
 
@@ -533,7 +533,7 @@ What pressures push the decision in different directions?
 | --- | --- | --- | --- |
 | Zustand (global client) | Simple, minimal boilerplate | No devtools, no middleware ecosystem | Small apps, simple state |
 | Redux Toolkit | Mature ecosystem, devtools, time-travel | Boilerplate, learning curve | Complex state, large teams |
-| React Query + Context | Server state handled, UI state minimal | Two systems to learn | Data-heavy apps |
+| Inertia props + Context | Server-driven data, UI state minimal | Controller must supply all page data | Inertia-driven apps |
 | Jotai / Recoil | Atomic, fine-grained | Less mature, ecosystem smaller | Highly interactive UIs |
 
 **Step 4: Apply Constraints**  
@@ -549,17 +549,18 @@ Write an ADR (Architecture Decision Record) with:
 
 ### Example
 
-**Decision**: Use Zustand for global UI state, React Query for server state.
+**Decision**: Use Zustand for global UI state. Server data arrives via Inertia props — no client-side data fetching library is needed.
 
-**Context**: TamashaRoom MVP has minimal global UI state (theme, sidebar open/close, active modal). Server state is the primary complexity (user data, lists, forms).
+**Context**: TamashaRoom MVP uses Inertia.js for server-driven rendering. A controller computes props once per request; the component tree renders what it was given. Global UI state is minimal (theme, room-ui, subtitle settings).
 
-**Decision**: Separate concerns. Zustand for UI state. React Query for server state. No Redux.
+**Decision**: Zustand for UI state. Inertia props for server data. No Redux, React Query, or SWR.
 
 **Consequences**:
 
-- Enables: Fast setup, minimal boilerplate, automatic caching and background refetching for server data.
-- Limits: No built-in time-travel debugging. Team must learn React Query patterns.
+- Enables: Fast setup, minimal boilerplate, zero client-side data fetching overhead — Inertia props provide fresh server state on every navigation.
+- Limits: No built-in time-travel debugging.
 - Risk: If global state grows complex, migration to Redux may be needed. Mitigation: Keep Zustand stores small and focused.
+- Mitigation: If real-time data requirements grow, add polling with Inertia's reload() before considering any data-fetching library.
 
 ### Common Mistakes
 
@@ -886,17 +887,18 @@ Every non-trivial decision must be documented where the next person will find it
 <br/>\## Status  
 Accepted  
 <br/>\## Context  
-TamashaRoom MVP requires minimal global UI state (theme, sidebar, modals).  
-Server state is primary complexity.  
+TamashaRoom MVP requires minimal global UI state (theme, room-ui, subtitle settings).  
+Server data arrives via Inertia props — no client-side data fetching library is needed.  
 <br/>\## Decision  
-Use Zustand for global UI state.  
-Use React Query for server state.  
-Do not use Redux.  
+Use Zustand for global UI state (theme, room-ui, subtitle settings).  
+Server data arrives via Inertia props — no client-side data fetching library is needed.  
+Do not use Redux, React Query, or SWR.  
 <br/>\## Consequences  
-\- Positive: Fast setup, minimal boilerplate, automatic caching for server data.  
-\- Negative: No built-in time-travel debugging. Team must learn React Query.  
+\- Positive: Fast setup, minimal boilerplate, zero client-side data fetching overhead; Inertia props provide fresh server state on every navigation.  
+\- Negative: No built-in time-travel debugging.  
 \- Risk: If global state grows complex, migration to Redux may be needed.  
 \- Mitigation: Keep Zustand stores small and focused.  
+\- Mitigation: If real-time data requirements grow, add polling with Inertia's reload() before considering any data-fetching library.  
 
 ### Common Mistakes
 
@@ -3113,11 +3115,11 @@ Every typeface has a personality. Mixing personalities creates visual conflict. 
 
 ### The TamashaRoom Typeface Strategy
 
-**Primary Typeface**: Inter
+**Primary Typeface**: Vazirmatn
 
-- **Why**: Designed for screens. Excellent legibility at small sizes. Large x-height for readability. Extensive weight range (100-900). Open source. Optimized for UI density.
+- **Why**: A variable Persian webfont with excellent glyph coverage for RTL languages. Inter does not support Persian script properly. Vazirmatn provides a single variable file (100–900 weight range), native Persian glyph shaping, and superior legibility for the MVP's primary language.
 - **Usage**: All body text, headings, UI elements, labels, buttons, navigation.
-- **Weights to load**: 400 (Regular), 500 (Medium), 600 (Semibold), 700 (Bold). No others.
+- **Weights to load**: 400 (Regular), 500 (Medium), 600 (Semibold), 700 (Bold). A single variable font covers all weights.
 
 **Monospace Typeface**: JetBrains Mono or Geist Mono
 
@@ -3632,24 +3634,24 @@ A screen with more than 10% accent color feels aggressive. A screen with less th
 
 ### The Gray Scale
 
-The gray scale is the most used color family in any interface. It must be carefully calibrated. All TamashaRoom grays are cool (slight blue undertone) for consistency.
+The gray scale is the most used color family in any interface. It must be carefully calibrated. All TamashaRoom grays are warm (amber undertone) for consistency.
 
 | **Token** | **Light Mode** | **Dark Mode** | **Usage** | **Luminance Ratio (Light)** |
 | --- | --- | --- | --- | --- |
-| gray-50 | #F9FAFB | #111827 | Page background (dark mode) | 98% |
-| gray-100 | #F3F4F6 | #1F2937 | Card backgrounds, hover states | 96% |
-| gray-200 | #E5E7EB | #374151 | Borders, dividers | 90% |
-| gray-300 | #D1D5DB | #4B5563 | Disabled borders | 82% |
-| gray-400 | #9CA3AF | #6B7280 | Placeholder text, disabled | 64% |
-| gray-500 | #6B7280 | #9CA3AF | Secondary text, icons | 46% |
-| gray-600 | #4B5563 | #D1D5DB | Body text (dark mode) | 34% |
-| gray-700 | #374151 | #E5E7EB | Headings (dark mode) | 26% |
-| gray-800 | #1F2937 | #F3F4F6 | Strong headings (dark mode) | 14% |
-| gray-900 | #111827 | #F9FAFB | Primary text, headings | 10% |
+| gray-50 | #F7F4EF | #1C1815 | Page background (dark mode) | 98% |
+| gray-100 | #EDE8E0 | #29231E | Card backgrounds, hover states | 96% |
+| gray-200 | #E0D9D0 | #342E28 | Borders, dividers | 90% |
+| gray-300 | #CCC3B8 | #403A34 | Disabled borders | 82% |
+| gray-400 | #A69B8E | #5E564C | Placeholder text, disabled | 64% |
+| gray-500 | #7D7367 | #7D7367 | Secondary text, icons | 46% |
+| gray-600 | #5E564C | #A69B8E | Body text (dark mode) | 34% |
+| gray-700 | #423B33 | #CCC3B8 | Headings (dark mode) | 26% |
+| gray-800 | #2B2621 | #E0D9D0 | Strong headings (dark mode) | 14% |
+| gray-900 | #1C1815 | #F7F4EF | Primary text, headings | 10% |
 
 **The Gray Scale Rules**:
 
-1\. **All grays must be from the same family** (all cool or all warm). Mixing warm and cool grays creates visual disharmony.
+1\. **All grays must be from the same family** (all warm). Mixing warm and cool grays creates visual disharmony.
 
 2\. **Adjacent grays must have sufficient contrast.** The step between gray-200 and gray-300 must be perceptible. If two grays look the same, remove one.
 
@@ -3860,10 +3862,10 @@ In dark mode, elevation is communicated through lightness, not shadows:
 
 | **Elevation Level** | **Light Mode** | **Dark Mode** | **Visual Cue** |
 | --- | --- | --- | --- |
-| Base (page) | gray-50 #F9FAFB | gray-900 #111827 | Deepest layer |
-| Level 1 (cards) | white #FFFFFF | gray-800 #1F2937 | Slightly elevated |
-| Level 2 (dropdowns) | white #FFFFFF | gray-700 #374151 | More elevated |
-| Level 3 (modals) | white #FFFFFF | gray-600 #4B5563 | Highest elevation |
+| Base (page) | gray-50 #F7F4EF | gray-900 #1C1815 | Deepest layer |
+| Level 1 (cards) | white #FFFFFF | gray-800 #2B2621 | Slightly elevated |
+| Level 2 (dropdowns) | white #FFFFFF | gray-700 #423B33 | More elevated |
+| Level 3 (modals) | white #FFFFFF | gray-600 #5E564C | Highest elevation |
 
 **The Elevation Rule**: In dark mode, lighter surfaces are closer to the user. In light mode, shadows indicate elevation. Never use shadows in dark mode — they are invisible.
 
@@ -3871,12 +3873,12 @@ In dark mode, elevation is communicated through lightness, not shadows:
 
 | **Light Mode** | **Dark Mode** | **Reason** |
 | --- | --- | --- |
-| White background | Gray-900 (#111827) | Avoids pure black eye strain |
-| Gray-50 surfaces | Gray-800 (#1F2937) | Elevated surfaces are lighter |
-| Gray-100 borders | Gray-700 (#374151) | Visible but subtle |
-| Gray-900 text | Gray-50 (#F9FAFB) | High contrast without pure white |
-| Gray-600 text | Gray-300 (#D1D5DB) | Readable on dark backgrounds |
-| Primary color | Primary color (reduced saturation) | Colors appear more saturated on dark |
+| Warm off-white (#F7F4EF) | Warm charcoal (#1C1815) | Warm dark avoids pure black eye strain |
+| Gray-100 (#EDE8E0) | Gray-800 (#2B2621) | Elevated surfaces are lighter |
+| Gray-200 (#E0D9D0) | Gray-700 (#423B33) | Visible but subtle |
+| Gray-900 (#1C1815) | Gray-50 (#F7F4EF) | High contrast without pure white |
+| Gray-600 (#5E564C) | Gray-300 (#CCC3B8) | Readable on warm dark backgrounds |
+| Amber primary (#E8A817) | Amber primary (#E8A817) | Amber maintains warmth in both modes |
 
 ### Implementation
 
@@ -5148,7 +5150,7 @@ Every component belongs to exactly one category. Categories are not suggestions 
 
 ### Why Categories Matter
 
-Categories create mental models. When a developer needs a button, they know to look in components/ui/. When they need a project-specific card, they know to look in features/projects/components/. Categories prevent the "where does this go?" paralysis that kills productivity. (See Chapter 16.02, Principle 2: Co-location Over Separation.)
+Categories create mental models. When a developer needs a button, they know to look in Components/ui/. When they need a project-specific card, they know to look in features/projects/components/. Categories prevent the "where does this go?" paralysis that kills productivity. (See Chapter 16.02, Principle 2: Co-location Over Separation.)
 
 ### Category 1: Primitives
 
@@ -5330,7 +5332,7 @@ File structure is the physical manifestation of architecture. A developer should
 ### File Organization
 
   
-components/  
+Components/  
 ├── ui/ # UI components (custom, Tailwind-styled)  
 │ ├── button.tsx  
 │ ├── input.tsx  
@@ -5347,34 +5349,23 @@ components/
 └── providers/ # Context providers  
 ├── theme-provider.tsx  
 └── auth-provider.tsx  
-<br/>features/  
-├── auth/  
-│ ├── components/ # Auth-specific composites  
-│ │ ├── login-form.tsx  
-│ │ └── signup-form.tsx  
-│ └── ...  
-├── projects/  
-│ ├── components/ # Project-specific composites  
-│ │ ├── project-card.tsx  
-│ │ └── project-list.tsx  
-│ └── ...  
 
 ### The File Location Rule
 
 | **Component Type** | **Location** | **Rationale** |
 | --- | --- | --- |
-| Primitive | components/ui/ or inline in UI component | Shared across all components |
-| UI Component | components/ui/ | Shared across all features |
-| Composite (cross-feature) | components/composite/ | Used by multiple features |
+| Primitive | Components/ui/ or inline in UI component | Shared across all components |
+| UI Component | Components/ui/ | Shared across all features |
+| Composite (cross-feature) | Components/composite/ | Used by multiple features |
 | Composite (feature-specific) | features/\[feature\]/components/ | Co-located with feature logic |
-| Layout | components/layout/ | Shared across all pages |
+| Layout | Components/layout/ | Shared across all pages |
 | Page | resources/js/Pages/\[Feature\]/\[Page\].tsx | One per route |
-| Provider | components/providers/ | Global context providers |
+| Provider | Components/providers/ | Global context providers |
 
 ### File Template
 
-   
-// components/ui/button.tsx  
+
+// Components/ui/button.tsx
 import \* as React from 'react';  
 import { cn } from '@/lib/utils';  
 <br/>// ───────────────────────────────────────────  
@@ -5574,7 +5565,7 @@ md: 'h-10',
 lg: 'h-12',  
 } as const,  
 };  
-<br/>// components/ui/input.tsx  
+<br/>// Components/ui/input.tsx  
 import { cn } from '@/lib/utils';  
 <br/>const Input = ({ variant = 'default', size = 'md', className, ...props }) => {  
 return (  
@@ -5701,7 +5692,7 @@ For every component in the system:
 - Has a clear, domain-specific name following the naming hierarchy.
 - Uses composition over configuration.
 - Has a minimal, type-safe prop interface (3–5 props typical).
-- Uses CVA for variants with semantic names and explicit defaults.
+- Uses cn() with Record maps for variant classes with semantic names and explicit defaults.
 - Is accessible by default (keyboard, screen reader, focus management).
 - Is responsive without separate code paths.
 - Has JSDoc documentation with usage examples and accessibility notes.
@@ -5816,14 +5807,11 @@ return (
 );  
 }  
 <br/>// ✅ Correct: Three layers  
-// Layer 3: Data Access  
-// hooks/use-user.ts  
-import { useQuery } from '@tanstack/react-query';  
-<br/>function fetchUser(userId: string) {  
-return fetch(\`/api/users/${userId}\`).then(r => r.json());  
-}  
-<br/>export function useUser(userId: string) {  
-return useQuery({ queryKey: \['user', userId\], queryFn: () => fetchUser(userId) });  
+// Layer 3: Data Access
+// lib/api/user-api.ts
+import api from '@/lib/api';
+<br/>export function fetchUser(userId: number) {  
+return api.get(\`/api/users/${userId}\`).then(r => r.data);  
 }  
 <br/>// Layer 2: Business Logic  
 // lib/user-formatter.ts  
@@ -5835,11 +5823,22 @@ memberSince: formatDate(user.createdAt),
 };  
 }  
 <br/>// Layer 1: Presentation  
-// components/user-profile.tsx  
-import { useUser } from '@/hooks/use-user';  
+// resources/js/Components/user-profile.tsx  
+import { useEffect, useState } from 'react';  
+import { fetchUser } from '@/lib/api/user-api';  
 import { formatUser } from '@/lib/user-formatter';  
-<br/>export function UserProfile({ userId }: { userId: string }) {  
-const { data, isLoading, error } = useUser(userId);  
+
+export function UserProfile({ userId }: { userId: number }) {  
+const [data, setData] = useState<ApiUser | null>(null);  
+const [isLoading, setIsLoading] = useState(true);  
+const [error, setError] = useState<Error | null>(null);  
+
+useEffect(() => {  
+fetchUser(userId)  
+.then(setData)  
+.catch(setError)  
+.finally(() => setIsLoading(false));  
+}, [userId]);
 <br/>if (isLoading) return &lt;UserProfileSkeleton /&gt;;  
 if (error) return &lt;UserProfileError error={error} /&gt;;  
 if (!data) return &lt;UserProfileEmpty /&gt;;  
@@ -5863,7 +5862,7 @@ if (!data) return &lt;UserProfileEmpty /&gt;;
 
 **Why Co-location Matters**
 
-Co-location reduces cognitive load. When you need to change a feature, all its code is in one place. You do not hunt across components/, hooks/, and lib/ directories. You open the feature folder and everything is there. This is especially important for the MVP, where features are being built rapidly and changed frequently. (See Chapter 15.03, Component File Structure.)
+Co-location reduces cognitive load. When you need to change a feature, all its code is in one place. You do not hunt across Components/, Hooks/, and lib/ directories. You open the feature folder and everything is there. This is especially important for the MVP, where features are being built rapidly and changed frequently. (See Chapter 15.03, Component File Structure.)
 
 **The Feature-Based Structure**:
 
@@ -5912,7 +5911,7 @@ page.tsx
 
 **When NOT to Co-locate**:
 
-- Shared components used by multiple features → components/ui/ or components/shared/.
+- Shared components used by multiple features → Components/ui/ or resources/js/Components/shared/.
 - Global utilities → lib/ at root.
 - Global types → types/ at root.
 
@@ -5996,7 +5995,7 @@ Bidirectional data flow creates cycles. Cycles create infinite loops, stale data
 
 ### The TamashaRoom Data Flow
 
-Inertia inverts the usual React data-fetching story: the server, not a client cache, is the default source of truth for a page's data. A controller computes props once per request; the component tree only ever renders what it was given. React Query is not the primary data layer here --- it is an opt-in tool for the specific, narrow cases in 18.05 (deferred loads, polling) where something must refetch without a full Inertia visit.
+Inertia inverts the usual React data-fetching story: the server, not a client cache, is the default source of truth for a page's data. A controller computes props once per request; the component tree only ever renders what it was given. Client-side data fetching (via axios/fetch) is not the primary data layer here --- it is an opt-in pattern for the specific, narrow cases in 18.05 (deferred loads, polling) where something must refetch without a full Inertia visit.
 
   
 Laravel Controller → Inertia Props → Components → User Action  
@@ -6010,6 +6009,8 @@ Server-Owned Data: everything a controller passes as Inertia props. It is not ca
 Local UI State: data that lives only in the browser and has no server representation --- theme, sidebar open/closed, modal visibility. Managed with Zustand, exactly as before.
 
 The Rule: Inertia props are read directly by the page that received them, not copied into Zustand. Local state never pretends to be server data.
+
+**Exception**: For the Room page (Rooms/Show), certain server-provided data (video_url, room_name, invite_code, is_locked) is copied into the room-ui Zustand store to avoid prop drilling through deeply nested components (video player, chat, subtitle settings, member list). This is a deliberate trade-off for the watch-party UI where these values are accessed by many child components at varying depths. All other Inertia-provisioned pages must read data from props directly.
 
 ### Example: Data Flow
 
@@ -6040,7 +6041,7 @@ onSelect={() => setSelectedId(p.id)}
 
 - Fetching Inertia-suppliable data client-side with useEffect: adds a round trip a controller already avoided --- pass it as a prop instead.
 - Copying page props into Zustand "to be safe": creates a second, immediately-stale source of truth. Read props directly.
-- Reaching for React Query as the default: it is the exception for the few cases that need client-driven refetching, not the default data layer.
+- Reaching for a client-side data-fetching library as the default: Inertia props provide server data on every page visit; client-driven refetching is the exception for the few cases that need it (polling, deferred loads).
 - Prop drilling within a page instead of colocating a sub-component with the slice of props it needs.
 
 ### Common Mistakes
@@ -6075,20 +6076,20 @@ One type of state is not in this table because it needs no tool at all: data a L
 | Component-local | useState / useReducer | Form input values, toggle states | High | Single component |
 | Shared component | React Context | Theme, auth session (rarely changes) | Low | Subtree |
 | Global UI | Zustand | Sidebar, modals, toasts, active filters | Medium | Global |
-| Client refetch (rare) | React Query | Typeahead search, polling (18.05) --- not the initial page load | External | Global |
+| Client refetch (rare) | axios / fetch | Typeahead search, polling (18.05) --- not the initial page load | External | Global |
 | URL state | useSearchParams | Filters, pagination, search query | Medium | Page |
 | Form state | React Hook Form | Form values, validation, submission | High | Form |
 
 ### The State Tool Selection Matrix
 
-| **Criteria** | **useState** | **Context** | **Zustand** | **React Query** |
+| **Criteria** | **useState** | **Context** | **Zustand** | **axios / Inertia** |
 | --- | --- | --- | --- | --- |
-| Scope | Single component | Subtree | Global | Global |
+| Scope | Single component | Subtree | Global | External / Inertia props |
 | Change frequency | High | Low | Medium | External |
-| Persistence | None | None | localStorage | Server |
-| Re-render optimization | Automatic | Manual (memo) | Selectors | Automatic |
-| Dev tools | React DevTools | React DevTools | Zustand devtools | React Query devtools |
-| Best for | Local UI state | Static shared data | Global UI state | Server data |
+| Persistence | None | None | localStorage | Server (Inertia) |
+| Re-render optimization | Automatic | Manual (memo) | Selectors | Inertia manages re-renders |
+| Dev tools | React DevTools | React DevTools | Zustand devtools | Inertia / Axios |
+| Best for | Local UI state | Static shared data | Global UI state | Server data (via Inertia props) |
 
 ### Zustand Store Pattern
 
@@ -6131,7 +6132,7 @@ export const useUIActions = () => useUIStore(s => s.actions);
 
 3\. **Keep stores small**: One store per domain, not one giant store.
 
-4\. **No server state in Zustand**: Use React Query for server data.
+4\. **No server state in Zustand**: Server data arrives via Inertia props — do not copy it into Zustand.
 
 ### Common Mistakes
 
@@ -6205,38 +6206,15 @@ apiRequest&lt;void&gt;(\`/projects/${id}\`, { method: 'DELETE' }),
 
 5\. **No UI concerns in API layer**: No toasts, no redirects, no state updates.
 
-### React Query Integration
+### API Client Pattern
 
-  
-// hooks/use-projects.ts  
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';  
-import { projectApi } from '@/lib/api/project-api';  
-<br/>export function useProjects() {  
-return useQuery({  
-queryKey: \['projects'\],  
-queryFn: projectApi.list,  
-staleTime: 5 \* 60 \* 1000, // 5 minutes  
-});  
-}  
-<br/>export function useCreateProject() {  
-const queryClient = useQueryClient();  
-<br/>return useMutation({  
-mutationFn: projectApi.create,  
-onSuccess: () => {  
-queryClient.invalidateQueries({ queryKey: \['projects'\] });  
-},  
-});  
-}  
+**The API Client Rules** (for external API consumers only — TamashaRoom's own UI uses Inertia props):
 
-**The React Query Rules**:
+1\. **Endpoints are typed**: Input and output types are explicit.
 
-1\. **Query keys are hierarchical**: \['projects'\], \['projects', id\], \['projects', id, 'tasks'\].
+2\. **One API object per domain**: projectApi, userApi, authApi.
 
-2\. **Stale time is explicit**: Define how long data is considered fresh.
-
-3\. **Cache invalidation is intentional**: Invalidate only what changed.
-
-4\. **Optimistic updates are typed**: Type the optimistic data, not any.
+3\. **All API functions return promises**: No callbacks, no async/await in components.
 
 ### Common Mistakes
 
@@ -6244,14 +6222,12 @@ queryClient.invalidateQueries({ queryKey: \['projects'\] });
 - Not typing API responses (loses type safety).
 - Handling HTTP errors in components (duplicates error handling).
 - Using any for API data (see Chapter 19.03).
-- Not using React Query for server state (reinvents caching and synchronization).
 
 ### Self Review Questions
 
 - Is the API layer isolated from UI concerns?
 - Are all API functions typed?
 - Is error handling centralized?
-- Are React Query query keys hierarchical and consistent?
 
 ## 16.06 Error Handling Architecture
 
@@ -6268,7 +6244,7 @@ Errors are not exceptions. They are a normal part of application behavior. Netwo
 | **Layer** | **Responsibility** | **Example** | **Handling Strategy** |
 | --- | --- | --- | --- |
 | API | Convert HTTP errors to typed errors | ApiError with status code | Throw typed errors |
-| Query | Handle loading/error states | isError, error from React Query | Return error state |
+| Query | Handle loading/error states | isLoading, error from state | Return error state |
 | Component | Render error UI | &lt;ErrorBoundary&gt;, &lt;ErrorState&gt; | Show fallback UI |
 | Global | Catch unhandled errors | window.onerror, Sentry | Log and alert |
 
@@ -6333,8 +6309,8 @@ For the codebase:
 - Business logic is separated from UI components.
 - Data access is isolated in API layer functions.
 - Features are co-located (components, hooks, utils in same folder).
-- Shared code lives in components/ui/, lib/, or hooks/ at root.
-- State is classified and stored in the appropriate tool (useState, Context, Zustand, React Query).
+- Shared code lives in Components/ui/, lib/, or Hooks/ at root.
+- State is classified and stored in the appropriate tool (useState, Context, Zustand).
 - Server state and local UI state are never mixed.
 - API layer is typed and tested independently.
 - Errors are typed and handled at the appropriate layer.
@@ -6344,7 +6320,7 @@ For the codebase:
 - Hooks never render JSX.
 - API functions never import components.
 - Zustand stores use selectors to prevent unnecessary re-renders.
-- React Query query keys follow a hierarchical pattern.
+- (External API only) Endpoints follow a consistent naming pattern.
 - Error boundaries exist at global, feature, and component levels.
 
 # 17 React Rules
@@ -6565,7 +6541,7 @@ useEffect runs after render. It is asynchronous relative to the render cycle. Us
 
 - Transforming data (use useMemo or compute during render).
 - Handling user events (use event handlers).
-- Fetching data on mount (use React Query).
+- Fetching data on mount that the controller already provided as a prop (use Inertia props instead).
 - Setting state based on props (use derived state pattern or restructure).
 
 **Correct**:
@@ -6715,7 +6691,7 @@ localStorage.setItem(key, JSON.stringify(value));
 function useUser() {  
 // Where does this ID come from? Magic.  
 const userId = useAuthStore(s => s.userId);  
-return useQuery({ queryKey: \['user', userId\], queryFn: () => fetchUser(userId) });  
+return fetchUser(userId);  
 }  
 
 **The Custom Hook Checklist**:
@@ -7305,7 +7281,7 @@ return response()->json(\['ok' => true\]);
 
 Nothing above depends on how the event reaches other clients. That is decided once, in BROADCAST_CONNECTION:
 
-- Now (shared cPanel hosting): BROADCAST_CONNECTION=log --- broadcasting is effectively a no-op, and the frontend polls the room’s current state every 1-2 seconds instead (Rule 2), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
+- Now (shared cPanel hosting): BROADCAST_CONNECTION=log --- broadcasting is effectively a no-op, and the frontend polls the room’s current state every 3 seconds instead (Rule 2, adjustable post-MVP), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
 - Later (on a VPS with root access): BROADCAST_CONNECTION=reverb, with Laravel Reverb running as a supervised process --- something cPanel’s hosting model cannot support, since it requires a long-lived process outside PHP-FPM’s request lifecycle. The same broadcast(new PlaybackStateChanged(...)) call now pushes over a WebSocket instead of waiting to be polled.
 
 On the frontend, hide this behind one hook so components never know which transport is active:
@@ -8040,7 +8016,7 @@ Tokens declared inside ‘@theme’ are what generate the utility classes (bg-ba
 
 ### Rule
 
-Extract repeated utility patterns into components or CVA variants. Do not copy-paste 10 Tailwind classes.
+Extract repeated utility patterns into components with cn()-based variant maps. Do not copy-paste 10 Tailwind classes.
 
   
 // ✅ Good: Extracted component  
@@ -8071,7 +8047,7 @@ For every component:
 - Avoids arbitrary values (adds to design system if needed).
 - Mobile-first responsive design with min-width prefixes.
 - Uses dark: prefix for dark mode, not arbitrary values.
-- Extracts repeated patterns into components or CVA variants.
+- Extracts repeated patterns into components with cn()-based variant maps.
 - No inline styles (style={{ ... }}).
 - No CSS-in-JS libraries (styled-components, emotion).
 - Custom CSS is limited to keyframes, pseudo-elements, and third-party overrides.
@@ -8181,13 +8157,7 @@ Fonts block rendering. Self-host them --- do not load from Google Fonts or any t
   
 /\* resources/css/fonts.css \*/  
 @font-face {  
-font-family: 'Inter';  
-src: url('/fonts/inter-var.woff2') format('woff2');  
-font-weight: 100 900;  
-font-display: swap;  
-}  
-<br/>@font-face {  
-font-family: 'Vazirmatn'; /\* Persian / RTL text, see Chapter 11.08 \*/  
+font-family: 'Vazirmatn';  
 src: url('/fonts/vazirmatn-var.woff2') format('woff2');  
 font-weight: 100 900;  
 font-display: swap;  
@@ -8198,7 +8168,7 @@ font-display: swap;
 - Self-host WOFF2 files under public/fonts, fingerprinted and cached forever like any other static asset (Chapter 18.03, Rule 4).
 - display: swap always: show the fallback font immediately, swap when the real font loads --- never block first paint on a font request.
 - Use variable fonts where available (one file covers every weight) instead of a separate file per weight.
-- Preload the one font file used above the fold: &lt;link rel="preload" as="font" type="font/woff2" href="/fonts/inter-var.woff2" crossOrigin="anonymous"&gt; in the root Blade template.
+- Preload the one font file used above the fold: &lt;link rel="preload" as="font" type="font/woff2" href="/fonts/vazirmatn-var.woff2" crossOrigin="anonymous"&gt; in the root Blade template.
 - Subset to the character sets actually needed --- Latin and Persian for TamashaRoom’s MVP --- rather than shipping every script a typeface supports.
 
 ## 21.06 Rendering Performance
@@ -8370,7 +8340,7 @@ There is one CPU core, shared by Apache, PHP-FPM, and MySQL. There is no auto-sc
 
 4\. **Do not assume horizontal scaling is available as a fallback**: a feature that only performs acceptably by adding more servers does not perform acceptably here. Design within the single-core budget from the start rather than treating scaling out as the eventual fix.
 
-5\. **Treat any room-based polling feature as a direct multiplier on this budget**: a watch-party room polling every 1-2 seconds per member is the clearest example --- N rooms with M members each is N×M requests every polling interval, sustained for as long as the room is open, not a brief spike. Set a conservative polling interval and a per-room member cap before launch, and treat migrating that feature to Reverb (Chapter 18.05, Rule 3) as the actual fix once real usage numbers justify it, not a premature one.
+5\. **Treat any room-based polling feature as a direct multiplier on this budget**: a watch-party room polling every 3 seconds per member is the clearest example --- N rooms with M members each is N×M requests every polling interval, sustained for as long as the room is open, not a brief spike. Set a conservative polling interval and a per-room member cap before launch, and treat migrating that feature to Reverb (Chapter 18.05, Rule 3) as the actual fix once real usage numbers justify it, not a premature one.
 
 ## 21.11 Performance Checklist
 
@@ -8975,7 +8945,7 @@ Every route should have an error boundary. Critical features should have their o
 ### Implementation
 
   
-// components/error-boundary.tsx  
+// Components/error-boundary.tsx  
 'use client';  
 <br/>import { Component, type ReactNode } from 'react';  
 <br/>interface Props {  
@@ -9364,7 +9334,7 @@ Review comments are constructive, specific, and actionable.
 ### Good Review Comments
 
 - "Consider extracting this into a custom hook. The component is doing too much."
-- "This useEffect is fetching data. Use React Query instead."
+- "This useEffect is fetching data the controller already provided. Pass it as an Inertia prop instead."
 - "The contrast ratio here is 3.8:1. It needs to be 4.5:1 for WCAG AA."
 - "This prop name is ambiguous. onSelect suggests a callback, but it triggers a mutation."
 
@@ -9389,10 +9359,10 @@ Example:
 
   
 Observation: This component fetches data in useEffect.  
-Concern: This bypasses React Query's caching, background refetching,  
-and error handling. It also causes unnecessary re-renders.  
-Suggestion: Use the useProjects hook instead:  
-const { data, isLoading } = useProjects();  
+Concern: The controller already provides this data as an Inertia prop.  
+Re-fetching adds a round trip, causes unnecessary re-renders, and duplicates state.  
+Suggestion: Remove the fetch and read the data from the page component's props:  
+const projects = page.props.projects; 
 
 ## 25.05 Self-Review Before Submitting
 
@@ -9751,7 +9721,9 @@ Follow the Rule of Three. Copy-paste twice. Abstract on the third use.
 function useAsyncData&lt;T&gt;(fetcher: () => Promise&lt;T&gt;) { /\* ... \*/ }  
 <br/>// ✅ Good: Specific hook, abstract later if needed  
 function useProjects() {  
-return useQuery({ queryKey: \['projects'\], queryFn: fetchProjects });  
+const [projects, setProjects] = useState<Project[]>([]);  
+useEffect(() => { fetchProjects().then(setProjects); }, []);  
+return projects;  
 }  
 
 ## 27.06 The Magic String Anti Pattern
@@ -9969,9 +9941,8 @@ Group imports in this order, separated by blank lines:
   
 import { useState } from 'react';  
 import { router } from '@inertiajs/react';  
-<br/>import { useQuery } from '@tanstack/react-query';  
-import { z } from 'zod';  
-<br/>import { Button } from '@/components/ui/button';  
+<br/>import { z } from 'zod';  
+<br/>import { Button } from '@/Components/ui/button';  
 import { useAuth } from '@/hooks/use-auth';  
 import { api } from '@/lib/api';  
 <br/>import { ProjectCard } from './project-card';  
@@ -10074,7 +10045,7 @@ Before any code is considered complete, it must pass this checklist. This is the
 ### Architecture
 
 - Business logic is separated from UI components.
-- State is in the appropriate layer (useState, Context, Zustand, React Query).
+- State is in the appropriate layer (useState, Context, Zustand, or Inertia props).
 - No prop drilling through more than 2 layers.
 - API calls are in hooks, not components.
 - No new dependencies without documented justification.

@@ -83,8 +83,8 @@ public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse
 ```
 
 - **Now**: `BROADCAST_CONNECTION=log` — broadcasting is a no-op; the frontend
-  polls the room's current state every 1-2 seconds instead. Expect ~1-2s sync
-  drift — acceptable for the test phase, not frame-accurate.
+polls the room's current state every 3 seconds instead (adjustable post-MVP). Expect ~3s sync
+   drift — acceptable for the test phase, not frame-accurate.
 - **Later** (on a VPS): `BROADCAST_CONNECTION=reverb` — the same
   `broadcast(new PlaybackStateChanged(...))` call now pushes over a WebSocket.
 - On the frontend, hide the transport behind one hook

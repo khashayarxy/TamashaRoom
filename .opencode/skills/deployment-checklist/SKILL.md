@@ -11,7 +11,7 @@ root access — see `laravel-backend-rules`).
 
 ## Before Every Deploy
 
-- [ ] CI is green on the commit being deployed (lint, type-check, Pest,
+- [ ] CI is green on the commit being deployed (lint, type-check, PHPUnit,
       Vitest, build — see `.github/workflows/ci.yml`).
 - [ ] `docs/TASK.md` reflects what's actually shipping in this deploy.
 - [ ] No pending migration you haven't reviewed for data loss (a `DROP

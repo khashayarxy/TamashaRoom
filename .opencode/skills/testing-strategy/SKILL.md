@@ -1,20 +1,20 @@
 ---
 name: testing-strategy
-description: Testing strategy for TamashaRoom — what to test at each layer (unit/integration/E2E), the testing pyramid, component testability requirements, and which tool to use where (Pest, Vitest, React Testing Library, Playwright, axe-core). Use when writing any test or deciding what kind of test a change needs.
+description: Testing strategy for TamashaRoom — what to test at each layer (unit/integration/E2E), the testing pyramid, component testability requirements, and which tool to use where (PHPUnit, Vitest, React Testing Library, Playwright, axe-core). Use when writing any test or deciding what kind of test a change needs.
 ---
 
 # Testing Strategy
 
 Full detail: `docs/SYSTEM.md`, 14.08 (Component Testing) and the testing
 tooling in `docs/PROJECT.md`. Current test coverage baseline is in
-`docs/TASK.md` — as of the last update: 36 Pest feature tests, 10 Pest unit
+`docs/TASK.md` — as of the last update: 136 PHPUnit feature tests, 34 PHPUnit unit
 tests, including an 18-test `SecurityTest` and a 15-test `UrlSecurityServiceTest`.
 
 ## Tools — Which One, Where
 
 | Layer | Tool | Command |
 |---|---|---|
-| Backend feature/unit | Pest | `php artisan test` |
+| Backend feature/unit | PHPUnit | `php artisan test` |
 | Frontend unit | Vitest | `npm run test` |
 | Frontend component | Vitest + React Testing Library | `npm run test` |
 | E2E | Playwright | `npm run test:e2e` |
@@ -70,7 +70,7 @@ function UserName() {
 }
 ```
 
-## Backend Testing (Pest)
+## Backend Testing (PHPUnit)
 
 - Feature tests hit real routes through the full HTTP stack (middleware,
   Form Requests, Policies) — this is where authorization and validation

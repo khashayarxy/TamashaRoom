@@ -1,6 +1,6 @@
 ---
 name: component-architecture
-description: How to structure, categorize, name, and place components and state in TamashaRoom — component granularity, the five component categories, file structure, CVA variants, and state placement decisions. Use when deciding whether to extract a component/hook, where a new component belongs, or where a piece of state should live.
+description: How to structure, categorize, name, and place components and state in TamashaRoom — component granularity, the five component categories, file structure, cn() variants, and state placement decisions. Use when deciding whether to extract a component/hook, where a new component belongs, or where a piece of state should live.
 ---
 
 # Component Architecture
@@ -58,7 +58,7 @@ fully typed.
 or behavioral changes.** Acceptable only for layout positioning on wrapper
 components, one-off third-party integration, or an emergency patch with a
 ticket to fix it properly. If a component needs a visual variant, add a
-variant to its CVA config (see below) — don't let a consumer override it
+variant to its cn() config (see below) — don't let a consumer override it
 from outside.
 
 ## Variants with `cn()`
