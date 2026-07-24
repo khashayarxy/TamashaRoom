@@ -90,6 +90,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const [cues, setCues] = useState<SubtitleCue[]>([]);
     const [subLoading, setSubLoading] = useState(false);
     const [subError, setSubError] = useState<string | null>(null);
+    const [chatUnread, setChatUnread] = useState(0);
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -397,7 +398,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             <div className="lg:w-80 flex flex-col">
                 <div className="flex rounded-xl bg-secondary p-1 mb-3">
                     <button
-                        onClick={() => setActiveTab('chat')}
+                        onClick={() => { setActiveTab('chat'); setChatUnread(0); }}
                         className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'chat'
                                 ? 'bg-card text-foreground shadow-sm'
@@ -406,6 +407,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     >
                         <MessageSquare className="h-4 w-4" />
                         چت
+                        {chatUnread > 0 && activeTab !== 'chat' && (
+                            <span className="h-5 min-w-[20px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center px-1">
+                                {chatUnread}
+                            </span>
+                        )}
                     </button>
                     <button
                         onClick={() => setActiveTab('members')}
@@ -425,6 +431,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         <RoomChat
                             roomId={room.id}
                             initialMessages={room.chat_messages}
+                            onUnreadCountChange={setChatUnread}
                         />
                     ) : (
                         <CardContent className="p-4">

@@ -97,7 +97,7 @@ export function RoomSettingsDialog({ open, onClose, room, onUpdate }: RoomSettin
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-foreground">کد دعوت</label>
                         <div className="flex gap-2">
-                            <div className="flex-1 flex items-center h-10 rounded-xl border border-input bg-transparent px-3 text-sm font-mono ltr">
+                            <div className="flex-1 flex items-center h-10 rounded-xl border border-input bg-transparent px-3 text-sm font-mono text-foreground ltr">
                                 {inviteCode}
                             </div>
                             <Button type="button" variant="outline" size="sm" onClick={handleCopy} title="کپی">

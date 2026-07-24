@@ -27,7 +27,6 @@ class StoreRoomRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $activeCount = Room::where('last_activity_at', '>', now()->subHours(2))
-                ->orWhereNull('last_activity_at')
                 ->count();
 
             $maxConcurrent = config('tamasharoom.max_concurrent_rooms', 50);

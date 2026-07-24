@@ -28,11 +28,13 @@ export default function Dashboard({ rooms }: DashboardProps) {
     const [roomName, setRoomName] = useState('');
     const [joinCode, setJoinCode] = useState('');
     const [creating, setCreating] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const createRoom = async (e: FormEvent) => {
         e.preventDefault();
         if (!roomName.trim() || creating) return;
         setCreating(true);
+        setErrors({});
         router.post(
             route('rooms.store'),
             { name: roomName },
@@ -42,7 +44,10 @@ export default function Dashboard({ rooms }: DashboardProps) {
                     setShowCreateForm(false);
                     setCreating(false);
                 },
-                onError: () => setCreating(false),
+                onError: (errs) => {
+                    setErrors(errs as Record<string, string>);
+                    setCreating(false);
+                },
             }
         );
     };
@@ -83,6 +88,9 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                     onChange={(e) => setRoomName(e.target.value)}
                                     maxLength={255}
                                 />
+                                {errors.name && (
+                                    <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                                )}
                             </div>
                             <Button type="submit" disabled={creating}>
                                 {creating ? 'در حال ساخت...' : 'ساخت اتاق'}

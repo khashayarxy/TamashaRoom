@@ -1,4 +1,4 @@
-import PrimaryButton from '@/Components/PrimaryButton';
+import { Button } from '@/Components/ui/button';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
@@ -16,10 +16,17 @@ export default function VerifyEmail({ status }: { status?: string }) {
         <GuestLayout>
             <Head title="تأیید ایمیل" />
 
-            <div className="mb-4 text-sm text-muted-foreground">
-                از ثبت‌نام شما متشکریم! قبل از شروع، لطفاً ایمیل خود را با
-                کلیک روی لینکی که برایتان ارسال کردیم تأیید کنید. اگر ایمیلی
-                دریافت نکردید، خوشحال می‌شویم دوباره برایتان ارسال کنیم.
+            <div className="mb-6 text-center">
+                <p className="text-sm font-medium text-primary">به تماشاروم خوش آمدید</p>
+                <h2 className="mt-1 text-xl font-bold">تأیید ایمیل</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    قبل از شروع، لطفاً ایمیل خود را تأیید کنید
+                </p>
+            </div>
+
+            <div className="mb-4 text-sm leading-relaxed text-muted-foreground">
+                از ثبت‌نام شما متشکریم! لطفاً روی لینکی که برایتان ارسال کردیم کلیک کنید
+                تا ایمیل خود را تأیید کنید. اگر ایمیلی دریافت نکردید، دوباره ارسال می‌کنیم.
             </div>
 
             {status === 'verification-link-sent' && (
@@ -29,16 +36,16 @@ export default function VerifyEmail({ status }: { status?: string }) {
             )}
 
             <form onSubmit={submit}>
-                <div className="mt-4 flex items-center justify-between">
-                    <PrimaryButton disabled={processing}>
+                <div className="flex items-center justify-between pt-2">
+                    <Button variant="primary" disabled={processing}>
                         ارسال مجدد ایمیل تأیید
-                    </PrimaryButton>
+                    </Button>
 
                     <Link
                         href={route('logout')}
                         method="post"
                         as="button"
-                        className="rounded-md text-sm text-muted-foreground underline hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
                     >
                         خروج
                     </Link>

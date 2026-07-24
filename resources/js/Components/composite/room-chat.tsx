@@ -2,7 +2,7 @@ import api from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { usePage } from '@inertiajs/react';
 import { Send, Trash2, User } from 'lucide-react';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/Components/composite/confirm-dialog';
 
 interface Message {
@@ -17,16 +17,20 @@ interface RoomChatProps {
     roomId: number;
     initialMessages: Message[];
     pollInterval?: number;
+    onUnreadCountChange?: (count: number) => void;
 }
 
-export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomChatProps) {
+export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnreadCountChange }: RoomChatProps) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [body, setBody] = useState('');
     const [sending, setSending] = useState(false);
     const [deleting, setDeleting] = useState<number | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+    const [unreadCount, setUnreadCount] = useState(0);
     const listRef = useRef<HTMLDivElement>(null);
+    const prevCountRef = useRef(initialMessages.length);
+    const isTabVisibleRef = useRef(!document.hidden);
 
     const scrollToBottom = () => {
         if (listRef.current) {
@@ -34,23 +38,58 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomC
         }
     };
 
+    const fetchMessages = useCallback(async () => {
+        try {
+            const { data } = await api.get(`/chat/${roomId}/messages`);
+            setMessages((prev) => {
+                const incoming = data as Message[];
+                if (!isTabVisibleRef.current && incoming.length > prev.length) {
+                    setUnreadCount((c) => c + incoming.length - prev.length);
+                }
+                return incoming;
+            });
+        } catch {
+            // silently fail
+        }
+    }, [roomId]);
+
     useEffect(() => {
         const timer = setTimeout(scrollToBottom, 50);
         return () => clearTimeout(timer);
     }, [initialMessages]);
 
     useEffect(() => {
-        const interval = setInterval(async () => {
-            try {
-                const { data } = await api.get(`/chat/${roomId}/messages`);
-                setMessages(data);
-            } catch {
-                // silently fail
-            }
-        }, pollInterval);
-
+        const interval = setInterval(fetchMessages, pollInterval);
         return () => clearInterval(interval);
-    }, [roomId, pollInterval]);
+    }, [fetchMessages, pollInterval]);
+
+    useEffect(() => {
+        const handleVisibility = () => {
+            isTabVisibleRef.current = !document.hidden;
+            if (document.visibilityState === 'visible') {
+                setUnreadCount(0);
+                fetchMessages();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, [fetchMessages]);
+
+    useEffect(() => {
+        prevCountRef.current = messages.length;
+    }, [messages]);
+
+    useEffect(() => {
+        onUnreadCountChange?.(unreadCount);
+    }, [unreadCount, onUnreadCountChange]);
+
+    useEffect(() => {
+        if (unreadCount > 0) {
+            document.title = `(${unreadCount}) تماشاروم`;
+        } else {
+            document.title = 'تماشاروم';
+        }
+    }, [unreadCount]);
 
     const sendMessage = async (e: FormEvent) => {
         e.preventDefault();
@@ -131,7 +170,7 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000 }: RoomC
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="پیام خود را بنویسید..."
-                    className="flex-1 h-9 rounded-xl border border-input bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="flex-1 h-9 rounded-xl border border-input bg-transparent px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     maxLength={500}
                 />
                 <button

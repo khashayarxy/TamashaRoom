@@ -1,7 +1,5 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
+import { Input } from '@/Components/ui/input';
+import { Button } from '@/Components/ui/button';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
@@ -32,67 +30,53 @@ export default function ResetPassword({
         <GuestLayout>
             <Head title="بازنشانی رمز عبور" />
 
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="email" value="ایمیل" />
+            <div className="mb-6 text-center">
+                <p className="text-sm font-medium text-primary">به تماشاروم خوش آمدید</p>
+                <h2 className="mt-1 text-xl font-bold">رمز عبور جدید</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    رمز عبور جدید خود را وارد کنید
+                </p>
+            </div>
 
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        onChange={(e) => setData('email', e.target.value)}
-                    />
+            <form onSubmit={submit} className="space-y-4">
+                <Input
+                    label="ایمیل"
+                    id="email"
+                    type="email"
+                    value={data.email}
+                    onChange={(e) => setData('email', e.target.value)}
+                    error={errors.email}
+                    autoComplete="username"
+                    required
+                />
 
-                    <InputError message={errors.email} className="mt-2" />
-                </div>
+                <Input
+                    label="رمز عبور جدید"
+                    id="password"
+                    type="password"
+                    value={data.password}
+                    onChange={(e) => setData('password', e.target.value)}
+                    error={errors.password}
+                    autoComplete="new-password"
+                    autoFocus
+                    required
+                />
 
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="رمز عبور جدید" />
+                <Input
+                    label="تکرار رمز عبور جدید"
+                    id="password_confirmation"
+                    type="password"
+                    value={data.password_confirmation}
+                    onChange={(e) => setData('password_confirmation', e.target.value)}
+                    error={errors.password_confirmation}
+                    autoComplete="new-password"
+                    required
+                />
 
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        isFocused={true}
-                        onChange={(e) => setData('password', e.target.value)}
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel
-                        htmlFor="password_confirmation"
-                        value="تکرار رمز عبور جدید"
-                    />
-
-                    <TextInput
-                        type="password"
-                        name="password_confirmation"
-                        value={data.password_confirmation}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        onChange={(e) =>
-                            setData('password_confirmation', e.target.value)
-                        }
-                    />
-
-                    <InputError
-                        message={errors.password_confirmation}
-                        className="mt-2"
-                    />
-                </div>
-
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
+                <div className="flex justify-end pt-2">
+                    <Button variant="primary" disabled={processing}>
                         بازنشانی رمز عبور
-                    </PrimaryButton>
+                    </Button>
                 </div>
             </form>
         </GuestLayout>
