@@ -51,6 +51,9 @@ jobs:
       - name: Run database migrations
         run: php artisan migrate --env=testing --force
 
+      - name: Build frontend assets
+        run: npm run build
+
       - name: Run PHP tests
         run: php artisan test
         env:
@@ -82,5 +85,4 @@ jobs:
         env:
           APP_ENV: local
 
-      - name: Build production assets
-        run: npm run build
+
