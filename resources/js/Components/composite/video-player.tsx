@@ -1,8 +1,8 @@
-import { usePlaybackSync } from '@/Hooks/use-playback-sync';
-import { computeExpectedPosition } from '@/lib/types/playback';
-import { cn, formatDuration } from '@/lib/utils';
-import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
-import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { usePlaybackSync } from "@/Hooks/use-playback-sync";
+import { computeExpectedPosition } from "@/lib/types/playback";
+import { cn, formatDuration } from "@/lib/utils";
+import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 const DRIFT_THRESHOLD = 2;
 
@@ -19,8 +19,18 @@ function proxyUrl(roomId: number): string {
     return `/proxy/video/${roomId}`;
 }
 
-export function VideoPlayer({ roomId, canControl = false, initialVideoUrl, className, videoRef: externalRef, children }: VideoPlayerProps) {
-    const { state, sync, syncImmediate } = usePlaybackSync({ roomId, isHost: canControl });
+export function VideoPlayer({
+    roomId,
+    canControl = false,
+    initialVideoUrl,
+    className,
+    videoRef: externalRef,
+    children,
+}: VideoPlayerProps) {
+    const { state, sync, syncImmediate } = usePlaybackSync({
+        roomId,
+        isHost: canControl,
+    });
     const internalRef = useRef<HTMLVideoElement>(null);
     const videoRef = externalRef || internalRef;
     const lastTimeupdateSync = useRef(0);
@@ -28,9 +38,10 @@ export function VideoPlayer({ roomId, canControl = false, initialVideoUrl, class
     const [displayTime, setDisplayTime] = useState(0);
     const [proxyFailed, setProxyFailed] = useState(false);
 
-    const sourceUrl: string | undefined = state.playbackMode === 'direct' || proxyFailed
-        ? (state.videoUrl || initialVideoUrl || undefined)
-        : proxyUrl(roomId);
+    const sourceUrl: string | undefined =
+        state.playbackMode === "direct" || proxyFailed
+            ? state.videoUrl || initialVideoUrl || undefined
+            : proxyUrl(roomId);
 
     const handleVideoError = useCallback(() => {
         if (!proxyFailed && state.videoUrl) {
@@ -55,11 +66,11 @@ export function VideoPlayer({ roomId, canControl = false, initialVideoUrl, class
             updateDisplay();
         };
 
-        video.addEventListener('timeupdate', updateDisplay);
-        video.addEventListener('seeked', handleSeeked);
+        video.addEventListener("timeupdate", updateDisplay);
+        video.addEventListener("seeked", handleSeeked);
         return () => {
-            video.removeEventListener('timeupdate', updateDisplay);
-            video.removeEventListener('seeked', handleSeeked);
+            video.removeEventListener("timeupdate", updateDisplay);
+            video.removeEventListener("seeked", handleSeeked);
         };
     }, [sourceUrl, videoRef]);
 
@@ -73,6 +84,7 @@ export function VideoPlayer({ roomId, canControl = false, initialVideoUrl, class
             const expected = computeExpectedPosition(state, Date.now() / 1000);
             const diff = Math.abs(video.currentTime - expected);
             if (diff > DRIFT_THRESHOLD) {
+                // eslint-disable-next-line react-compiler/react-compiler
                 video.currentTime = expected;
             }
             video.play().catch(() => {});
@@ -84,7 +96,7 @@ export function VideoPlayer({ roomId, canControl = false, initialVideoUrl, class
             }
             video.pause();
         }
-    }, [state.isPlaying, state.positionSeconds, state.stateVersion, sourceUrl, videoRef, isSeeking]);
+    }, [state, sourceUrl, videoRef, isSeeking]);
 
     const handlePlayPause = useCallback(() => {
         if (!canControl) return;
@@ -119,35 +131,56 @@ export function VideoPlayer({ roomId, canControl = false, initialVideoUrl, class
             setIsSeeking(true);
             syncImmediate({ positionSeconds: newTime });
         },
-        [canControl, state.durationSeconds, syncImmediate, videoRef]
+        [canControl, state.durationSeconds, syncImmediate, videoRef],
     );
 
     const skip = useCallback(
         (seconds: number) => {
             if (!canControl || !videoRef.current) return;
             const video = videoRef.current;
-            const newTime = Math.max(0, Math.min(video.currentTime + seconds, state.durationSeconds || Infinity));
+            const newTime = Math.max(
+                0,
+                Math.min(
+                    video.currentTime + seconds,
+                    state.durationSeconds || Infinity,
+                ),
+            );
             video.currentTime = newTime;
             setIsSeeking(true);
             syncImmediate({ positionSeconds: newTime });
         },
-        [canControl, state.durationSeconds, syncImmediate, videoRef]
+        [canControl, state.durationSeconds, syncImmediate, videoRef],
     );
 
     const effectiveUrl = state.videoUrl || initialVideoUrl;
 
     if (!effectiveUrl) {
         return (
-            <div className={cn('flex items-center justify-center h-full bg-muted rounded-2xl', className)}>
-                <p className="text-muted-foreground">هنوز ویدیویی تنظیم نشده است</p>
+            <div
+                className={cn(
+                    "flex items-center justify-center h-full bg-muted rounded-2xl",
+                    className,
+                )}
+            >
+                <p className="text-muted-foreground">
+                    هنوز ویدیویی تنظیم نشده است
+                </p>
             </div>
         );
     }
 
-    const progress = state.durationSeconds > 0 ? (displayTime / state.durationSeconds) * 100 : 0;
+    const progress =
+        state.durationSeconds > 0
+            ? (displayTime / state.durationSeconds) * 100
+            : 0;
 
     return (
-        <div className={cn('relative group overflow-hidden rounded-2xl bg-black', className)}>
+        <div
+            className={cn(
+                "relative group overflow-hidden rounded-2xl bg-black",
+                className,
+            )}
+        >
             <video
                 ref={videoRef}
                 key={sourceUrl}
@@ -166,20 +199,39 @@ export function VideoPlayer({ roomId, canControl = false, initialVideoUrl, class
                     className="h-1 bg-white/30 rounded-full cursor-pointer mb-3"
                     onClick={handleSeek}
                 >
-                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
+                    <div
+                        className="h-full bg-primary rounded-full transition-all"
+                        style={{ width: `${progress}%` }}
+                    />
                 </div>
 
                 <div className="flex items-center justify-between text-white">
                     <div className="flex items-center gap-2">
                         {canControl && (
                             <>
-                                <button onClick={() => skip(-10)} className="p-1 hover:text-primary transition-colors" aria-label="پرش ۱۰ ثانیه به عقب">
+                                <button
+                                    onClick={() => skip(-10)}
+                                    className="p-1 hover:text-primary transition-colors"
+                                    aria-label="پرش ۱۰ ثانیه به عقب"
+                                >
                                     <SkipBack className="h-6 w-6" />
                                 </button>
-                                <button onClick={handlePlayPause} className="p-1 hover:text-primary transition-colors" aria-label="پخش یا مکث">
-                                    {state.isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                                <button
+                                    onClick={handlePlayPause}
+                                    className="p-1 hover:text-primary transition-colors"
+                                    aria-label="پخش یا مکث"
+                                >
+                                    {state.isPlaying ? (
+                                        <Pause className="h-6 w-6" />
+                                    ) : (
+                                        <Play className="h-6 w-6" />
+                                    )}
                                 </button>
-                                <button onClick={() => skip(10)} className="p-1 hover:text-primary transition-colors" aria-label="پرش ۱۰ ثانیه به جلو">
+                                <button
+                                    onClick={() => skip(10)}
+                                    className="p-1 hover:text-primary transition-colors"
+                                    aria-label="پرش ۱۰ ثانیه به جلو"
+                                >
                                     <SkipForward className="h-6 w-6" />
                                 </button>
                             </>

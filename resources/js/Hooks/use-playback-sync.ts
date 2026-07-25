@@ -1,8 +1,14 @@
-import api from '@/lib/api';
-import { computeExpectedPosition, PlaybackState, PlaybackStateResponse, PlaybackSyncResponse, toPlaybackState } from '@/lib/types/playback';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import api from "@/lib/api";
+import {
+    computeExpectedPosition,
+    PlaybackState,
+    PlaybackStateResponse,
+    PlaybackSyncResponse,
+    toPlaybackState,
+} from "@/lib/types/playback";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export { type PlaybackState } from '@/lib/types/playback';
+export { type PlaybackState } from "@/lib/types/playback";
 
 const POLL_ACTIVE = 3000;
 const POLL_IDLE = 10000;
@@ -14,14 +20,18 @@ interface SyncOptions {
     onRemoteChange?: (state: PlaybackState) => void;
 }
 
-export function usePlaybackSync({ roomId, isHost = false, onRemoteChange }: SyncOptions) {
+export function usePlaybackSync({
+    roomId,
+    isHost = false,
+    onRemoteChange,
+}: SyncOptions) {
     const [state, setState] = useState<PlaybackState>({
         isPlaying: false,
         positionSeconds: 0,
         durationSeconds: 0,
         playbackRate: 1,
         videoUrl: null,
-        playbackMode: 'proxy',
+        playbackMode: "proxy",
         stateVersion: 0,
         serverTimestamp: null,
         updatedAt: new Date().toISOString(),
@@ -41,7 +51,9 @@ export function usePlaybackSync({ roomId, isHost = false, onRemoteChange }: Sync
 
     const fetchState = useCallback(async () => {
         try {
-            const { data } = await api.get<PlaybackStateResponse>(`/playback/${roomId}/state`);
+            const { data } = await api.get<PlaybackStateResponse>(
+                `/playback/${roomId}/state`,
+            );
             const incoming = toPlaybackState(data);
 
             if (incoming.stateVersion <= versionRef.current) {
@@ -51,14 +63,17 @@ export function usePlaybackSync({ roomId, isHost = false, onRemoteChange }: Sync
             versionRef.current = incoming.stateVersion;
             lastPollRef.current = Date.now() / 1000;
 
-            const expected = computeExpectedPosition(incoming, lastPollRef.current);
+            const expected = computeExpectedPosition(
+                incoming,
+                lastPollRef.current,
+            );
             const corrected = { ...incoming, positionSeconds: expected };
 
             setState(corrected);
             onRemoteChange?.(corrected);
             setError(null);
         } catch {
-            setError('Failed to sync playback');
+            setError("Failed to sync playback");
         } finally {
             setLoading(false);
         }
@@ -71,16 +86,24 @@ export function usePlaybackSync({ roomId, isHost = false, onRemoteChange }: Sync
             const prev = stateRef.current;
             const payload = {
                 is_playing: partial.isPlaying ?? prev.isPlaying,
-                position_seconds: partial.positionSeconds ?? prev.positionSeconds,
-                duration_seconds: partial.durationSeconds ?? prev.durationSeconds,
+                position_seconds:
+                    partial.positionSeconds ?? prev.positionSeconds,
+                duration_seconds:
+                    partial.durationSeconds ?? prev.durationSeconds,
                 playback_rate: partial.playbackRate ?? prev.playbackRate,
-                video_url: partial.videoUrl !== undefined ? partial.videoUrl : prev.videoUrl,
+                video_url:
+                    partial.videoUrl !== undefined
+                        ? partial.videoUrl
+                        : prev.videoUrl,
                 client_timestamp: Date.now() / 1000,
             } as const;
 
             try {
-                const { data } = await api.patch<PlaybackSyncResponse>(`/playback/${roomId}`, payload);
-                if (data.status === 'ok') {
+                const { data } = await api.patch<PlaybackSyncResponse>(
+                    `/playback/${roomId}`,
+                    payload,
+                );
+                if (data.status === "ok") {
                     versionRef.current = data.state_version;
                     lastPollRef.current = Date.now() / 1000;
                     setState((s) => ({
@@ -92,7 +115,7 @@ export function usePlaybackSync({ roomId, isHost = false, onRemoteChange }: Sync
                 }
                 setError(null);
             } catch {
-                setError('Failed to sync playback');
+                setError("Failed to sync playback");
             }
         },
         [roomId, isHost],

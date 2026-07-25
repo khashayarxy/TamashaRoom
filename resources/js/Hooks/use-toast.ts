@@ -1,9 +1,9 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from "react";
 
 export interface Toast {
     id: string;
     message: string;
-    type: 'success' | 'error' | 'info';
+    type: "success" | "error" | "info";
 }
 
 type Listener = () => void;
@@ -17,7 +17,7 @@ function emit() {
     }
 }
 
-function addToast(message: string, type: Toast['type'] = 'info') {
+function addToast(message: string, type: Toast["type"] = "info") {
     const id = crypto.randomUUID();
     toasts = [...toasts, { id, message, type }];
     emit();
@@ -28,11 +28,11 @@ function addToast(message: string, type: Toast['type'] = 'info') {
 }
 
 export function toast(message: string) {
-    addToast(message, 'info');
+    addToast(message, "info");
 }
 
-toast.success = (message: string) => addToast(message, 'success');
-toast.error = (message: string) => addToast(message, 'error');
+toast.success = (message: string) => addToast(message, "success");
+toast.error = (message: string) => addToast(message, "error");
 
 function subscribe(listener: Listener) {
     listeners.add(listener);
@@ -44,9 +44,14 @@ function getSnapshot() {
 }
 
 export function useToast() {
-    const currentToasts = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const currentToasts = useSyncExternalStore(
+        subscribe,
+        getSnapshot,
+        getSnapshot,
+    );
 
     const dismiss = useCallback((id: string) => {
+        // eslint-disable-next-line react-compiler/react-compiler
         toasts = toasts.filter((t) => t.id !== id);
         emit();
     }, []);

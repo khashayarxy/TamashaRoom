@@ -20,6 +20,14 @@ class RoomMember extends Model
         'disconnected_at',
     ];
 
+    protected $appends = [
+        'is_owner',
+    ];
+
+    protected $hidden = [
+        'room',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -33,6 +41,11 @@ class RoomMember extends Model
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function getIsOwnerAttribute(): bool
+    {
+        return $this->user_id === $this->room?->user_id;
     }
 
     public function user(): BelongsTo

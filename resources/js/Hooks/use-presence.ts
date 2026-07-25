@@ -1,11 +1,11 @@
-import api from '@/lib/api';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import api from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface PresenceMember {
     id: number;
     user_id: number;
     name: string;
-    presence_status: 'online' | 'offline' | 'away';
+    presence_status: "online" | "offline" | "away";
     last_seen_at: string;
     disconnected_at: string | null;
     joined_at: string;
@@ -21,7 +21,9 @@ export function usePresence(roomId: number | null) {
     const [connected, setConnected] = useState(false);
     const versionRef = useRef(0);
     const retryRef = useRef(HEARTBEAT_INTERVAL);
-    const heartbeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const heartbeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+        null,
+    );
     const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const cancelledRef = useRef(false);
     const roomIdRef = useRef(roomId);
@@ -47,7 +49,10 @@ export function usePresence(roomId: number | null) {
                 retryRef.current = HEARTBEAT_INTERVAL;
                 setConnected(true);
             } catch {
-                retryRef.current = Math.min(retryRef.current * 2, MAX_RETRY_DELAY);
+                retryRef.current = Math.min(
+                    retryRef.current * 2,
+                    MAX_RETRY_DELAY,
+                );
                 setConnected(false);
             }
 
@@ -60,7 +65,9 @@ export function usePresence(roomId: number | null) {
     const fetchPresence = useCallback(async () => {
         if (!roomId) return;
         try {
-            const { data } = await api.get<PresenceMember[]>(`/presence/${roomId}`);
+            const { data } = await api.get<PresenceMember[]>(
+                `/presence/${roomId}`,
+            );
             setMembers(data);
             setConnected(true);
         } catch {
@@ -78,7 +85,8 @@ export function usePresence(roomId: number | null) {
 
         return () => {
             cancelledRef.current = true;
-            if (heartbeatTimerRef.current) clearTimeout(heartbeatTimerRef.current);
+            if (heartbeatTimerRef.current)
+                clearTimeout(heartbeatTimerRef.current);
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
         };
     }, [roomId, scheduleHeartbeat, fetchPresence]);
@@ -90,13 +98,17 @@ export function usePresence(roomId: number | null) {
             navigator.sendBeacon(`/presence/${roomId}/leave`);
         };
 
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () =>
+            window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [roomId]);
 
     return {
         members,
         connected,
-        sendHeartbeat: () => { cancelledRef.current = false; scheduleHeartbeat(0); },
+        sendHeartbeat: () => {
+            cancelledRef.current = false;
+            scheduleHeartbeat(0);
+        },
     };
 }

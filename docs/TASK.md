@@ -63,7 +63,7 @@
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **170** tests across all modules (136 Feature + 34 Unit — expanded by audit, chat, rate limiter tests)
+- [x] **166** tests across all modules (132 Feature + 34 Unit)
 - [x] **102** Frontend tests (79 existing + 23 Zustand store tests)
 - [x] Build verification (tsc + vite)
 
@@ -125,6 +125,32 @@
   - `npm run test:a11y` (Playwright a11y, `APP_ENV=local`)
   - `npm run test:e2e` (Playwright E2E, `APP_ENV=local`)
 
+### CI Fix: Missing APP_KEY (2026-07-25)
+- [x] **`.github/workflows/ci.yml`** — added `php artisan key:generate` step after environment file creation, before running any tests or PHP commands that require an application key
+
+### A11y Fixes — First Green Run (2026-07-25)
+- [x] **AppLayout logout nested-interactive** — removed `<Link as="button">` wrapper, used `router.post()` directly on `<Button>` with `aria-label="خروج"`
+- [x] **AuthenticatedLayout logo aria-label** — added `aria-label="خانه"` to home/logo `<Link>`
+- [x] **Dashboard card copy-link contrast (1.79:1)** — `text-primary` → `text-muted-foreground hover:text-primary`
+- [x] **Tab nav contrast (3.89:1 → ~6:1)** — darkened light-mode `--muted-foreground` from `30,8%,40%` to `30,12%,26%`
+- [x] **Chat timestamp opacity** — replaced `opacity-60` with conditional `text-primary-foreground/80` / `text-secondary-foreground/80`
+- [x] **Toast close button, track extension label** — `opacity-60` → `opacity-80` on remaining text elements
+
+### E2E All Green — Serializer, Test Helper & Route Binding Fixes (2026-07-25)
+- [x] **`is_owner` serializer** — added `$appends = ['is_owner']` + accessor to `RoomMember` model; updated `RoomController::members()` to set `room` relation on each loaded member; hidden `room` from serialization
+- [x] **FRONTEND_CONTRACT.md updated** — `RoomMember` interface now documents `is_owner: boolean` (was a docs-vs-reality gap: `PresenceMember` had it but `RoomMember` did not)
+- [x] **`__test/join-room`** — changed to log in as the room's current owner if that owner is already a member, instead of always creating a new user. Fixes ownership-transfer test: after transfer, the new owner (original guest) is correctly returned.
+- [x] **Kick/transfer route binding** — changed `User $target` to `int $targetId` in both `RoomController::kick()` and `transfer()`. Implicit model binding threw 404 before policy evaluation; now the controller checks authorization first and returns proper 403/404 responses.
+- [x] **E2E results**: 12/12 pass (chat 2/2, lock-kick-transfer 4/4, room 3/3, subtitle 3/3). PHPUnit 166/166. Lint + TypeScript + Pint all pass.
+
+### E2E CSRF Fix & SRT MIME Validation Fix (2026-07-25)
+- [x] **CSRF root cause**: `page.request.post()` in Playwright sends cookies differently than a real browser, breaking the encrypted `X-XSRF-TOKEN` header flow used by `PreventRequestForgery::getTokenFromRequest()`
+- [x] **Fix applied**: `bootstrap/app.php` — `encryptCookies(except: ['XSRF-TOKEN'])` stores the cookie as plaintext; all E2E tests send `_token` form field instead of `X-XSRF-TOKEN` header
+- [x] **Playwright baseURL bug**: `browser.newContext()` does NOT inherit `baseURL` from config — fixed by passing `{ baseURL: "http://127.0.0.1:8000" }` to all `newContext()` calls
+- [x] **SRT MIME validation fix**: `mimes:srt,vtt` in `UploadSubtitleRequest` uses Symfony's `guessExtension()` on file **content**, not the filename. SRT content (starting with sequence number `1`) is guessed as extension `txt`, so `mimes:srt,vtt` fails for all SRT files. Changed to `mimes:srt,vtt,txt` — added `txt` since that's what Symfony's guesser returns for SRT content. The `after()` hook still validates actual content format, rejecting non-subtitle text files.
+- [x] **E2E results**: 9/12 pass (chat 2/2, room 3/3, subtitle 3/3, lock-kick-transfer 1/4). Backend: 166/166 pass. Lint + TypeScript + Pint all pass.
+- [x] **3 remaining failures diagnosed** (lock-kick-transfer): all caused by missing `is_owner` field in member API response — see Pending section
+
 ### Documentation & Security Cleanup (2026-07-22)
 - [x] **PROJECT.md tech stack** — Vite 6→5, Zod 3→4, Vitest 2→3; React Query line removed (not installed); removed `test:ui` script (doesn't exist in package.json)
 - [x] **PROJECT.md SYSTEM.docx references** — all 9 occurrences changed to `SYSTEM.md`
@@ -153,7 +179,7 @@
 - [x] **Frontend component tests** — 64 tests added across 6 files (room-chat, member-list, video-player, subtitle-overlay, subtitle-settings, subtitle-parser)
 - [x] **Rate limiting** — 7 tests exercising all 5 rate limiters (login, chat, playback, proxy, presence)
 - [x] **VideoProxyService SSL verification disabled** — documented with rationale comment on all three stream contexts
-- [x] **Dashboard a11y test un-skipped** — now uses `POST /__test/setup-verified-room` to create a verified user and login, bypassing the email-verification redirect
+- [x] **Dashboard a11y test un-skipped** — now uses `GET /__test/setup-verified-room` to create a verified user and login, bypassing the email-verification redirect
 - [x] **SRT format detection tightened** — now validates the SRT timing line format (`HH:MM:SS,mmm --> HH:MM:SS,mmm`) on the second non-empty line
 #### Documentation vs. Code Mismatches
 - [x] **PROJECT.md tech stack** — Vite 6→5, Zod 3→4, Vitest 2→3; React Query removed (not installed)
@@ -173,7 +199,7 @@
 - [x] **Zustand stores** — 23 tests added: theme (5), room-ui (11), subtitle (7)
 - [x] **Dashboard a11y test** — un-skipped (uses `__test/setup-verified-room` helper)
 - [ ] **Profile, password-reset, verify-email a11y** — pages uncovered
-- [ ] **E2E tests** — only 3 tests covering room creation/join/propagation; chat, subtitle, lock/kick, transfer flows untested at E2E level
+- [ ] **E2E tests** — 12 of 12 pass (chat 2/2, lock-kick-transfer 4/4, room 3/3, subtitle 3/3)
 - [ ] **Subtitle content sanitization** — no explicit XSS/content sanitization; relies on browser's VTT-safe rendering
 
 #### Deployment Readiness
@@ -208,7 +234,7 @@
 - [ ] WebSocket migration for real-time events
 - [ ] Chat/room moderation — report message, owner can delete any message (not just their own)
 - [ ] Cover profile, password-reset, verify-email pages with a11y audits
-- [ ] E2E tests for chat, subtitle, lock/kick, and transfer flows
+- [ ] E2E tests for chat, subtitle, lock/kick, and transfer flows (now covered — 12 tests)
 
 ### Accepted MVP Limitations (tech debt)
 - [ ] **SSRF TOCTOU gap** — `UrlSecurityService::validateVideoUrl()` runs DNS resolution and IP checks once at the top of `VideoProxyService::stream()`. Within a single request, a DNS rebinding attack could pass validation for a safe IP and then resolve to a different (internal) IP by the time `get_headers()` or `fopen()` runs. The window is microseconds and the proxy requires authentication, so the risk is accepted for MVP. Post-MVP fix: resolve the hostname synchronously, compare the resolved IP against the blocklist inside every stream context (as a `stream_context_set_param` wrapper), and fail on mismatch.

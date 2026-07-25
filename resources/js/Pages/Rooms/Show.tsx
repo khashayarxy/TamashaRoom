@@ -1,22 +1,34 @@
-import { MemberList } from '@/Components/composite/member-list';
-import { RoomChat } from '@/Components/composite/room-chat';
-import { RoomSettingsDialog } from '@/Components/composite/room-settings';
-import { SubtitleOverlay, useSubtitleSettings } from '@/Components/composite/subtitle-overlay';
-import { SubtitleSettingsDialog } from '@/Components/composite/subtitle-settings';
-import { ToastContainer } from '@/Components/composite/toast';
-import { VideoPlayer } from '@/Components/composite/video-player';
-import { Button } from '@/Components/ui/button';
-import { Card, CardContent } from '@/Components/ui/card';
-import { Input } from '@/Components/ui/input';
-import { usePresence } from '@/Hooks/use-presence';
-import AppLayout from '@/Layouts/AppLayout';
-import { copyToClipboard } from '@/lib/utils';
-import api from '@/lib/api';
-import { useRoomUiStore } from '@/stores/room-ui';
-import type { SubtitleTrack, SubtitleCue } from '@/lib/types/subtitle';
-import { Copy, MessageSquare, Subtitles, Trash2, Tv, Upload, Users, X } from 'lucide-react';
-import { usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { MemberList } from "@/Components/composite/member-list";
+import { RoomChat } from "@/Components/composite/room-chat";
+import { RoomSettingsDialog } from "@/Components/composite/room-settings";
+import {
+    SubtitleOverlay,
+    useSubtitleSettings,
+} from "@/Components/composite/subtitle-overlay";
+import { SubtitleSettingsDialog } from "@/Components/composite/subtitle-settings";
+import { ToastContainer } from "@/Components/composite/toast";
+import { VideoPlayer } from "@/Components/composite/video-player";
+import { Button } from "@/Components/ui/button";
+import { Card, CardContent } from "@/Components/ui/card";
+import { Input } from "@/Components/ui/input";
+import { usePresence } from "@/Hooks/use-presence";
+import AppLayout from "@/Layouts/AppLayout";
+import { copyToClipboard } from "@/lib/utils";
+import api from "@/lib/api";
+import { useRoomUiStore } from "@/stores/room-ui";
+import type { SubtitleTrack, SubtitleCue } from "@/lib/types/subtitle";
+import {
+    Copy,
+    MessageSquare,
+    Subtitles,
+    Trash2,
+    Tv,
+    Upload,
+    Users,
+    X,
+} from "lucide-react";
+import { usePage } from "@inertiajs/react";
+import { useEffect, useRef, useState } from "react";
 
 interface ChatMessage {
     id: number;
@@ -50,18 +62,23 @@ interface ShowRoomProps {
     room: Room;
 }
 
-const ACTIVE_TRACK_KEY = 'tamasharoom-active-track';
+const ACTIVE_TRACK_KEY = "tamasharoom-active-track";
 
 function loadActiveTrackId(roomId: number): number | null {
     try {
         const raw = localStorage.getItem(`${ACTIVE_TRACK_KEY}-${roomId}`);
         if (raw) return JSON.parse(raw);
-    } catch { /* ignore */ }
+    } catch {
+        /* ignore */
+    }
     return null;
 }
 
 function saveActiveTrackId(roomId: number, trackId: number | null) {
-    localStorage.setItem(`${ACTIVE_TRACK_KEY}-${roomId}`, JSON.stringify(trackId));
+    localStorage.setItem(
+        `${ACTIVE_TRACK_KEY}-${roomId}`,
+        JSON.stringify(trackId),
+    );
 }
 
 export default function ShowRoom({ room }: ShowRoomProps) {
@@ -83,11 +100,16 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const setRoomInviteCode = useRoomUiStore((s) => s.setRoomInviteCode);
     const roomIsLocked = useRoomUiStore((s) => s.roomIsLocked);
     const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
+    const ownerId = useRoomUiStore((s) => s.ownerId);
+    const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
     const [tracks, setTracks] = useState<SubtitleTrack[]>([]);
-    const [activeTrackId, setActiveTrackId] = useState<number | null>(() => loadActiveTrackId(room.id));
+    const [activeTrackId, setActiveTrackId] = useState<number | null>(() =>
+        loadActiveTrackId(room.id),
+    );
     const [cues, setCues] = useState<SubtitleCue[]>([]);
     const [subLoading, setSubLoading] = useState(false);
     const [subError, setSubError] = useState<string | null>(null);
+    const [chatUnread, setChatUnread] = useState(0);
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,15 +122,30 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         setRoomName(room.name);
         setRoomInviteCode(room.invite_code);
         setRoomIsLocked(room.is_locked);
-    }, [room.id, room.name, room.invite_code, room.is_locked, setRoomName, setRoomInviteCode, setRoomIsLocked]);
+        setOwnerId(room.owner.id);
+    }, [
+        room.id,
+        room.name,
+        room.invite_code,
+        room.is_locked,
+        room.owner.id,
+        setRoomName,
+        setRoomInviteCode,
+        setRoomIsLocked,
+        setOwnerId,
+    ]);
 
     const setVideo = async () => {
         if (!videoUrl.trim()) return;
         try {
-            await api.post(`/playback/${room.id}/set-video`, { video_url: videoUrl });
+            await api.post(`/playback/${room.id}/set-video`, {
+                video_url: videoUrl,
+            });
             setShowSetVideo(false);
-            setVideoUrl('');
-        } catch { /* silently fail */ }
+            setVideoUrl("");
+        } catch {
+            /* silently fail */
+        }
     };
 
     useEffect(() => {
@@ -119,7 +156,9 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 setTracks(res.data);
             })
             .catch(() => {});
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [room.id]);
 
     useEffect(() => {
@@ -146,11 +185,13 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             .catch(() => {
                 if (cancelled) return;
                 setCues([]);
-                setSubError('خطا در بارگذاری زیرنویس');
+                setSubError("خطا در بارگذاری زیرنویس");
                 setSubLoading(false);
             });
 
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [room.id, activeTrackId]);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,19 +199,19 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         if (!file) return;
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append("file", file);
 
         try {
             const res = await api.post(`/subtitles/${room.id}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
+                headers: { "Content-Type": "multipart/form-data" },
             });
             setTracks((prev) => [res.data, ...prev]);
             setActiveTrackId(res.data.id);
         } catch {
-            setSubError('خطا در آپلود فایل');
+            setSubError("خطا در آپلود فایل");
         }
 
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
     const handleDeleteTrack = async (trackId: number) => {
@@ -182,24 +223,29 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 setCues([]);
             }
         } catch {
-            setSubError('خطا در حذف زیرنویس');
+            setSubError("خطا در حذف زیرنویس");
         }
     };
 
     const activeTrack = tracks.find((t) => t.id === activeTrackId);
 
-    const handleRoomUpdate = (data: { name?: string; invite_code?: string; is_locked?: boolean }) => {
+    const handleRoomUpdate = (data: {
+        name?: string;
+        invite_code?: string;
+        is_locked?: boolean;
+    }) => {
         if (data.name) setRoomName(data.name);
         if (data.invite_code) setRoomInviteCode(data.invite_code);
         if (data.is_locked !== undefined) setRoomIsLocked(data.is_locked);
     };
 
     const handleKick = (_userId: number) => {
-        setActiveTab('members');
+        setActiveTab("members");
     };
 
-    const handleTransfer = (_userId: number) => {
-        setActiveTab('members');
+    const handleTransfer = (userId: number) => {
+        setOwnerId(userId);
+        setActiveTab("members");
     };
 
     return (
@@ -210,7 +256,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         <h1 className="text-xl font-bold">{roomName}</h1>
                         <p className="text-sm text-muted-foreground">
                             ساخته شده توسط {room.owner.name}
-                            {roomIsLocked && <span className="mr-2 text-yellow-500">(قفل)</span>}
+                            {roomIsLocked && (
+                                <span className="ms-2 text-yellow-500">
+                                    (قفل)
+                                </span>
+                            )}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -251,7 +301,9 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     <Input
                                         placeholder="آدرس ویدیو (YouTube, MP4, ...)"
                                         value={videoUrl}
-                                        onChange={(e) => setVideoUrl(e.target.value)}
+                                        onChange={(e) =>
+                                            setVideoUrl(e.target.value)
+                                        }
                                         dir="ltr"
                                     />
                                 </div>
@@ -290,7 +342,9 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => fileInputRef.current?.click()}
+                                        onClick={() =>
+                                            fileInputRef.current?.click()
+                                        }
                                     >
                                         <Upload className="h-4 w-4" />
                                         آپلود فایل
@@ -307,11 +361,13 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                 {tracks.length > 0 && (
                                     <div className="w-full space-y-1">
                                         <button
-                                            onClick={() => setActiveTrackId(null)}
-                                            className={`w-full text-right px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                                            onClick={() =>
+                                                setActiveTrackId(null)
+                                            }
+                                            className={`w-full text-end px-3 py-1.5 rounded-lg text-sm transition-colors ${
                                                 activeTrackId === null
-                                                    ? 'bg-primary/20 text-primary'
-                                                    : 'text-muted-foreground hover:bg-secondary'
+                                                    ? "bg-primary/20 text-primary"
+                                                    : "text-muted-foreground hover:bg-secondary"
                                             }`}
                                         >
                                             بدون زیرنویس
@@ -321,21 +377,32 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                                 key={track.id}
                                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                                                     activeTrackId === track.id
-                                                        ? 'bg-primary/20 text-primary'
-                                                        : 'text-muted-foreground hover:bg-secondary'
+                                                        ? "bg-primary/20 text-primary"
+                                                        : "text-muted-foreground hover:bg-secondary"
                                                 }`}
                                             >
                                                 <button
-                                                    onClick={() => setActiveTrackId(track.id)}
-                                                    className="flex-1 text-right truncate"
+                                                    onClick={() =>
+                                                        setActiveTrackId(
+                                                            track.id,
+                                                        )
+                                                    }
+                                                    className="flex-1 text-end truncate"
                                                 >
                                                     {track.label}
-                                                    <span className="text-xs mr-2 opacity-60">
-                                                        .{track.original_extension}
+                                                    <span className="text-xs me-2">
+                                                        .
+                                                        {
+                                                            track.original_extension
+                                                        }
                                                     </span>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeleteTrack(track.id)}
+                                                    onClick={() =>
+                                                        handleDeleteTrack(
+                                                            track.id,
+                                                        )
+                                                    }
                                                     className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                                                     title="حذف"
                                                 >
@@ -393,22 +460,30 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             <div className="lg:w-80 flex flex-col">
                 <div className="flex rounded-xl bg-secondary p-1 mb-3">
                     <button
-                        onClick={() => setActiveTab('chat')}
+                        onClick={() => {
+                            setActiveTab("chat");
+                            setChatUnread(0);
+                        }}
                         className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                            activeTab === 'chat'
-                                ? 'bg-card text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            activeTab === "chat"
+                                ? "bg-card text-foreground shadow-sm"
+                                : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
                         <MessageSquare className="h-4 w-4" />
                         چت
+                        {chatUnread > 0 && activeTab !== "chat" && (
+                            <span className="h-5 min-w-[20px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center px-1">
+                                {chatUnread}
+                            </span>
+                        )}
                     </button>
                     <button
-                        onClick={() => setActiveTab('members')}
+                        onClick={() => setActiveTab("members")}
                         className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                            activeTab === 'members'
-                                ? 'bg-card text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            activeTab === "members"
+                                ? "bg-card text-foreground shadow-sm"
+                                : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
                         <Users className="h-4 w-4" />
@@ -417,17 +492,18 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 </div>
 
                 <Card className="flex-1 overflow-hidden">
-                    {activeTab === 'chat' ? (
+                    {activeTab === "chat" ? (
                         <RoomChat
                             roomId={room.id}
                             initialMessages={room.chat_messages}
+                            onUnreadCountChange={setChatUnread}
                         />
                     ) : (
                         <CardContent className="p-4">
                             <MemberList
                                 members={presenceMembers}
                                 roomId={room.id}
-                                ownerId={room.owner.id}
+                                ownerId={ownerId}
                                 connected={connected}
                                 currentUserId={auth.user.id}
                                 isLocked={roomIsLocked}

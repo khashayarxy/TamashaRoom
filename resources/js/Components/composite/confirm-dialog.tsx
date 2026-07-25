@@ -1,5 +1,12 @@
-import { Button } from '@/Components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
+import { Button } from "@/Components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/Components/ui/dialog";
 
 interface ConfirmDialogProps {
     open: boolean;
@@ -8,13 +15,19 @@ interface ConfirmDialogProps {
     title: string;
     description: string;
     confirmLabel?: string;
-    confirmVariant?: 'primary' | 'destructive';
+    confirmVariant?: "primary" | "destructive";
     loading?: boolean;
 }
 
 export function ConfirmDialog({
-    open, onClose, onConfirm, title, description,
-    confirmLabel = 'تأیید', confirmVariant = 'destructive', loading = false,
+    open,
+    onClose,
+    onConfirm,
+    title,
+    description,
+    confirmLabel = "تأیید",
+    confirmVariant = "destructive",
+    loading = false,
 }: ConfirmDialogProps) {
     return (
         <Dialog open={open} onClose={onClose}>
@@ -24,7 +37,11 @@ export function ConfirmDialog({
                     <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={onClose} disabled={loading}>
+                    <Button
+                        variant="ghost"
+                        onClick={onClose}
+                        disabled={loading}
+                    >
                         انصراف
                     </Button>
                     <Button
@@ -33,7 +50,7 @@ export function ConfirmDialog({
                         onClick={onConfirm}
                         disabled={loading}
                     >
-                        {loading ? 'در حال انجام...' : confirmLabel}
+                        {loading ? "در حال انجام..." : confirmLabel}
                     </Button>
                 </DialogFooter>
             </DialogContent>

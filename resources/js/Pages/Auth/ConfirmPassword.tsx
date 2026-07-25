@@ -1,54 +1,53 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { Input } from "@/Components/ui/input";
+import { Button } from "@/Components/ui/button";
+import GuestLayout from "@/Layouts/GuestLayout";
+import { Head, useForm } from "@inertiajs/react";
+import { FormEventHandler } from "react";
 
 export default function ConfirmPassword() {
     const { data, setData, post, processing, errors, reset } = useForm({
-        password: '',
+        password: "",
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('password.confirm'), {
-            onFinish: () => reset('password'),
+        post(route("password.confirm"), {
+            onFinish: () => reset("password"),
         });
     };
 
     return (
         <GuestLayout>
-            <Head title="Confirm Password" />
+            <Head title="تأیید رمز عبور" />
 
-            <div className="mb-4 text-sm text-gray-600">
-                This is a secure area of the application. Please confirm your
-                password before continuing.
+            <div className="mb-6 text-center">
+                <p className="text-sm font-medium text-primary">
+                    به تماشاروم خوش آمدید
+                </p>
+                <h2 className="mt-1 text-xl font-bold">تأیید هویت</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    برای ادامه، لطفاً رمز عبور خود را وارد کنید
+                </p>
             </div>
 
-            <form onSubmit={submit}>
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
+            <form onSubmit={submit} className="space-y-4">
+                <Input
+                    label="رمز عبور"
+                    id="password"
+                    type="password"
+                    value={data.password}
+                    onChange={(e) => setData("password", e.target.value)}
+                    error={errors.password}
+                    autoComplete="current-password"
+                    autoFocus
+                    required
+                />
 
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        isFocused={true}
-                        onChange={(e) => setData('password', e.target.value)}
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Confirm
-                    </PrimaryButton>
+                <div className="flex justify-end pt-2">
+                    <Button variant="primary" disabled={processing}>
+                        تأیید
+                    </Button>
                 </div>
             </form>
         </GuestLayout>

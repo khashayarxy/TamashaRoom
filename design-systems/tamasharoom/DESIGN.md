@@ -181,7 +181,8 @@ SYSTEM.md §12 defines cool grays (blue undertone) and a generic blue primary. T
 ### Base Palette
 
 ```
-Primary accent:   Amber  / Mustard yellow   —  HSL(40, 90%, 50%)        #E8A817
+Primary accent (dark mode):     Amber / Mustard yellow   —  HSL(40, 90%, 50%)        #E8A817
+Primary accent (light mode):    Deep warm amber          —  HSL(40, 85%, 30%)        #8E620B
 Warm dark bg:     Deep warm charcoal        —  HSL(30, 10%, 10%)        #1C1815
 Warm surface:     Slightly lighter warm     —  HSL(30, 8%, 16%)         #29231E
 Warm border:      Subtle warm divider       —  HSL(30, 6%, 25%)         #403A34
@@ -194,8 +195,8 @@ These follow the same semantic role structure from SYSTEM.md §12.02, with warm-
 ```css
 /* Light mode (default — warm, not cool) */
 :root {
-  --primary:         40, 90%, 50%;       /* #E8A817 — amber accent */
-  --primary-foreground: 40, 10%, 8%;    /* dark brown text on amber */
+  --primary:         40, 85%, 30%;       /* #8E620B — darkened amber for ≥4.5:1 on light bg */
+  --primary-foreground: 40, 10%, 93%;   /* #EFEBE3 — light text on dark amber */
 
   --background:      40, 20%, 96%;       /* #F5F0EA — warm off-white */
   --foreground:      30, 15%, 10%;       /* #1C1815 — warm black text */
@@ -204,10 +205,10 @@ These follow the same semantic role structure from SYSTEM.md §12.02, with warm-
   --card-foreground: 30, 15%, 10%;
 
   --muted:           40, 10%, 88%;       /* #E0D9D0 */
-  --muted-foreground: 30, 8%, 40%;
+  --muted-foreground: 30, 12%, 21%;     /* #3B342E — darkened for 4.5:1 on background */
 
-  --border:          40, 10%, 80%;       /* #CCC3B8 */
-  --ring:            40, 90%, 50%;       /* focus ring — same as primary */
+  --border:          40, 10%, 50%;       /* #8C8273 — darkened for ≥3:1 non-text contrast */
+  --ring:            40, 85%, 30%;       /* focus ring — matches primary */
 
   --secondary:       40, 8%, 85%;        /* #DBD2C6 */
   --secondary-foreground: 30, 15%, 10%;
@@ -218,7 +219,7 @@ These follow the same semantic role structure from SYSTEM.md §12.02, with warm-
   --success:         140, 50%, 45%;      /* #3B8C4E — green */
   --success-foreground: 0, 0%, 96%;
 
-  --warning:         45, 90%, 50%;       /* #E8A817 — same amber as primary */
+  --warning:         45, 90%, 50%;       /* #E8A817 */
   --warning-foreground: 30, 15%, 10%;
 }
 
@@ -239,12 +240,34 @@ These follow the same semantic role structure from SYSTEM.md §12.02, with warm-
   --secondary:       30, 5%, 22%;        /* #38322C */
   --secondary-foreground: 40, 10%, 90%;
 
-  --primary:         40, 90%, 50%;       /* amber stays the same in both modes */
+  --primary:         40, 90%, 50%;       /* #E8A817 — original amber, safe in dark */
   --primary-foreground: 40, 10%, 8%;
 
   /* destructive, success, warning — same as light mode */
 }
 ```
+
+### Why Light and Dark Mode Use Different Primary Values
+
+The original amber `--primary: hsl(40, 90%, 50%)` (#E8A817) — while visually appealing and retained in dark mode — cannot satisfy both of these WCAG 2.2 AA contrast requirements simultaneously in light mode:
+
+1. **`text-primary` on `bg-background` (#F5F0EB)** — small text requires ≥ 4.5:1.  
+   For #E8A817 (relative luminance ≈ 0.464) on #F5F0EB (L ≈ 0.877), the ratio is **1.80:1** — far below the threshold. To reach 4.5:1, the primary's luminance must be **≤ 0.156** (roughly 30% HSL lightness at this hue).
+
+2. **`text-primary-foreground` on `bg-primary`** — the foreground must also meet ≥ 4.5:1 against the new darker background. With the original `--primary-foreground: hsl(40, 10%, 8%)` (#16140F, L ≈ 0.006) on a 30%-lightness primary (L ≈ 0.155), the ratio would drop to **3.0:1** — below the small-text threshold.
+
+These are competing constraints: constraint 1 demands darkening the primary, which then forces the foreground toward the opposite end of the luminance scale. A single hex value cannot satisfy both when the background is light (mode 1) and when the same primary acts as a button background (mode 2).
+
+**Solution — mode‑specific tokens:**
+
+| Mode | `--primary` (hex) | `--primary-foreground` (hex) | Rationale |
+|---|---|---|---|
+| Light | **#8E620B** (L ≈ 0.145) | **#EFEBE3** (L ≈ 0.857) | Dark primary passes 4.5:1 on light bg (4.75:1); light foreground passes 4.5:1 on dark primary (4.65:1) |
+| Dark | **#E8A817** (L ≈ 0.464, original amber) | **#16140F** (L ≈ 0.006) | On dark bg (#1C1815, L ≈ 0.020), amber text passes 7.34:1; on amber button bg, dark text passes 9.17:1 |
+
+The amber brand color is preserved in dark mode and in all `bg-primary/10`, `bg-primary/20` tinted-surface uses. It is only the light-mode solid `bg-primary` and `text-primary` tokens that differ — an intentional, mathematically necessary divergence.
+
+> Do not attempt to "fix" this by reverting to a single shared value across modes. A single value cannot satisfy both contrast regimes. The current split is intentional and tested.
 
 ### Accent Restraint
 

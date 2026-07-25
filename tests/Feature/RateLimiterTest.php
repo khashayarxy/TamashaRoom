@@ -9,6 +9,7 @@ use App\Models\RoomMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -22,7 +23,7 @@ class RateLimiterTest extends TestCase
         Cache::flush();
     }
 
-    private function assertNotRateLimited(\Illuminate\Testing\TestResponse $response, string $label = ''): void
+    private function assertNotRateLimited(TestResponse $response, string $label = ''): void
     {
         $this->assertNotEquals(429, $response->getStatusCode(), $label ? "{$label} unexpectedly hit rate limit (429)" : 'Unexpectedly hit rate limit (429)');
     }

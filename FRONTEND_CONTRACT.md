@@ -281,6 +281,7 @@ interface RoomMember {
     id: number;
     room_id: number;
     user_id: number;
+    is_owner: boolean;                  // computed: member.user_id === room.user_id
     last_seen_at: string;               // ISO 8601
     presence_status: 'online' | 'offline';
     heartbeat_version: number;
