@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 
 test.describe("Room page accessibility", () => {
   test("Populated room page has no critical or serious a11y violations", async ({ page }) => {
-    const resp = await page.request().post("/__test/setup-verified-room", {
+    const resp = await page.request.post("/__test/setup-verified-room", {
       data: {
         with_video: "1",
         with_chat: "1",

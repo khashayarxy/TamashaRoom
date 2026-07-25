@@ -41,7 +41,7 @@ test.describe("Accessibility audit — auth pages", () => {
   });
 
   test("Profile page has no critical or serious a11y violations", async ({ page }) => {
-    const resp = await page.request().post("/__test/setup-verified-room");
+    const resp = await page.request.post("/__test/setup-verified-room");
     expect(resp.ok()).toBeTruthy();
 
     await page.goto("/profile");
