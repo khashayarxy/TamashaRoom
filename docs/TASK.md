@@ -128,6 +128,14 @@
 ### CI Fix: Missing APP_KEY (2026-07-25)
 - [x] **`.github/workflows/ci.yml`** — added `php artisan key:generate` step after environment file creation, before running any tests or PHP commands that require an application key
 
+### A11y Fixes — First Green Run (2026-07-25)
+- [x] **AppLayout logout nested-interactive** — removed `<Link as="button">` wrapper, used `router.post()` directly on `<Button>` with `aria-label="خروج"`
+- [x] **AuthenticatedLayout logo aria-label** — added `aria-label="خانه"` to home/logo `<Link>`
+- [x] **Dashboard card copy-link contrast (1.79:1)** — `text-primary` → `text-muted-foreground hover:text-primary`
+- [x] **Tab nav contrast (3.89:1 → ~6:1)** — darkened light-mode `--muted-foreground` from `30,8%,40%` to `30,12%,26%`
+- [x] **Chat timestamp opacity** — replaced `opacity-60` with conditional `text-primary-foreground/80` / `text-secondary-foreground/80`
+- [x] **Toast close button, track extension label** — `opacity-60` → `opacity-80` on remaining text elements
+
 ### Documentation & Security Cleanup (2026-07-22)
 - [x] **PROJECT.md tech stack** — Vite 6→5, Zod 3→4, Vitest 2→3; React Query line removed (not installed); removed `test:ui` script (doesn't exist in package.json)
 - [x] **PROJECT.md SYSTEM.docx references** — all 9 occurrences changed to `SYSTEM.md`
