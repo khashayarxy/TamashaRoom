@@ -17,13 +17,13 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.4
-          extensions: mbstring, pdo, pdo_mysql, sqlite, gd, zip
+          extensions: mbstring, pdo, pdo_mysql, sqlite, gd, zip, intl
           tools: composer:v2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install Composer dependencies
@@ -45,15 +45,15 @@ jobs:
         run: npm run build
 
       - name: Set up database for server
-        run: |
-          sed -i 's/SESSION_SECURE_COOKIE=true/SESSION_SECURE_COOKIE=false/' .env
-          php artisan migrate --force
+        run: php artisan migrate --force
 
       - name: Create storage symlink
         run: php artisan storage:link
 
       - name: Start Laravel Server
         run: php artisan serve --port=8000 &
+        env:
+          SESSION_SECURE_COOKIE: false
 
       - name: Wait for Server to be Ready
         run: sleep 3
