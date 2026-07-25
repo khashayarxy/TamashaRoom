@@ -390,7 +390,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                                     className="flex-1 text-end truncate"
                                                 >
                                                     {track.label}
-                                                    <span className="text-xs me-2 opacity-80">
+                                                    <span className="text-xs me-2">
                                                         .
                                                         {
                                                             track.original_extension

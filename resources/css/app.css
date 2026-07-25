@@ -43,24 +43,24 @@
 :root {
   --background: 40, 20%, 96%;
   --foreground: 30, 15%, 10%;
-  --primary: 40, 90%, 50%;
-  --primary-foreground: 40, 10%, 8%;
+  --primary: 40, 85%, 30%;
+  --primary-foreground: 40, 10%, 93%;
   --secondary: 40, 8%, 85%;
   --secondary-foreground: 30, 15%, 10%;
   --destructive: 0, 70%, 50%;
   --destructive-foreground: 0, 0%, 96%;
   --muted: 40, 10%, 88%;
-  --muted-foreground: 30, 12%, 26%;
-  --accent: 40, 90%, 50%;
-  --accent-foreground: 40, 10%, 8%;
+  --muted-foreground: 30, 12%, 21%;
+  --accent: 40, 85%, 30%;
+  --accent-foreground: 40, 10%, 93%;
   --card: 40, 15%, 93%;
   --card-foreground: 30, 15%, 10%;
-  --border: 40, 10%, 80%;
-  --input: 40, 10%, 80%;
-  --ring: 40, 90%, 50%;
+  --border: 40, 10%, 50%;
+  --input: 40, 10%, 50%;
+  --ring: 40, 85%, 30%;
   --success: 140, 50%, 45%;
   --warning: 45, 90%, 50%;
-  --info: 40, 90%, 50%;
+  --info: 40, 85%, 30%;
 }
 
 .dark {

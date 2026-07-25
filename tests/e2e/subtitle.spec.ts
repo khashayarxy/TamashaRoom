@@ -9,7 +9,7 @@ test.describe("Subtitle upload and cue retrieval", () => {
   test("Upload VTT subtitle and retrieve cues", async ({ page }) => {
     test.setTimeout(20000);
 
-    const resp = await page.request().post("/__test/setup-verified-room", {
+    const resp = await page.request.post("/__test/setup-verified-room", {
       data: { with_video: "1" },
     });
     expect(resp.ok()).toBeTruthy();
@@ -32,7 +32,7 @@ test.describe("Subtitle upload and cue retrieval", () => {
 00:00:06.000 --> 00:00:10.000
 Second cue in English`;
 
-    const uploadResp = await page.request().post(`/subtitles/${room_id}`, {
+    const uploadResp = await page.request.post(`/subtitles/${room_id}`, {
       multipart: {
         file: {
           name: "test.vtt",
@@ -49,7 +49,7 @@ Second cue in English`;
     expect(track.label).toBe("فارسی");
 
     // List subtitle tracks
-    const tracksResp = await page.request().get(`/subtitles/${room_id}`, {
+    const tracksResp = await page.request.get(`/subtitles/${room_id}`, {
       headers,
     });
     expect(tracksResp.ok()).toBeTruthy();
@@ -58,7 +58,7 @@ Second cue in English`;
     expect(tracks[0].id).toBe(track.id);
 
     // Retrieve cues
-    const cuesResp = await page.request().get(`/subtitles/${room_id}/${track.id}/cues`, {
+    const cuesResp = await page.request.get(`/subtitles/${room_id}/${track.id}/cues`, {
       headers,
     });
     expect(cuesResp.ok()).toBeTruthy();
@@ -72,7 +72,7 @@ Second cue in English`;
   test("Upload SRT subtitle and retrieve converted cues", async ({ page }) => {
     test.setTimeout(20000);
 
-    const resp = await page.request().post("/__test/setup-verified-room", {
+    const resp = await page.request.post("/__test/setup-verified-room", {
       data: { with_video: "1" },
     });
     expect(resp.ok()).toBeTruthy();
@@ -93,7 +93,7 @@ First SRT cue
 00:00:07.500 --> 00:00:12.000
 Second SRT cue with طولانی`;
 
-    const uploadResp = await page.request().post(`/subtitles/${room_id}`, {
+    const uploadResp = await page.request.post(`/subtitles/${room_id}`, {
       multipart: {
         file: {
           name: "test.srt",
@@ -110,7 +110,7 @@ Second SRT cue with طولانی`;
     expect(track.original_extension).toBe("srt");
 
     // Retrieve cues (converted from SRT to VTT)
-    const cuesResp = await page.request().get(`/subtitles/${room_id}/${track.id}/cues`, {
+    const cuesResp = await page.request.get(`/subtitles/${room_id}/${track.id}/cues`, {
       headers,
     });
     expect(cuesResp.ok()).toBeTruthy();
@@ -124,7 +124,7 @@ Second SRT cue with طولانی`;
   test("Delete subtitle track", async ({ page }) => {
     test.setTimeout(20000);
 
-    const resp = await page.request().post("/__test/setup-verified-room", {
+    const resp = await page.request.post("/__test/setup-verified-room", {
       data: { with_video: "1" },
     });
     expect(resp.ok()).toBeTruthy();
@@ -137,7 +137,7 @@ Second SRT cue with طولانی`;
     const headers = xsrf ? { "X-XSRF-TOKEN": xsrf } : {};
 
     // Upload a subtitle
-    const uploadResp = await page.request().post(`/subtitles/${room_id}`, {
+    const uploadResp = await page.request.post(`/subtitles/${room_id}`, {
       multipart: {
         file: {
           name: "delete-test.vtt",
@@ -151,13 +151,13 @@ Second SRT cue with طولانی`;
     const track = await uploadResp.json();
 
     // Delete it
-    const delResp = await page.request().delete(`/subtitles/${room_id}/${track.id}`, {
+    const delResp = await page.request.delete(`/subtitles/${room_id}/${track.id}`, {
       headers,
     });
     expect(delResp.ok()).toBeTruthy();
 
     // Verify track list is empty
-    const tracksResp = await page.request().get(`/subtitles/${room_id}`, {
+    const tracksResp = await page.request.get(`/subtitles/${room_id}`, {
       headers,
     });
     expect(tracksResp.ok()).toBeTruthy();

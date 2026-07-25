@@ -1,4 +1,4 @@
-import { Button } from "@/Components/ui/button";
+import { buttonVariants } from "@/Components/ui/button";
 import { PageProps } from "@/types";
 import { Head, Link } from "@inertiajs/react";
 import { Tv, Copy, Users, MessageSquare, Sun, Moon } from "lucide-react";
@@ -31,22 +31,16 @@ export default function Welcome({ auth }: PageProps) {
                     </div>
                     <nav className="flex items-center gap-3">
                         {auth.user ? (
-                            <Link href={route("dashboard")}>
-                                <Button variant="primary" size="sm">
-                                    داشبورد
-                                </Button>
+                            <Link href={route("dashboard")} className={buttonVariants({ variant: "primary", size: "sm" })}>
+                                داشبورد
                             </Link>
                         ) : (
                             <>
-                                <Link href={route("login")}>
-                                    <Button variant="ghost" size="sm">
-                                        ورود
-                                    </Button>
+                                <Link href={route("login")} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                                    ورود
                                 </Link>
-                                <Link href={route("register")}>
-                                    <Button variant="primary" size="sm">
-                                        ثبت‌نام
-                                    </Button>
+                                <Link href={route("register")} className={buttonVariants({ variant: "primary", size: "sm" })}>
+                                    ثبت‌نام
                                 </Link>
                             </>
                         )}
@@ -68,23 +62,17 @@ export default function Welcome({ auth }: PageProps) {
                             </p>
                             <div className="mt-8 flex flex-wrap gap-4">
                                 {auth.user ? (
-                                    <Link href={route("dashboard")}>
-                                        <Button variant="primary" size="lg">
-                                            <Tv className="h-5 w-5" />
-                                            ورود به داشبورد
-                                        </Button>
+                                    <Link href={route("dashboard")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                        <Tv className="h-5 w-5" />
+                                        ورود به داشبورد
                                     </Link>
                                 ) : (
                                     <>
-                                        <Link href={route("register")}>
-                                            <Button variant="primary" size="lg">
-                                                شروع کنید
-                                            </Button>
+                                        <Link href={route("register")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                            شروع کنید
                                         </Link>
-                                        <Link href={route("login")}>
-                                            <Button variant="outline" size="lg">
-                                                ورود
-                                            </Button>
+                                        <Link href={route("login")} className={buttonVariants({ variant: "outline", size: "lg" })}>
+                                            ورود
                                         </Link>
                                     </>
                                 )}
@@ -109,7 +97,7 @@ export default function Welcome({ auth }: PageProps) {
                 <section className="border-t border-border bg-card py-20">
                     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                         <div className="mb-16 max-w-2xl">
-                            <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-widest text-primary">
+                            <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
                                 چگونه کار می‌کند
                             </span>
                             <h2 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl">
@@ -176,18 +164,10 @@ export default function Welcome({ auth }: PageProps) {
                                         </p>
                                     </div>
                                 </div>
-                                <Link
-                                    href={
-                                        auth.user
-                                            ? route("dashboard")
-                                            : route("register")
-                                    }
-                                >
-                                    <Button variant="primary">
-                                        {auth.user
-                                            ? "رفتن به داشبورد"
-                                            : "همین حالا شروع کنید"}
-                                    </Button>
+                                <Link href={auth.user ? route("dashboard") : route("register")} className={buttonVariants({ variant: "primary" })}>
+                                    {auth.user
+                                        ? "رفتن به داشبورد"
+                                        : "همین حالا شروع کنید"}
                                 </Link>
                             </div>
                         </div>
@@ -207,17 +187,13 @@ export default function Welcome({ auth }: PageProps) {
                             </p>
                             <div className="mt-8">
                                 {auth.user ? (
-                                    <Link href={route("dashboard")}>
-                                        <Button variant="primary" size="lg">
-                                            <Tv className="h-5 w-5" />
-                                            برو به داشبورد
-                                        </Button>
+                                    <Link href={route("dashboard")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                        <Tv className="h-5 w-5" />
+                                        برو به داشبورد
                                     </Link>
                                 ) : (
-                                    <Link href={route("register")}>
-                                        <Button variant="primary" size="lg">
-                                            شروع کنید – رایگان
-                                        </Button>
+                                    <Link href={route("register")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                        شروع کنید – رایگان
                                     </Link>
                                 )}
                             </div>

@@ -153,7 +153,7 @@ export function RoomChat({
                                 {msg.user.name}
                             </div>
                             <div>{msg.body}</div>
-                            <div className={`text-[10px] mt-1 ${isOwn(msg.user_id) ? "text-primary-foreground/80" : "text-secondary-foreground/80"}`}>
+                            <div className={`text-[10px] mt-1 ${isOwn(msg.user_id) ? "text-primary-foreground" : "text-muted-foreground"}`}>
                                 {timeAgo(msg.created_at)}
                             </div>
                             {isOwn(msg.user_id) && (

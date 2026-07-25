@@ -12,7 +12,7 @@ test.describe("Chat flow", () => {
     const hostCtx = await browser.newContext();
     const hostPage = await hostCtx.newPage();
 
-    const resp = await hostPage.request().post("/__test/setup-verified-room", {
+    const resp = await hostPage.request.post("/__test/setup-verified-room", {
       data: { with_chat: "1" },
     });
     expect(resp.ok()).toBeTruthy();
@@ -23,7 +23,7 @@ test.describe("Chat flow", () => {
 
     const guestCtx = await browser.newContext();
     const guestPage = await guestCtx.newPage();
-    const joinResp = await guestPage.request().post("/__test/join-room", {
+    const joinResp = await guestPage.request.post("/__test/join-room", {
       data: { invite_code },
     });
     expect(joinResp.ok()).toBeTruthy();
@@ -35,7 +35,7 @@ test.describe("Chat flow", () => {
     const hostXsrf = await getXsrfToken(hostPage);
     const hostHeaders = hostXsrf ? { "X-XSRF-TOKEN": hostXsrf } : {};
 
-    const sendResp = await hostPage.request().post(`/chat/${room_id}/messages`, {
+    const sendResp = await hostPage.request.post(`/chat/${room_id}/messages`, {
       data: { body: "Hello from host!" },
       headers: hostHeaders,
     });
@@ -45,7 +45,7 @@ test.describe("Chat flow", () => {
     let found = false;
     for (let i = 0; i < 4; i++) {
       await guestPage.waitForTimeout(3000);
-      const msgsResp = await guestPage.request().get(`/chat/${room_id}/messages`);
+      const msgsResp = await guestPage.request.get(`/chat/${room_id}/messages`);
       expect(msgsResp.ok()).toBeTruthy();
       const messages = await msgsResp.json();
       if (messages.some((m: { body: string }) => m.body === "Hello from host!")) {
@@ -62,7 +62,7 @@ test.describe("Chat flow", () => {
   test("Host sends Persian message and deletes it", async ({ page }) => {
     test.setTimeout(20000);
 
-    const resp = await page.request().post("/__test/setup-verified-room", {
+    const resp = await page.request.post("/__test/setup-verified-room", {
       data: { with_chat: "1" },
     });
     expect(resp.ok()).toBeTruthy();
@@ -75,7 +75,7 @@ test.describe("Chat flow", () => {
     const headers = xsrf ? { "X-XSRF-TOKEN": xsrf } : {};
 
     // Send a Persian message
-    const sendResp = await page.request().post(`/chat/${room_id}/messages`, {
+    const sendResp = await page.request.post(`/chat/${room_id}/messages`, {
       data: { body: "سلام! این یک پیام تست است" },
       headers,
     });
@@ -84,20 +84,20 @@ test.describe("Chat flow", () => {
     expect(sentMsg.body).toBe("سلام! این یک پیام تست است");
 
     // Verify it appears in the message list
-    const msgsResp = await page.request().get(`/chat/${room_id}/messages`);
+    const msgsResp = await page.request.get(`/chat/${room_id}/messages`);
     expect(msgsResp.ok()).toBeTruthy();
     const messages = await msgsResp.json();
     expect(messages.some((m: { id: number }) => m.id === sentMsg.id)).toBe(true);
 
     // Delete the message
-    const delResp = await page.request().delete(`/chat/${room_id}/messages/${sentMsg.id}`, {
+    const delResp = await page.request.delete(`/chat/${room_id}/messages/${sentMsg.id}`, {
       headers,
     });
     expect(delResp.ok()).toBeTruthy();
     expect((await delResp.json()).status).toBe("ok");
 
     // Verify it's gone from the list
-    const msgsAfterResp = await page.request().get(`/chat/${room_id}/messages`);
+    const msgsAfterResp = await page.request.get(`/chat/${room_id}/messages`);
     expect(msgsAfterResp.ok()).toBeTruthy();
     const messagesAfter = await msgsAfterResp.json();
     expect(messagesAfter.some((m: { id: number }) => m.id === sentMsg.id)).toBe(false);

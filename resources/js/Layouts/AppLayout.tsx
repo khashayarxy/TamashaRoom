@@ -1,4 +1,4 @@
-import { Button } from "@/Components/ui/button";
+import { Button, buttonVariants } from "@/Components/ui/button";
 import { Link, router, usePage } from "@inertiajs/react";
 import { Home, LogOut, Moon, Plus, Sun, Tv, User } from "lucide-react";
 import { PropsWithChildren } from "react";
@@ -47,16 +47,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Link
-                            href={route("rooms.store")}
-                            method="post"
-                            as="button"
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => router.post(route("rooms.store"))}
                         >
-                            <Button variant="primary" size="sm">
-                                <Plus className="h-4 w-4" />
-                                اتاق جدید
-                            </Button>
-                        </Link>
+                            <Plus className="h-4 w-4" />
+                            اتاق جدید
+                        </Button>
 
                         <Button
                             variant="ghost"
@@ -71,23 +69,29 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             )}
                         </Button>
 
-                        <Link href={route("profile.edit")}>
-                            <Button variant="ghost" size="sm">
-                                <User className="h-4 w-4" />
-                                <span className="hidden sm:inline">
-                                    {user.name}
-                                </span>
-                            </Button>
+                        <Link
+                            href={route("profile.edit")}
+                            className={buttonVariants({
+                                variant: "ghost",
+                                size: "sm",
+                            })}
+                        >
+                            <User className="h-4 w-4" />
+                            <span className="hidden sm:inline">
+                                {user.name}
+                            </span>
                         </Link>
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
+                        <button
                             onClick={() => router.post(route("logout"))}
                             aria-label="خروج"
+                            className={buttonVariants({
+                                variant: "ghost",
+                                size: "sm",
+                            })}
                         >
                             <LogOut className="h-4 w-4" />
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </header>

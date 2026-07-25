@@ -8,6 +8,7 @@ export default function Guest({ children }: PropsWithChildren) {
             <div>
                 <Link href="/" aria-label="صفحه اصلی">
                     <ApplicationLogo className="h-20 w-20 fill-current text-primary" />
+                    <span className="sr-only">صفحه اصلی</span>
                 </Link>
             </div>
 

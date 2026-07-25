@@ -23,6 +23,7 @@ export default function Authenticated({
                             <div className="flex shrink-0 items-center">
                                 <Link href="/" aria-label="خانه">
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-foreground" />
+                                    <span className="sr-only">خانه</span>
                                 </Link>
                             </div>
 

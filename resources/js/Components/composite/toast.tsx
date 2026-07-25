@@ -40,7 +40,7 @@ export function ToastContainer() {
                         <span className="flex-1">{t.message}</span>
                         <button
                             onClick={() => dismiss(t.id)}
-                            className="shrink-0 opacity-80 hover:opacity-100"
+                            className="shrink-0"
                             aria-label="بستن"
                         >
                             <X className="h-4 w-4" />

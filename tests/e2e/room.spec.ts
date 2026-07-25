@@ -7,7 +7,7 @@ async function getXsrfToken(page: Page): Promise<string | undefined> {
 
 test.describe("Room creation and joining", () => {
   test("Host can create a room and see the room page", async ({ page }) => {
-    const resp = await page.request().post("/__test/setup-verified-room");
+    const resp = await page.request.post("/__test/setup-verified-room");
     expect(resp.ok()).toBeTruthy();
     const { room_url } = await resp.json();
 
@@ -20,7 +20,7 @@ test.describe("Room creation and joining", () => {
   test("Guest joins room via invite code", async ({ browser }) => {
     const hostCtx = await browser.newContext();
     const hostPage = await hostCtx.newPage();
-    const resp = await hostPage.request().post("/__test/setup-verified-room");
+    const resp = await hostPage.request.post("/__test/setup-verified-room");
     expect(resp.ok()).toBeTruthy();
     const { room_url, invite_code } = await resp.json();
 
@@ -29,7 +29,7 @@ test.describe("Room creation and joining", () => {
 
     const guestCtx = await browser.newContext();
     const guestPage = await guestCtx.newPage();
-    const joinResp = await guestPage.request().post("/__test/join-room", {
+    const joinResp = await guestPage.request.post("/__test/join-room", {
       data: { invite_code },
     });
     expect(joinResp.ok()).toBeTruthy();
@@ -47,7 +47,7 @@ test.describe("Room creation and joining", () => {
 
     const hostCtx = await browser.newContext();
     const hostPage = await hostCtx.newPage();
-    const resp = await hostPage.request().post("/__test/setup-verified-room");
+    const resp = await hostPage.request.post("/__test/setup-verified-room");
     expect(resp.ok()).toBeTruthy();
     const { room_url, room_id, invite_code } = await resp.json();
 
@@ -56,7 +56,7 @@ test.describe("Room creation and joining", () => {
 
     const guestCtx = await browser.newContext();
     const guestPage = await guestCtx.newPage();
-    const joinResp = await guestPage.request().post("/__test/join-room", {
+    const joinResp = await guestPage.request.post("/__test/join-room", {
       data: { invite_code },
     });
     expect(joinResp.ok()).toBeTruthy();
@@ -69,14 +69,14 @@ test.describe("Room creation and joining", () => {
     const commonHeaders = xsrfToken ? { "X-XSRF-TOKEN": xsrfToken } : {};
 
     const videoUrl = "https://www.example.com/video.mp4";
-    const setVideoResp = await hostPage.request().post(`/playback/${room_id}/set-video`, {
+    const setVideoResp = await hostPage.request.post(`/playback/${room_id}/set-video`, {
       data: { video_url: videoUrl, duration_seconds: 120 },
       headers: commonHeaders,
     });
     expect(setVideoResp.ok()).toBeTruthy();
 
     // Host changes playback state
-    const patchResp = await hostPage.request().patch(`/playback/${room_id}`, {
+    const patchResp = await hostPage.request.patch(`/playback/${room_id}`, {
       data: {
         is_playing: true,
         position_seconds: 10,
@@ -92,7 +92,7 @@ test.describe("Room creation and joining", () => {
     let guestState: Record<string, unknown> = {};
     for (let i = 0; i < 6; i++) {
       await guestPage.waitForTimeout(2500);
-      const stateResp = await guestPage.request().get(`/playback/${room_id}/state`, { timeout: 5000 });
+      const stateResp = await guestPage.request.get(`/playback/${room_id}/state`, { timeout: 5000 });
       expect(stateResp.ok()).toBeTruthy();
       guestState = await stateResp.json();
       if (guestState.is_playing === true) break;
