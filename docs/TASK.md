@@ -156,7 +156,7 @@
 - [x] **Frontend component tests** — 64 tests added across 6 files (room-chat, member-list, video-player, subtitle-overlay, subtitle-settings, subtitle-parser)
 - [x] **Rate limiting** — 7 tests exercising all 5 rate limiters (login, chat, playback, proxy, presence)
 - [x] **VideoProxyService SSL verification disabled** — documented with rationale comment on all three stream contexts
-- [x] **Dashboard a11y test un-skipped** — now uses `POST /__test/setup-verified-room` to create a verified user and login, bypassing the email-verification redirect
+- [x] **Dashboard a11y test un-skipped** — now uses `GET /__test/setup-verified-room` to create a verified user and login, bypassing the email-verification redirect
 - [x] **SRT format detection tightened** — now validates the SRT timing line format (`HH:MM:SS,mmm --> HH:MM:SS,mmm`) on the second non-empty line
 #### Documentation vs. Code Mismatches
 - [x] **PROJECT.md tech stack** — Vite 6→5, Zod 3→4, Vitest 2→3; React Query removed (not installed)
