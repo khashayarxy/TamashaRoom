@@ -1,5 +1,5 @@
 import { Button } from "@/Components/ui/button";
-import { Link, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Home, LogOut, Moon, Plus, Sun, Tv, User } from "lucide-react";
 import { PropsWithChildren } from "react";
 import { useThemeStore } from "@/stores/theme";
@@ -80,16 +80,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             </Button>
                         </Link>
 
-                        <Link
-                            href={route("logout")}
-                            method="post"
-                            as="button"
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.post(route("logout"))}
                             aria-label="خروج"
                         >
-                            <Button variant="ghost" size="sm">
-                                <LogOut className="h-4 w-4" />
-                            </Button>
-                        </Link>
+                            <LogOut className="h-4 w-4" />
+                        </Button>
                     </div>
                 </div>
             </header>

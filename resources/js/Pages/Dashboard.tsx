@@ -187,7 +187,7 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                                     room.invite_code,
                                                 );
                                             }}
-                                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary hover:underline"
                                         >
                                             <Copy className="h-3 w-3" />
                                             کپی کد دعوت
