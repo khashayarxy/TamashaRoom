@@ -2,16 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main, master, frontend_rebuild]
   pull_request:
-    branches: [master]
-
-# Uses SQLite :memory: (matching phpunit.xml).
-# MySQL-specific query behavior is not covered by this CI run.
+    branches: [main, master]
 
 jobs:
-  ci:
+  tests:
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: tamasharoom_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - uses: actions/checkout@v4
@@ -19,63 +26,61 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
-          extensions: mbstring, pdo_sqlite, intl
+          php-version: 8.4
+          extensions: mbstring, pdo, pdo_mysql, sqlite, gd, zip
           tools: composer:v2
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: 20
+          cache: npm
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Install PHP dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
-
-      - name: Install Node dependencies
+      - name: Install NPM dependencies
         run: npm ci
 
-      - name: PHP lint (Pint)
-        run: ./vendor/bin/pint --test
+      - name: Create environment file
+        run: cp .env.example .env
 
-      - name: ESLint
-        run: npm run lint
+      - name: Generate application key
+        run: php artisan key:generate
 
-      - name: TypeScript check
-        run: npx tsc --noEmit
+      - name: Run database migrations
+        run: php artisan migrate --env=testing --force
 
-      - name: Build frontend
-        run: npm run build
-
-      - name: Frontend unit tests (Vitest)
-        run: npm run test
-
-      - name: Install Playwright Chromium
-        run: npx playwright install chromium
-
-      - name: Backend tests
+      - name: Run PHP tests
         run: php artisan test
         env:
-          APP_ENV: testing
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
 
-      - name: A11y tests (Playwright)
+      - name: Run Pint style check
+        run: ./vendor/bin/pint --test
+
+      - name: Run TypeScript type check
+        run: npm run type-check
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Vitest frontend tests
+        run: npm run test
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run Playwright a11y tests
         run: npm run test:a11y
         env:
           APP_ENV: local
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
 
-      - name: E2E tests (Playwright)
+      - name: Run Playwright E2E tests
         run: npm run test:e2e
         env:
           APP_ENV: local
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
+
+      - name: Build production assets
+        run: npm run build

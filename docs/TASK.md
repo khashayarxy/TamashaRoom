@@ -125,6 +125,9 @@
   - `npm run test:a11y` (Playwright a11y, `APP_ENV=local`)
   - `npm run test:e2e` (Playwright E2E, `APP_ENV=local`)
 
+### CI Fix: Missing APP_KEY (2026-07-25)
+- [x] **`.github/workflows/ci.yml`** — added `php artisan key:generate` step after environment file creation, before running any tests or PHP commands that require an application key
+
 ### Documentation & Security Cleanup (2026-07-22)
 - [x] **PROJECT.md tech stack** — Vite 6→5, Zod 3→4, Vitest 2→3; React Query line removed (not installed); removed `test:ui` script (doesn't exist in package.json)
 - [x] **PROJECT.md SYSTEM.docx references** — all 9 occurrences changed to `SYSTEM.md`
