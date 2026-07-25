@@ -88,7 +88,11 @@ export default function Register() {
                     >
                         قبلاً ثبت‌نام کرده‌اید؟
                     </Link>
-                    <Button type="submit" variant="primary" disabled={processing}>
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={processing}
+                    >
                         ثبت‌نام
                     </Button>
                 </div>

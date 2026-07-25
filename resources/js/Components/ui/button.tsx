@@ -12,8 +12,7 @@ const baseStyles =
 const variantStyles = {
     primary:
         "bg-primary text-primary-foreground hover:brightness-110 shadow-sm",
-    secondary:
-        "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
     destructive:
         "bg-destructive text-destructive-foreground hover:brightness-110",
     ghost: "hover:bg-accent hover:text-accent-foreground",

@@ -31,15 +31,33 @@ export default function Welcome({ auth }: PageProps) {
                     </div>
                     <nav className="flex items-center gap-3">
                         {auth.user ? (
-                            <Link href={route("dashboard")} className={buttonVariants({ variant: "primary", size: "sm" })}>
+                            <Link
+                                href={route("dashboard")}
+                                className={buttonVariants({
+                                    variant: "primary",
+                                    size: "sm",
+                                })}
+                            >
                                 داشبورد
                             </Link>
                         ) : (
                             <>
-                                <Link href={route("login")} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                                <Link
+                                    href={route("login")}
+                                    className={buttonVariants({
+                                        variant: "ghost",
+                                        size: "sm",
+                                    })}
+                                >
                                     ورود
                                 </Link>
-                                <Link href={route("register")} className={buttonVariants({ variant: "primary", size: "sm" })}>
+                                <Link
+                                    href={route("register")}
+                                    className={buttonVariants({
+                                        variant: "primary",
+                                        size: "sm",
+                                    })}
+                                >
                                     ثبت‌نام
                                 </Link>
                             </>
@@ -62,16 +80,34 @@ export default function Welcome({ auth }: PageProps) {
                             </p>
                             <div className="mt-8 flex flex-wrap gap-4">
                                 {auth.user ? (
-                                    <Link href={route("dashboard")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                    <Link
+                                        href={route("dashboard")}
+                                        className={buttonVariants({
+                                            variant: "primary",
+                                            size: "lg",
+                                        })}
+                                    >
                                         <Tv className="h-5 w-5" />
                                         ورود به داشبورد
                                     </Link>
                                 ) : (
                                     <>
-                                        <Link href={route("register")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                        <Link
+                                            href={route("register")}
+                                            className={buttonVariants({
+                                                variant: "primary",
+                                                size: "lg",
+                                            })}
+                                        >
                                             شروع کنید
                                         </Link>
-                                        <Link href={route("login")} className={buttonVariants({ variant: "outline", size: "lg" })}>
+                                        <Link
+                                            href={route("login")}
+                                            className={buttonVariants({
+                                                variant: "outline",
+                                                size: "lg",
+                                            })}
+                                        >
                                             ورود
                                         </Link>
                                     </>
@@ -164,7 +200,16 @@ export default function Welcome({ auth }: PageProps) {
                                         </p>
                                     </div>
                                 </div>
-                                <Link href={auth.user ? route("dashboard") : route("register")} className={buttonVariants({ variant: "primary" })}>
+                                <Link
+                                    href={
+                                        auth.user
+                                            ? route("dashboard")
+                                            : route("register")
+                                    }
+                                    className={buttonVariants({
+                                        variant: "primary",
+                                    })}
+                                >
                                     {auth.user
                                         ? "رفتن به داشبورد"
                                         : "همین حالا شروع کنید"}
@@ -187,12 +232,24 @@ export default function Welcome({ auth }: PageProps) {
                             </p>
                             <div className="mt-8">
                                 {auth.user ? (
-                                    <Link href={route("dashboard")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                    <Link
+                                        href={route("dashboard")}
+                                        className={buttonVariants({
+                                            variant: "primary",
+                                            size: "lg",
+                                        })}
+                                    >
                                         <Tv className="h-5 w-5" />
                                         برو به داشبورد
                                     </Link>
                                 ) : (
-                                    <Link href={route("register")} className={buttonVariants({ variant: "primary", size: "lg" })}>
+                                    <Link
+                                        href={route("register")}
+                                        className={buttonVariants({
+                                            variant: "primary",
+                                            size: "lg",
+                                        })}
+                                    >
                                         شروع کنید – رایگان
                                     </Link>
                                 )}

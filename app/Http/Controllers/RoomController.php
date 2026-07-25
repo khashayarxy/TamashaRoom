@@ -96,6 +96,8 @@ class RoomController extends Controller
 
         $room->load('members.user');
 
+        $room->members->each->setRelation('room', $room);
+
         return response()->json($room->members);
     }
 
@@ -121,8 +123,14 @@ class RoomController extends Controller
         return to_route('dashboard');
     }
 
-    public function kick(Request $request, Room $room, User $target): JsonResponse
+    public function kick(Request $request, Room $room, int $targetId): JsonResponse
     {
+        $target = User::find($targetId);
+
+        if ($target === null) {
+            abort(404);
+        }
+
         $this->authorize('kick', [$room, $target]);
 
         $room->members()->where('user_id', $target->id)->delete();
@@ -130,8 +138,14 @@ class RoomController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    public function transfer(Request $request, Room $room, User $target): JsonResponse
+    public function transfer(Request $request, Room $room, int $targetId): JsonResponse
     {
+        $target = User::find($targetId);
+
+        if ($target === null) {
+            abort(404);
+        }
+
         $this->authorize('transfer', $room);
 
         $room->members()->where('user_id', $target->id)->firstOrFail();

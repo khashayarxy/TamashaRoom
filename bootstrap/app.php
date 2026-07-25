@@ -36,6 +36,10 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        $middleware->encryptCookies(except: [
+            'XSRF-TOKEN',
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             '__test/*',
         ]);

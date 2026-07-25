@@ -9,7 +9,7 @@ test.describe("Chat flow", () => {
   test("Host sends a message and guest sees it via polling", async ({ browser }) => {
     test.setTimeout(30000);
 
-    const hostCtx = await browser.newContext();
+    const hostCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
     const hostPage = await hostCtx.newPage();
 
     const resp = await hostPage.request.post("/__test/setup-verified-room", {
@@ -21,7 +21,7 @@ test.describe("Chat flow", () => {
     await hostPage.goto(room_url);
     await hostPage.waitForLoadState("networkidle");
 
-    const guestCtx = await browser.newContext();
+    const guestCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
     const guestPage = await guestCtx.newPage();
     const joinResp = await guestPage.request.post("/__test/join-room", {
       data: { invite_code },
@@ -33,11 +33,8 @@ test.describe("Chat flow", () => {
 
     // Extract CSRF token and send a message as host
     const hostXsrf = await getXsrfToken(hostPage);
-    const hostHeaders = hostXsrf ? { "X-XSRF-TOKEN": hostXsrf } : {};
-
     const sendResp = await hostPage.request.post(`/chat/${room_id}/messages`, {
-      data: { body: "Hello from host!" },
-      headers: hostHeaders,
+      data: { body: "Hello from host!", _token: hostXsrf },
     });
     expect(sendResp.ok()).toBeTruthy();
 
@@ -72,12 +69,10 @@ test.describe("Chat flow", () => {
     await page.waitForLoadState("networkidle");
 
     const xsrf = await getXsrfToken(page);
-    const headers = xsrf ? { "X-XSRF-TOKEN": xsrf } : {};
 
     // Send a Persian message
     const sendResp = await page.request.post(`/chat/${room_id}/messages`, {
-      data: { body: "سلام! این یک پیام تست است" },
-      headers,
+      data: { body: "سلام! این یک پیام تست است", _token: xsrf },
     });
     expect(sendResp.ok()).toBeTruthy();
     const sentMsg = await sendResp.json();
@@ -91,7 +86,7 @@ test.describe("Chat flow", () => {
 
     // Delete the message
     const delResp = await page.request.delete(`/chat/${room_id}/messages/${sentMsg.id}`, {
-      headers,
+      data: { _token: xsrf },
     });
     expect(delResp.ok()).toBeTruthy();
     expect((await delResp.json()).status).toBe("ok");

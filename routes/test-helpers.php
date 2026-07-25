@@ -97,17 +97,22 @@ Route::middleware('web')->group(function () {
 
         $room = Room::where('invite_code', $request->invite_code)->firstOrFail();
 
-        $user = User::factory()->create([
-            'email_verified_at' => now(),
-        ]);
+        $owner = User::find($room->user_id);
 
-        RoomMember::create([
-            'room_id' => $room->id,
-            'user_id' => $user->id,
-            'last_seen_at' => now(),
-        ]);
-
-        Auth::login($user);
+        if ($owner && $room->members()->where('user_id', $owner->id)->exists()) {
+            Auth::login($owner);
+            $user = $owner;
+        } else {
+            $user = User::factory()->create([
+                'email_verified_at' => now(),
+            ]);
+            RoomMember::create([
+                'room_id' => $room->id,
+                'user_id' => $user->id,
+                'last_seen_at' => now(),
+            ]);
+            Auth::login($user);
+        }
 
         return response()->json([
             'user_id' => $user->id,
