@@ -1,5 +1,5 @@
-import { Transition } from '@headlessui/react';
-import { InertiaLinkProps, Link } from '@inertiajs/react';
+import { Transition } from "@headlessui/react";
+import { InertiaLinkProps, Link } from "@inertiajs/react";
 import {
     createContext,
     Dispatch,
@@ -7,7 +7,7 @@ import {
     SetStateAction,
     useContext,
     useState,
-} from 'react';
+} from "react";
 
 const DropDownContext = createContext<{
     open: boolean;
@@ -51,29 +51,29 @@ const Trigger = ({ children }: PropsWithChildren) => {
 };
 
 const Content = ({
-    align = 'end',
-    width = '48',
-    contentClasses = 'py-1 bg-card',
+    align = "end",
+    width = "48",
+    contentClasses = "py-1 bg-card",
     children,
 }: PropsWithChildren<{
-    align?: 'start' | 'end';
-    width?: '48';
+    align?: "start" | "end";
+    width?: "48";
     contentClasses?: string;
 }>) => {
     const { open, setOpen } = useContext(DropDownContext);
 
-    let alignmentClasses = 'origin-top';
+    let alignmentClasses = "origin-top";
 
-    if (align === 'start') {
-        alignmentClasses = 'origin-top-start start-0';
-    } else if (align === 'end') {
-        alignmentClasses = 'origin-top-end end-0';
+    if (align === "start") {
+        alignmentClasses = "origin-top-start start-0";
+    } else if (align === "end") {
+        alignmentClasses = "origin-top-end end-0";
     }
 
-    let widthClasses = '';
+    let widthClasses = "";
 
-    if (width === '48') {
-        widthClasses = 'w-48';
+    if (width === "48") {
+        widthClasses = "w-48";
     }
 
     return (
@@ -93,8 +93,7 @@ const Content = ({
                 >
                     <div
                         className={
-                            `rounded-xl ring-1 ring-border ` +
-                            contentClasses
+                            `rounded-xl ring-1 ring-border ` + contentClasses
                         }
                     >
                         {children}
@@ -106,7 +105,7 @@ const Content = ({
 };
 
 const DropdownLink = ({
-    className = '',
+    className = "",
     children,
     ...props
 }: InertiaLinkProps) => {
@@ -114,7 +113,7 @@ const DropdownLink = ({
         <Link
             {...props}
             className={
-                'block w-full px-4 py-2 text-start text-sm leading-5 text-foreground transition duration-150 ease-in-out hover:bg-secondary focus:bg-secondary focus:outline-none ' +
+                "block w-full px-4 py-2 text-start text-sm leading-5 text-foreground transition duration-150 ease-in-out hover:bg-secondary focus:bg-secondary focus:outline-none " +
                 className
             }
         >

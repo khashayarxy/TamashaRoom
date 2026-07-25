@@ -44,6 +44,20 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
+      - name: Set up database for server
+        run: |
+          sed -i 's/SESSION_SECURE_COOKIE=true/SESSION_SECURE_COOKIE=false/' .env
+          php artisan migrate --force
+
+      - name: Create storage symlink
+        run: php artisan storage:link
+
+      - name: Start Laravel Server
+        run: php artisan serve --port=8000 &
+
+      - name: Wait for Server to be Ready
+        run: sleep 3
+
       - name: Run PHP tests
         run: php artisan test
         env:

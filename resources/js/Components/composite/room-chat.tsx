@@ -1,9 +1,9 @@
-import api from '@/lib/api';
-import { timeAgo } from '@/lib/utils';
-import { usePage } from '@inertiajs/react';
-import { Send, Trash2, User } from 'lucide-react';
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { ConfirmDialog } from '@/Components/composite/confirm-dialog';
+import api from "@/lib/api";
+import { timeAgo } from "@/lib/utils";
+import { usePage } from "@inertiajs/react";
+import { Send, Trash2, User } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 
 interface Message {
     id: number;
@@ -20,10 +20,15 @@ interface RoomChatProps {
     onUnreadCountChange?: (count: number) => void;
 }
 
-export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnreadCountChange }: RoomChatProps) {
+export function RoomChat({
+    roomId,
+    initialMessages,
+    pollInterval = 3000,
+    onUnreadCountChange,
+}: RoomChatProps) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState<Message[]>(initialMessages);
-    const [body, setBody] = useState('');
+    const [body, setBody] = useState("");
     const [sending, setSending] = useState(false);
     const [deleting, setDeleting] = useState<number | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
@@ -66,13 +71,14 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnrea
     useEffect(() => {
         const handleVisibility = () => {
             isTabVisibleRef.current = !document.hidden;
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === "visible") {
                 setUnreadCount(0);
                 fetchMessages();
             }
         };
-        document.addEventListener('visibilitychange', handleVisibility);
-        return () => document.removeEventListener('visibilitychange', handleVisibility);
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () =>
+            document.removeEventListener("visibilitychange", handleVisibility);
     }, [fetchMessages]);
 
     useEffect(() => {
@@ -87,7 +93,7 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnrea
         if (unreadCount > 0) {
             document.title = `(${unreadCount}) تماشاروم`;
         } else {
-            document.title = 'تماشاروم';
+            document.title = "تماشاروم";
         }
     }, [unreadCount]);
 
@@ -97,9 +103,11 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnrea
 
         setSending(true);
         try {
-            const { data } = await api.post(`/chat/${roomId}/messages`, { body });
+            const { data } = await api.post(`/chat/${roomId}/messages`, {
+                body,
+            });
             setMessages((prev) => [...prev, data]);
-            setBody('');
+            setBody("");
             setTimeout(scrollToBottom, 50);
         } catch {
             // silently fail
@@ -125,14 +133,11 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnrea
 
     return (
         <div className="flex flex-col h-full">
-            <div
-                ref={listRef}
-                className="flex-1 overflow-y-auto space-y-3 p-4"
-            >
+            <div ref={listRef} className="flex-1 overflow-y-auto space-y-3 p-4">
                 {messages.map((msg) => (
                     <div
                         key={msg.id}
-                        className={`flex gap-2 group ${isOwn(msg.user_id) ? 'flex-row-reverse' : ''}`}
+                        className={`flex gap-2 group ${isOwn(msg.user_id) ? "flex-row-reverse" : ""}`}
                     >
                         <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                             <User className="h-4 w-4 text-primary" />
@@ -140,11 +145,13 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnrea
                         <div
                             className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm relative ${
                                 isOwn(msg.user_id)
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-secondary text-secondary-foreground'
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-secondary text-secondary-foreground"
                             }`}
                         >
-                            <div className="font-medium text-xs mb-0.5">{msg.user.name}</div>
+                            <div className="font-medium text-xs mb-0.5">
+                                {msg.user.name}
+                            </div>
                             <div>{msg.body}</div>
                             <div className="text-[10px] opacity-60 mt-1">
                                 {timeAgo(msg.created_at)}
@@ -164,7 +171,10 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnrea
                 ))}
             </div>
 
-            <form onSubmit={sendMessage} className="border-t border-border p-3 flex gap-2">
+            <form
+                onSubmit={sendMessage}
+                className="border-t border-border p-3 flex gap-2"
+            >
                 <input
                     type="text"
                     value={body}
@@ -186,7 +196,9 @@ export function RoomChat({ roomId, initialMessages, pollInterval = 3000, onUnrea
             <ConfirmDialog
                 open={confirmDelete !== null}
                 onClose={() => setConfirmDelete(null)}
-                onConfirm={() => confirmDelete !== null && deleteMessage(confirmDelete)}
+                onConfirm={() =>
+                    confirmDelete !== null && deleteMessage(confirmDelete)
+                }
                 title="حذف پیام"
                 description="آیا از حذف این پیام اطمینان دارید؟ این عمل قابل بازگشت نیست."
                 confirmLabel="حذف شود"

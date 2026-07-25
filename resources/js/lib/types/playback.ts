@@ -1,4 +1,4 @@
-export type PlaybackMode = 'direct' | 'proxy';
+export type PlaybackMode = "direct" | "proxy";
 
 export interface PlaybackState {
     isPlaying: boolean;
@@ -45,7 +45,10 @@ export function toPlaybackState(data: PlaybackStateResponse): PlaybackState {
     };
 }
 
-export function computeExpectedPosition(state: PlaybackState, clientTimestampNow: number): number {
+export function computeExpectedPosition(
+    state: PlaybackState,
+    clientTimestampNow: number,
+): number {
     if (!state.isPlaying || !state.serverTimestamp) {
         return state.positionSeconds;
     }

@@ -12,7 +12,7 @@ export interface SubtitleCue {
     text: string;
 }
 
-export type SubtitlePosition = 'bottom' | 'top';
+export type SubtitlePosition = "bottom" | "top";
 
 export interface SubtitleSettings {
     size: number;

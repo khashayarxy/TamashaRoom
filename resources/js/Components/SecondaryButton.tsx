@@ -1,8 +1,8 @@
-import { ButtonHTMLAttributes } from 'react';
+import { ButtonHTMLAttributes } from "react";
 
 export default function SecondaryButton({
-    type = 'button',
-    className = '',
+    type = "button",
+    className = "",
     disabled,
     children,
     ...props
@@ -13,7 +13,7 @@ export default function SecondaryButton({
             type={type}
             className={
                 `inline-flex items-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold uppercase tracking-widest text-foreground shadow-sm transition duration-150 ease-in-out hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-25 ${
-                    disabled && 'opacity-25'
+                    disabled && "opacity-25"
                 } ` + className
             }
             disabled={disabled}

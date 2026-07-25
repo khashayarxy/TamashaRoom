@@ -1,8 +1,8 @@
-import { InertiaLinkProps, Link } from '@inertiajs/react';
+import { InertiaLinkProps, Link } from "@inertiajs/react";
 
 export default function ResponsiveNavLink({
     active = false,
-    className = '',
+    className = "",
     children,
     ...props
 }: InertiaLinkProps & { active?: boolean }) {
@@ -11,8 +11,8 @@ export default function ResponsiveNavLink({
             {...props}
             className={`flex w-full items-start border-s-4 py-2 pe-4 ps-3 ${
                 active
-                    ? 'border-primary bg-primary/10 text-primary focus:border-primary focus:bg-primary/20 focus:text-primary'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:bg-secondary hover:text-foreground focus:border-border focus:bg-secondary focus:text-foreground'
+                    ? "border-primary bg-primary/10 text-primary focus:border-primary focus:bg-primary/20 focus:text-primary"
+                    : "border-transparent text-muted-foreground hover:border-border hover:bg-secondary hover:text-foreground focus:border-border focus:bg-secondary focus:text-foreground"
             } text-base font-medium transition duration-150 ease-in-out focus:outline-none ${className}`}
         >
             {children}

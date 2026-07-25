@@ -1,8 +1,8 @@
-import { Button } from '@/Components/ui/button';
-import { PageProps } from '@/types';
-import { Head, Link } from '@inertiajs/react';
-import { Tv, Copy, Users, MessageSquare, Sun, Moon } from 'lucide-react';
-import { useThemeStore } from '@/stores/theme';
+import { Button } from "@/Components/ui/button";
+import { PageProps } from "@/types";
+import { Head, Link } from "@inertiajs/react";
+import { Tv, Copy, Users, MessageSquare, Sun, Moon } from "lucide-react";
+import { useThemeStore } from "@/stores/theme";
 
 export default function Welcome({ auth }: PageProps) {
     const { dark, toggle } = useThemeStore();
@@ -14,9 +14,13 @@ export default function Welcome({ auth }: PageProps) {
             <button
                 onClick={toggle}
                 className="fixed end-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-                aria-label={dark ? 'حالت روشن' : 'حالت تاریک'}
+                aria-label={dark ? "حالت روشن" : "حالت تاریک"}
             >
-                {dark ? <Sun className="h-5 w-5 text-primary" /> : <Moon className="h-5 w-5 text-primary" />}
+                {dark ? (
+                    <Sun className="h-5 w-5 text-primary" />
+                ) : (
+                    <Moon className="h-5 w-5 text-primary" />
+                )}
             </button>
 
             <div className="min-h-screen bg-background">
@@ -27,16 +31,22 @@ export default function Welcome({ auth }: PageProps) {
                     </div>
                     <nav className="flex items-center gap-3">
                         {auth.user ? (
-                            <Link href={route('dashboard')}>
-                                <Button variant="primary" size="sm">داشبورد</Button>
+                            <Link href={route("dashboard")}>
+                                <Button variant="primary" size="sm">
+                                    داشبورد
+                                </Button>
                             </Link>
                         ) : (
                             <>
-                                <Link href={route('login')}>
-                                    <Button variant="ghost" size="sm">ورود</Button>
+                                <Link href={route("login")}>
+                                    <Button variant="ghost" size="sm">
+                                        ورود
+                                    </Button>
                                 </Link>
-                                <Link href={route('register')}>
-                                    <Button variant="primary" size="sm">ثبت‌نام</Button>
+                                <Link href={route("register")}>
+                                    <Button variant="primary" size="sm">
+                                        ثبت‌نام
+                                    </Button>
                                 </Link>
                             </>
                         )}
@@ -53,11 +63,12 @@ export default function Welcome({ auth }: PageProps) {
                             </h1>
                             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground">
                                 تماشاروم اتاق‌های خصوصی برای تماشای هم‌زمان فیلم
-                                و ویدیو با دوستان و خانواده. بساز، دعوت کن، لذت ببر.
+                                و ویدیو با دوستان و خانواده. بساز، دعوت کن، لذت
+                                ببر.
                             </p>
                             <div className="mt-8 flex flex-wrap gap-4">
                                 {auth.user ? (
-                                    <Link href={route('dashboard')}>
+                                    <Link href={route("dashboard")}>
                                         <Button variant="primary" size="lg">
                                             <Tv className="h-5 w-5" />
                                             ورود به داشبورد
@@ -65,12 +76,12 @@ export default function Welcome({ auth }: PageProps) {
                                     </Link>
                                 ) : (
                                     <>
-                                        <Link href={route('register')}>
+                                        <Link href={route("register")}>
                                             <Button variant="primary" size="lg">
                                                 شروع کنید
                                             </Button>
                                         </Link>
-                                        <Link href={route('login')}>
+                                        <Link href={route("login")}>
                                             <Button variant="outline" size="lg">
                                                 ورود
                                             </Button>
@@ -83,7 +94,10 @@ export default function Welcome({ auth }: PageProps) {
                         <div className="relative hidden lg:col-span-2 lg:block">
                             <div className="aspect-square rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 p-8">
                                 <div className="flex h-full w-full items-center justify-center rounded-2xl border border-primary/10 bg-background/50 backdrop-blur-sm">
-                                    <Tv className="h-24 w-24 text-primary/40" strokeWidth={1} />
+                                    <Tv
+                                        className="h-24 w-24 text-primary/40"
+                                        strokeWidth={1}
+                                    />
                                 </div>
                             </div>
                             <div className="absolute -end-4 -top-4 h-32 w-32 rounded-full bg-primary/10 blur-xl" />
@@ -110,9 +124,13 @@ export default function Welcome({ auth }: PageProps) {
                                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
                                     <Copy className="h-7 w-7 text-primary" />
                                 </div>
-                                <h3 className="mt-4 text-2xl font-bold">یک اتاق بسازید</h3>
+                                <h3 className="mt-4 text-2xl font-bold">
+                                    یک اتاق بسازید
+                                </h3>
                                 <p className="mt-3 max-w-md leading-relaxed text-muted-foreground">
-                                    در چند ثانیه یک اتاق خصوصی بسازید. کد دعوت را با دوستان خود به اشتراک بگذارید — نیازی به ثبت‌نام پیچیده نیست.
+                                    در چند ثانیه یک اتاق خصوصی بسازید. کد دعوت
+                                    را با دوستان خود به اشتراک بگذارید — نیازی
+                                    به ثبت‌نام پیچیده نیست.
                                 </p>
                             </div>
                             <div className="relative">
@@ -130,9 +148,13 @@ export default function Welcome({ auth }: PageProps) {
                                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
                                     <Users className="h-7 w-7 text-primary" />
                                 </div>
-                                <h3 className="mt-4 text-2xl font-bold">دعوت کنید و جمع شوید</h3>
+                                <h3 className="mt-4 text-2xl font-bold">
+                                    دعوت کنید و جمع شوید
+                                </h3>
                                 <p className="mt-3 max-w-md leading-relaxed text-muted-foreground">
-                                    دوستانتان با کد دعوت به اتاق شما می‌پیوندند. کافی است لینک را بفرستید — آنها بلافاصله وارد می‌شوند.
+                                    دوستانتان با کد دعوت به اتاق شما می‌پیوندند.
+                                    کافی است لینک را بفرستید — آنها بلافاصله
+                                    وارد می‌شوند.
                                 </p>
                             </div>
                         </div>
@@ -144,15 +166,27 @@ export default function Welcome({ auth }: PageProps) {
                                         <MessageSquare className="h-6 w-6 text-primary" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold">چت و زیرنویس هم‌زمان</h3>
+                                        <h3 className="text-xl font-bold">
+                                            چت و زیرنویس هم‌زمان
+                                        </h3>
                                         <p className="mt-1 text-muted-foreground">
-                                            پخش، مکث، و زمان ویدیو برای همه هماهنگ است. همراه با چت لحظه‌ای و زیرنویس.
+                                            پخش، مکث، و زمان ویدیو برای همه
+                                            هماهنگ است. همراه با چت لحظه‌ای و
+                                            زیرنویس.
                                         </p>
                                     </div>
                                 </div>
-                                <Link href={auth.user ? route('dashboard') : route('register')}>
+                                <Link
+                                    href={
+                                        auth.user
+                                            ? route("dashboard")
+                                            : route("register")
+                                    }
+                                >
                                     <Button variant="primary">
-                                        {auth.user ? 'رفتن به داشبورد' : 'همین حالا شروع کنید'}
+                                        {auth.user
+                                            ? "رفتن به داشبورد"
+                                            : "همین حالا شروع کنید"}
                                     </Button>
                                 </Link>
                             </div>
@@ -168,18 +202,19 @@ export default function Welcome({ auth }: PageProps) {
                                 آماده‌ای با هم ببینیم؟
                             </h2>
                             <p className="mt-4 max-w-md text-lg leading-relaxed text-muted-foreground">
-                                همین حالا یک اتاق بساز و دوستانت رو دعوت کن. تماشای هم‌زمان، به سادگی یک کلیک.
+                                همین حالا یک اتاق بساز و دوستانت رو دعوت کن.
+                                تماشای هم‌زمان، به سادگی یک کلیک.
                             </p>
                             <div className="mt-8">
                                 {auth.user ? (
-                                    <Link href={route('dashboard')}>
+                                    <Link href={route("dashboard")}>
                                         <Button variant="primary" size="lg">
                                             <Tv className="h-5 w-5" />
                                             برو به داشبورد
                                         </Button>
                                     </Link>
                                 ) : (
-                                    <Link href={route('register')}>
+                                    <Link href={route("register")}>
                                         <Button variant="primary" size="lg">
                                             شروع کنید – رایگان
                                         </Button>

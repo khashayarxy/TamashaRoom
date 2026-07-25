@@ -63,7 +63,7 @@
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **170** tests across all modules (136 Feature + 34 Unit — expanded by audit, chat, rate limiter tests)
+- [x] **166** tests across all modules (132 Feature + 34 Unit)
 - [x] **102** Frontend tests (79 existing + 23 Zustand store tests)
 - [x] Build verification (tsc + vite)
 

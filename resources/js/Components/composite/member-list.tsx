@@ -1,9 +1,18 @@
-import type { PresenceMember } from '@/Hooks/use-presence';
-import { toast } from '@/Hooks/use-toast';
-import api from '@/lib/api';
-import { Crown, LogOut, Settings, ShieldAlert, User as UserIcon, UserMinus, Wifi, WifiOff } from 'lucide-react';
-import { useState } from 'react';
-import { ConfirmDialog } from './confirm-dialog';
+import type { PresenceMember } from "@/Hooks/use-presence";
+import { toast } from "@/Hooks/use-toast";
+import api from "@/lib/api";
+import {
+    Crown,
+    LogOut,
+    Settings,
+    ShieldAlert,
+    User as UserIcon,
+    UserMinus,
+    Wifi,
+    WifiOff,
+} from "lucide-react";
+import { useState } from "react";
+import { ConfirmDialog } from "./confirm-dialog";
 
 interface MemberListProps {
     members: PresenceMember[];
@@ -23,7 +32,7 @@ function timeAgo(dateStr: string): string {
     const diffMs = now.getTime() - past.getTime();
     const diffMinutes = Math.floor(diffMs / 60000);
 
-    if (diffMinutes < 1) return 'همین الان';
+    if (diffMinutes < 1) return "همین الان";
     if (diffMinutes < 60) return `${diffMinutes} دقیقه پیش`;
 
     const diffHours = Math.floor(diffMinutes / 60);
@@ -33,27 +42,51 @@ function timeAgo(dateStr: string): string {
     return `${diffDays} روز پیش`;
 }
 
-function StatusIndicator({ status }: { status: 'online' | 'offline' | 'away' }) {
+function StatusIndicator({
+    status,
+}: {
+    status: "online" | "offline" | "away";
+}) {
     const colors = {
-        online: 'bg-green-500',
-        away: 'bg-yellow-500',
-        offline: 'bg-gray-400',
+        online: "bg-green-500",
+        away: "bg-yellow-500",
+        offline: "bg-gray-400",
     };
 
     return (
         <span
             className={`h-2.5 w-2.5 rounded-full shrink-0 ${colors[status]}`}
-            title={status === 'online' ? 'آنلاین' : status === 'away' ? 'غایب' : 'آفلاین'}
+            title={
+                status === "online"
+                    ? "آنلاین"
+                    : status === "away"
+                      ? "غایب"
+                      : "آفلاین"
+            }
         />
     );
 }
 
-export function MemberList({ members, roomId, ownerId, connected, currentUserId, onKick, onTransfer, onOpenSettings, isLocked }: MemberListProps) {
-    const onlineCount = members.filter((m) => m.presence_status === 'online').length;
+export function MemberList({
+    members,
+    roomId,
+    ownerId,
+    connected,
+    currentUserId,
+    onKick,
+    onTransfer,
+    onOpenSettings,
+    isLocked,
+}: MemberListProps) {
+    const onlineCount = members.filter(
+        (m) => m.presence_status === "online",
+    ).length;
     const isOwner = currentUserId === ownerId;
 
     const [kickTarget, setKickTarget] = useState<PresenceMember | null>(null);
-    const [transferTarget, setTransferTarget] = useState<PresenceMember | null>(null);
+    const [transferTarget, setTransferTarget] = useState<PresenceMember | null>(
+        null,
+    );
     const [actionLoading, setActionLoading] = useState(false);
 
     const handleKick = async () => {
@@ -64,7 +97,7 @@ export function MemberList({ members, roomId, ownerId, connected, currentUserId,
             toast.success(`${kickTarget.name} از اتاق خارج شد`);
             onKick?.(kickTarget.user_id);
         } catch {
-            toast.error('خطا در حذف کاربر');
+            toast.error("خطا در حذف کاربر");
         } finally {
             setActionLoading(false);
             setKickTarget(null);
@@ -75,11 +108,13 @@ export function MemberList({ members, roomId, ownerId, connected, currentUserId,
         if (!transferTarget) return;
         setActionLoading(true);
         try {
-            await api.post(`/rooms/${roomId}/transfer/${transferTarget.user_id}`);
+            await api.post(
+                `/rooms/${roomId}/transfer/${transferTarget.user_id}`,
+            );
             toast.success(`مالکیت به ${transferTarget.name} منتقل شد`);
             onTransfer?.(transferTarget.user_id);
         } catch {
-            toast.error('خطا در انتقال مالکیت');
+            toast.error("خطا در انتقال مالکیت");
         } finally {
             setActionLoading(false);
             setTransferTarget(null);
@@ -114,7 +149,9 @@ export function MemberList({ members, roomId, ownerId, connected, currentUserId,
                 >
                     <Settings className="h-4 w-4" />
                     تنظیمات اتاق
-                    {isLocked && <ShieldAlert className="h-3.5 w-3.5 text-yellow-500 me-auto" />}
+                    {isLocked && (
+                        <ShieldAlert className="h-3.5 w-3.5 text-yellow-500 me-auto" />
+                    )}
                 </button>
             )}
 
@@ -134,7 +171,7 @@ export function MemberList({ members, roomId, ownerId, connected, currentUserId,
                                     <Crown className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
                                 )}
                             </div>
-                            {member.presence_status === 'offline' && (
+                            {member.presence_status === "offline" && (
                                 <div className="text-[11px] text-muted-foreground mt-0.5">
                                     آخرین بازدید {timeAgo(member.last_seen_at)}
                                 </div>
@@ -169,8 +206,8 @@ export function MemberList({ members, roomId, ownerId, connected, currentUserId,
                 open={kickTarget !== null}
                 onClose={() => setKickTarget(null)}
                 onConfirm={handleKick}
-                title={`حذف ${kickTarget?.name ?? ''}`}
-                description={`آیا از حذف "${kickTarget?.name ?? ''}" از اتاق مطمئن هستید؟`}
+                title={`حذف ${kickTarget?.name ?? ""}`}
+                description={`آیا از حذف "${kickTarget?.name ?? ""}" از اتاق مطمئن هستید؟`}
                 confirmLabel="حذف"
                 confirmVariant="destructive"
                 loading={actionLoading}
@@ -180,8 +217,8 @@ export function MemberList({ members, roomId, ownerId, connected, currentUserId,
                 open={transferTarget !== null}
                 onClose={() => setTransferTarget(null)}
                 onConfirm={handleTransfer}
-                title={`انتقال مالکیت به ${transferTarget?.name ?? ''}`}
-                description={`آیا از انتقال مالکیت اتاق به "${transferTarget?.name ?? ''}" مطمئن هستید؟ این عملیات قابل بازگشت نیست.`}
+                title={`انتقال مالکیت به ${transferTarget?.name ?? ""}`}
+                description={`آیا از انتقال مالکیت اتاق به "${transferTarget?.name ?? ""}" مطمئن هستید؟ این عملیات قابل بازگشت نیست.`}
                 confirmLabel="انتقال مالکیت"
                 confirmVariant="destructive"
                 loading={actionLoading}

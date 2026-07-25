@@ -1,88 +1,92 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { SubtitleSettingsDialog } from '@/Components/composite/subtitle-settings';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { SubtitleSettingsDialog } from "@/Components/composite/subtitle-settings";
 
 const mockUpdate = vi.fn();
 
 const defaultSettings = {
     size: 20,
-    color: '#ffffff',
+    color: "#ffffff",
     enabled: true,
     bgOpacity: 40,
-    position: 'bottom' as const,
+    position: "bottom" as const,
 };
 
-vi.mock('@/stores/subtitle', () => ({
-    useSubtitleStore: (selector: (s: { settings: typeof defaultSettings; update: typeof mockUpdate }) => unknown) =>
-        selector({ settings: defaultSettings, update: mockUpdate }),
+vi.mock("@/stores/subtitle", () => ({
+    useSubtitleStore: (
+        selector: (s: {
+            settings: typeof defaultSettings;
+            update: typeof mockUpdate;
+        }) => unknown,
+    ) => selector({ settings: defaultSettings, update: mockUpdate }),
 }));
 
-describe('SubtitleSettingsDialog', () => {
+describe("SubtitleSettingsDialog", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('renders default settings when open', () => {
+    it("renders default settings when open", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        expect(screen.getByText('تنظیمات زیرنویس')).toBeInTheDocument();
-        expect(screen.getByText('20px')).toBeInTheDocument();
-        expect(screen.getByText('40%')).toBeInTheDocument();
+        expect(screen.getByText("تنظیمات زیرنویس")).toBeInTheDocument();
+        expect(screen.getByText("20px")).toBeInTheDocument();
+        expect(screen.getByText("40%")).toBeInTheDocument();
     });
 
-    it('has dialog closed when not open', () => {
+    it("has dialog closed when not open", () => {
         render(<SubtitleSettingsDialog open={false} onClose={() => {}} />);
-        const dialog = document.querySelector('dialog');
+        const dialog = document.querySelector("dialog");
         expect(dialog).not.toBeNull();
         expect(dialog!.open).toBe(false);
     });
 
-    it('updates size when slider changes', () => {
+    it("updates size when slider changes", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const sliders = screen.getAllByRole('slider');
+        const sliders = screen.getAllByRole("slider");
         const sizeSlider = sliders[0];
-        fireEvent.change(sizeSlider, { target: { value: '28' } });
+        fireEvent.change(sizeSlider, { target: { value: "28" } });
         expect(mockUpdate).toHaveBeenCalledWith({ size: 28 });
     });
 
-    it('updates background opacity when slider changes', () => {
+    it("updates background opacity when slider changes", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const sliders = screen.getAllByRole('slider');
+        const sliders = screen.getAllByRole("slider");
         const opacitySlider = sliders[1];
-        fireEvent.change(opacitySlider, { target: { value: '60' } });
+        fireEvent.change(opacitySlider, { target: { value: "60" } });
         expect(mockUpdate).toHaveBeenCalledWith({ bgOpacity: 60 });
     });
 
-    it('selects a color when clicked', () => {
+    it("selects a color when clicked", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const yellowBtn = screen.getByLabelText('زرد');
+        const yellowBtn = screen.getByLabelText("زرد");
         fireEvent.click(yellowBtn);
-        expect(mockUpdate).toHaveBeenCalledWith({ color: '#fbbf24' });
+        expect(mockUpdate).toHaveBeenCalledWith({ color: "#fbbf24" });
     });
 
-    it('selects top position when clicked', () => {
+    it("selects top position when clicked", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const topBtn = screen.getByText('بالا');
+        const topBtn = screen.getByText("بالا");
         fireEvent.click(topBtn);
-        expect(mockUpdate).toHaveBeenCalledWith({ position: 'top' });
+        expect(mockUpdate).toHaveBeenCalledWith({ position: "top" });
     });
 
-    it('toggles enabled state when switch is clicked', () => {
+    it("toggles enabled state when switch is clicked", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const toggle = screen.getByLabelText('نمایش زیرنویس');
+        const toggle = screen.getByLabelText("نمایش زیرنویس");
         fireEvent.click(toggle);
         expect(mockUpdate).toHaveBeenCalledWith({ enabled: false });
     });
 
-    it('renders preview with current settings', () => {
+    it("renders preview with current settings", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        expect(screen.getByText('پیش‌نمایش متن زیرنویس')).toBeInTheDocument();
+        expect(screen.getByText("پیش‌نمایش متن زیرنویس")).toBeInTheDocument();
     });
 
-    it('calls onClose when dialog background is clicked', () => {
+    it("calls onClose when dialog background is clicked", () => {
         const onClose = vi.fn();
         render(<SubtitleSettingsDialog open onClose={onClose} />);
 
-        const dialog = document.querySelector('dialog');
+        const dialog = document.querySelector("dialog");
         expect(dialog).toBeInTheDocument();
 
         fireEvent.click(dialog!);

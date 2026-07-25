@@ -1,9 +1,9 @@
-import Checkbox from '@/Components/Checkbox';
-import { Input } from '@/Components/ui/input';
-import { Button } from '@/Components/ui/button';
-import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import Checkbox from "@/Components/Checkbox";
+import { Input } from "@/Components/ui/input";
+import { Button } from "@/Components/ui/button";
+import GuestLayout from "@/Layouts/GuestLayout";
+import { Head, Link, useForm } from "@inertiajs/react";
+import { FormEventHandler } from "react";
 
 export default function Login({
     status,
@@ -13,16 +13,16 @@ export default function Login({
     canResetPassword: boolean;
 }) {
     const { data, setData, post, processing, errors, reset } = useForm({
-        email: '',
-        password: '',
+        email: "",
+        password: "",
         remember: false as boolean,
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('login'), {
-            onFinish: () => reset('password'),
+        post(route("login"), {
+            onFinish: () => reset("password"),
         });
     };
 
@@ -31,7 +31,9 @@ export default function Login({
             <Head title="ورود" />
 
             <div className="mb-6 text-center">
-                <p className="text-sm font-medium text-primary">به تماشاروم خوش آمدید</p>
+                <p className="text-sm font-medium text-primary">
+                    به تماشاروم خوش آمدید
+                </p>
                 <h2 className="mt-1 text-xl font-bold">ورود به حساب</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                     با دوستانتان فیلم ببینید، حتی اگه دورید
@@ -50,7 +52,7 @@ export default function Login({
                     id="email"
                     type="email"
                     value={data.email}
-                    onChange={(e) => setData('email', e.target.value)}
+                    onChange={(e) => setData("email", e.target.value)}
                     error={errors.email}
                     autoComplete="username"
                     autoFocus
@@ -62,7 +64,7 @@ export default function Login({
                     id="password"
                     type="password"
                     value={data.password}
-                    onChange={(e) => setData('password', e.target.value)}
+                    onChange={(e) => setData("password", e.target.value)}
                     error={errors.password}
                     autoComplete="current-password"
                     required
@@ -73,7 +75,10 @@ export default function Login({
                         name="remember"
                         checked={data.remember}
                         onChange={(e) =>
-                            setData('remember', (e.target.checked || false) as false)
+                            setData(
+                                "remember",
+                                (e.target.checked || false) as false,
+                            )
                         }
                     />
                     <span className="text-sm text-muted-foreground">
@@ -84,7 +89,7 @@ export default function Login({
                 <div className="flex items-center justify-between pt-2">
                     {canResetPassword && (
                         <Link
-                            href={route('password.request')}
+                            href={route("password.request")}
                             className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
                         >
                             رمز عبور را فراموش کرده‌اید؟

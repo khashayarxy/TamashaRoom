@@ -1,7 +1,7 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface RoomUiState {
-    activeTab: 'chat' | 'members';
+    activeTab: "chat" | "members";
     showSetVideo: boolean;
     videoUrl: string;
     showSubSettings: boolean;
@@ -12,7 +12,7 @@ interface RoomUiState {
     roomIsLocked: boolean;
     ownerId: number;
 
-    setActiveTab: (tab: 'chat' | 'members') => void;
+    setActiveTab: (tab: "chat" | "members") => void;
     setShowSetVideo: (v: boolean) => void;
     setVideoUrl: (v: string) => void;
     setShowSubSettings: (v: boolean) => void;
@@ -25,14 +25,14 @@ interface RoomUiState {
 }
 
 export const useRoomUiStore = create<RoomUiState>((set) => ({
-    activeTab: 'chat',
+    activeTab: "chat",
     showSetVideo: false,
-    videoUrl: '',
+    videoUrl: "",
     showSubSettings: false,
     showSubManager: false,
     showRoomSettings: false,
-    roomName: '',
-    roomInviteCode: '',
+    roomName: "",
+    roomInviteCode: "",
     roomIsLocked: false,
     ownerId: 0,
 

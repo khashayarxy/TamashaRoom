@@ -1,14 +1,14 @@
-import DangerButton from '@/Components/DangerButton';
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import Modal from '@/Components/Modal';
-import SecondaryButton from '@/Components/SecondaryButton';
-import TextInput from '@/Components/TextInput';
-import { useForm } from '@inertiajs/react';
-import { FormEventHandler, useRef, useState } from 'react';
+import DangerButton from "@/Components/DangerButton";
+import InputError from "@/Components/InputError";
+import InputLabel from "@/Components/InputLabel";
+import Modal from "@/Components/Modal";
+import SecondaryButton from "@/Components/SecondaryButton";
+import TextInput from "@/Components/TextInput";
+import { useForm } from "@inertiajs/react";
+import { FormEventHandler, useRef, useState } from "react";
 
 export default function DeleteUserForm({
-    className = '',
+    className = "",
 }: {
     className?: string;
 }) {
@@ -24,7 +24,7 @@ export default function DeleteUserForm({
         errors,
         clearErrors,
     } = useForm({
-        password: '',
+        password: "",
     });
 
     const confirmUserDeletion = () => {
@@ -34,7 +34,7 @@ export default function DeleteUserForm({
     const deleteUser: FormEventHandler = (e) => {
         e.preventDefault();
 
-        destroy(route('profile.destroy'), {
+        destroy(route("profile.destroy"), {
             preserveScroll: true,
             onSuccess: () => closeModal(),
             onError: () => passwordInput.current?.focus(),
@@ -58,8 +58,8 @@ export default function DeleteUserForm({
 
                 <p className="mt-1 text-sm text-muted-foreground">
                     پس از حذف حساب کاربری، تمام اطلاعات و داده‌های شما برای
-                    همیشه حذف خواهند شد. قبل از حذف، لطفاً اطلاعات مورد نیاز
-                    خود را ذخیره کنید.
+                    همیشه حذف خواهند شد. قبل از حذف، لطفاً اطلاعات مورد نیاز خود
+                    را ذخیره کنید.
                 </p>
             </header>
 
@@ -75,8 +75,8 @@ export default function DeleteUserForm({
 
                     <p className="mt-1 text-sm text-muted-foreground">
                         پس از حذف حساب کاربری، تمام اطلاعات و داده‌های شما برای
-                        همیشه حذف خواهند شد. لطفاً رمز عبور خود را وارد کنید
-                        تا حذف حساب تأیید شود.
+                        همیشه حذف خواهند شد. لطفاً رمز عبور خود را وارد کنید تا
+                        حذف حساب تأیید شود.
                     </p>
 
                     <div className="mt-6">
@@ -93,7 +93,7 @@ export default function DeleteUserForm({
                             ref={passwordInput}
                             value={data.password}
                             onChange={(e) =>
-                                setData('password', e.target.value)
+                                setData("password", e.target.value)
                             }
                             className="mt-1 block w-3/4"
                             isFocused

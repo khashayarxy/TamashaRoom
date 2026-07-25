@@ -27,8 +27,8 @@ test.describe("Accessibility audit", () => {
   });
 
   test("Dashboard page has no critical or serious a11y violations", async ({ page }) => {
-    const resp = await page.request.post("/__test/setup-verified-room");
-    expect(resp.ok()).toBeTruthy();
+    await page.goto("/__test/setup-verified-room");
+    await page.waitForLoadState("networkidle");
 
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");

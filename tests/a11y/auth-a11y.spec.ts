@@ -18,10 +18,10 @@ test.describe("Accessibility audit — auth pages", () => {
     await page.goto("/register");
     await page.waitForLoadState("networkidle");
 
-    await page.fill('input[name="name"]', "Test User");
-    await page.fill('input[name="email"]', `a11y-test-${Date.now()}@example.com`);
-    await page.fill('input[name="password"]', "Password123!");
-    await page.fill('input[name="password_confirmation"]', "Password123!");
+    await page.fill('#name', "Test User");
+    await page.fill('#email', `a11y-test-${Date.now()}@example.com`);
+    await page.fill('#password', "Password123!");
+    await page.fill('#password_confirmation', "Password123!");
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/verify-email|dashboard/, { timeout: 10000 });
@@ -41,8 +41,8 @@ test.describe("Accessibility audit — auth pages", () => {
   });
 
   test("Profile page has no critical or serious a11y violations", async ({ page }) => {
-    const resp = await page.request.post("/__test/setup-verified-room");
-    expect(resp.ok()).toBeTruthy();
+    await page.goto("/__test/setup-verified-room");
+    await page.waitForLoadState("networkidle");
 
     await page.goto("/profile");
     await page.waitForLoadState("networkidle");

@@ -3,16 +3,18 @@ import AxeBuilder from "@axe-core/playwright";
 
 test.describe("Room page accessibility", () => {
   test("Populated room page has no critical or serious a11y violations", async ({ page }) => {
-    const resp = await page.request.post("/__test/setup-verified-room", {
-      data: {
-        with_video: "1",
-        with_chat: "1",
-        with_subtitle: "1",
-        with_guest: "1",
-      },
+    const params = new URLSearchParams({
+      with_video: "1",
+      with_chat: "1",
+      with_subtitle: "1",
+      with_guest: "1",
     });
-    expect(resp.ok()).toBeTruthy();
-    const { room_url } = await resp.json();
+    await page.goto("/__test/setup-verified-room?" + params.toString());
+    await page.waitForLoadState("networkidle");
+
+    const text = await page.evaluate(() => document.body.innerText);
+    const data = JSON.parse(text);
+    const room_url = new URL(data.room_url).pathname;
 
     await page.goto(room_url);
     await page.waitForLoadState("networkidle");

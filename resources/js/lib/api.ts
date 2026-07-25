@@ -1,9 +1,9 @@
-import axios from 'axios';
+import axios from "axios";
 
 const api = axios.create({
     headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
+        "X-Requested-With": "XMLHttpRequest",
+        Accept: "application/json",
     },
 });
 

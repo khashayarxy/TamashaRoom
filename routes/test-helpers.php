@@ -2,6 +2,7 @@
 
 use App\Models\ChatMessage;
 use App\Models\Room;
+use App\Models\RoomMember;
 use App\Models\SubtitleTrack;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 Route::middleware('web')->group(function () {
-    Route::post('/__test/setup-verified-room', function (Request $request) {
+    Route::match(['get', 'post'], '/__test/setup-verified-room', function (Request $request) {
         abort_if(! app()->environment('local', 'testing'), 404);
 
         $user = User::factory()->create([
@@ -23,7 +24,11 @@ Route::middleware('web')->group(function () {
             'invite_code' => Room::generateInviteCode(),
         ]);
 
-        $room->members()->attach($user->id, ['role' => 'host']);
+        RoomMember::create([
+            'room_id' => $room->id,
+            'user_id' => $user->id,
+            'last_seen_at' => now(),
+        ]);
 
         if ($request->boolean('with_video')) {
             $room->update([
@@ -68,8 +73,11 @@ Route::middleware('web')->group(function () {
             $guest = User::factory()->create([
                 'email_verified_at' => now(),
             ]);
-            $room->members()->attach($guest->id, ['role' => 'member']);
-            $room->increment('current_users');
+            RoomMember::create([
+                'room_id' => $room->id,
+                'user_id' => $guest->id,
+                'last_seen_at' => now(),
+            ]);
         }
 
         Auth::login($user);
@@ -93,8 +101,11 @@ Route::middleware('web')->group(function () {
             'email_verified_at' => now(),
         ]);
 
-        $room->members()->attach($user->id, ['role' => 'member']);
-        $room->increment('current_users');
+        RoomMember::create([
+            'room_id' => $room->id,
+            'user_id' => $user->id,
+            'last_seen_at' => now(),
+        ]);
 
         Auth::login($user);
 
