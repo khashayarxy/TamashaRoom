@@ -12,19 +12,33 @@ cPanel hosting, no Redis, no persistent workers, no root access.**
 
 ## Structure
 
-- **Controllers own data. Pages are presentational.** A controller fetches
-  everything a page needs and passes it as Inertia props. React components
-  never fetch their own data with `useEffect` on mount — that adds a
-  client-server round trip after an already-empty first render.
+- **Controllers own initial data. Pages are presentational for page data.** A
+  controller fetches everything a page needs for its first render and passes it
+  as Inertia props. React components do not fetch their own *initial page* data
+  with `useEffect` on mount — that adds a client-server round trip after an
+  already-empty first render.
+  **Exception (deliberate, not a violation):** live room data — playback state
+  (`usePlaybackSync`), presence (`usePresence`), chat messages (`RoomChat`) — is
+  polled on mount through the axios `api` client against JSON endpoints in
+  `routes/web.php`. That is the transport-agnostic design (Polling → WebSocket
+  pattern below). Build new live-room reads that way; never as a workaround for
+  a prop the controller could have passed.
+- **Route by who is calling — four endpoint categories:** TamashaRoom's own UI
+  uses `routes/web.php` exclusively:
+  1. **Inertia page routes** (`routes/web.php`): initial page props.
+  2. **JSON polling endpoints** (`routes/web.php`): `GET /playback/{room}/state`,
+     `GET /presence/{room}`, `GET /chat/{room}/messages` — session auth.
+  3. **JSON action/mutation endpoints** (`routes/web.php`): playback sync/set-video,
+     chat send/delete, room update/kick/transfer, subtitle CRUD, presence
+     heartbeat/leave — session auth, axios `api` client, validated.
+  4. **External API routes** (`routes/api.php`): Sanctum-token routes for mobile
+     clients / third parties. Currently only `GET /user` exists.
 - **Eager-load everything a page needs**, in the controller that renders it.
   Never let a component trigger a lazy-loaded Eloquent query while rendering.
   Enable `Model::preventLazyLoading(! app()->isProduction())` in
   `AppServiceProvider::boot()` so N+1 queries throw locally instead of
   silently running. On a single core with no Redis, an N+1 pattern is the
   most common cause of a page timing out under load.
-- **Route by who is calling.** TamashaRoom's own UI → Inertia route in
-  `routes/web.php`. Anything else (mobile client, third party, webhook) →
-  token-authenticated route in `routes/api.php` via Sanctum.
 - Group related routes with middleware; use a persistent Inertia layout so
   shared UI (sidebar, header) isn't re-fetched or remounted on navigation.
 - Every route that can resolve to a missing/unauthorized resource calls
@@ -42,10 +56,16 @@ cPanel hosting, no Redis, no persistent workers, no root access.**
 
 ## Mutations & Validation
 
-- Every mutation goes through a **Form Request** with both `authorize()` and
-  `rules()` defined. No exceptions. `$request->all()` reaching Eloquent
-  unvalidated is an open boundary, not a shortcut.
-- Frontend forms use Inertia's `useForm` — don't hand-roll pending/error state.
+- Structured user input (a multi-field form) goes through a **Form Request**
+  with both `authorize()` and `rules()` defined. Simple action endpoints that
+  take a single field may use inline `$request->validate()` instead (e.g.
+  `ChatController::store` validates `body => required|string|max:500` inline).
+  Either way: only validated data reaches Eloquent. No `$request->all()` reaching
+  Eloquent unvalidated — that is an open boundary, not a shortcut.
+- Inertia-submitted forms (auth pages, Profile partials) use Inertia's `useForm`.
+  JSON action endpoints (room settings, chat send, playback sync) use the axios
+  `api` client with their own local pending/error state — do not shoehorn those
+  into `useForm`.
 
 ## The Polling → WebSocket Pattern (critical, TamashaRoom-specific)
 
@@ -88,7 +108,7 @@ polls the room's current state every 3 seconds instead (adjustable post-MVP). Ex
 - **Later** (on a VPS): `BROADCAST_CONNECTION=reverb` — the same
   `broadcast(new PlaybackStateChanged(...))` call now pushes over a WebSocket.
 - On the frontend, hide the transport behind one hook
-  (`resources/js/hooks/use-playback-sync.ts`) so components never know which
+  (`resources/js/Hooks/use-playback-sync.ts`) so components never know which
   transport is active. This is the one deliberate exception to keeping
   architecture final — it exists specifically to make the future migration a
   config change plus a hook rewrite, not a feature redesign.
@@ -110,8 +130,8 @@ polls the room's current state every 3 seconds instead (adjustable post-MVP). Ex
 - Every page sets its own `<Head>` title/description — no `metadata` export
   exists on this stack. Shared defaults (viewport, theme-color, title
   fallback) live once in `resources/views/app.blade.php`.
-- `sitemap.xml` is generated on a schedule as a static file, never computed
-  per request. `robots.txt` is a plain static file, edited directly.
+- `robots.txt` is a plain static file in `public/`, edited directly. There is
+  no sitemap generation in TamashaRoom — no `sitemap:generate` command exists.
 
 ## Room Cap Enforcement (required before launch)
 
@@ -228,13 +248,13 @@ frontend's video player component reads `playback_mode` and either points
 
 ## Checklist (from SYSTEM.md 18.11)
 
-- Controller (not page component) fetches page data; relationships eager-loaded.
+- Controller (not page component) fetches initial page data; relationships eager-loaded.
 - Every route resolving to a missing/unauthorized resource returns 404.
 - Expensive reads cached (database driver) and invalidated on the write.
 - `config:cache` / `route:cache` / `view:cache` run on every deploy.
-- Mutations use a Form Request with `authorize()` + `rules()`.
+- Structured input uses a Form Request with `authorize()` + `rules()`; simple action endpoints use inline `validate()`. Validated data only — never `$request->all()`.
 - Slow secondary data deferred with `Inertia::defer()`.
-- Anything "live" is polled via partial reload, never assumed to push.
+- Anything "live" is polled (axios `api` client against JSON endpoints, or `router.reload()` partial reload), never assumed to push.
 - Room-wide state is written as a broadcastable Event, not polled directly from a model.
 - Nothing assumes sub-minute background processing.
 - `APP_DEBUG=false` in production, without exception.

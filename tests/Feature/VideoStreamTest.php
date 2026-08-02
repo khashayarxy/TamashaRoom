@@ -220,4 +220,101 @@ class VideoStreamTest extends TestCase
 
         $this->assertContains($response->getStatusCode(), [206, 502]);
     }
+
+    public function test_proxy_stream_context_enables_tls_verification(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $createContext = new \ReflectionMethod($service, 'createStreamContext');
+
+        $context = $createContext->invoke($service, ['User-Agent: TamashaRoom/1.0']);
+        $options = stream_context_get_options($context);
+
+        $this->assertTrue($options['ssl']['verify_peer']);
+        $this->assertTrue($options['ssl']['verify_peer_name']);
+        $this->assertSame(0, $options['http']['follow_location']);
+        $this->assertSame(0, $options['http']['max_redirects']);
+    }
+
+    public function test_proxy_resolves_absolute_redirect_url(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $resolve = new \ReflectionMethod($service, 'resolveRelativeUrl');
+
+        $result = $resolve->invoke(
+            $service,
+            'https://example.com/a/video.mp4',
+            'https://cdn.example.org/final.mp4',
+        );
+
+        $this->assertSame('https://cdn.example.org/final.mp4', $result);
+    }
+
+    public function test_proxy_resolves_root_relative_redirect_url(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $resolve = new \ReflectionMethod($service, 'resolveRelativeUrl');
+
+        $result = $resolve->invoke(
+            $service,
+            'https://example.com/a/video.mp4',
+            '/final.mp4',
+        );
+
+        $this->assertSame('https://example.com/final.mp4', $result);
+    }
+
+    public function test_proxy_resolves_path_relative_redirect_url(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $resolve = new \ReflectionMethod($service, 'resolveRelativeUrl');
+
+        $result = $resolve->invoke(
+            $service,
+            'https://example.com/a/video.mp4',
+            'final.mp4',
+        );
+
+        $this->assertSame('https://example.com/a/final.mp4', $result);
+    }
+
+    public function test_proxy_resolves_protocol_relative_redirect_url(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $resolve = new \ReflectionMethod($service, 'resolveRelativeUrl');
+
+        $result = $resolve->invoke(
+            $service,
+            'https://example.com/a/video.mp4',
+            '//cdn.example.org/final.mp4',
+        );
+
+        $this->assertSame('https://cdn.example.org/final.mp4', $result);
+    }
+
+    public function test_proxy_fetch_head_rejects_blocked_host(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $fetchHead = new \ReflectionMethod($service, 'fetchHead');
+
+        $result = $fetchHead->invoke($service, 'http://127.0.0.1/video.mp4');
+
+        $this->assertNull($result);
+    }
+
+    public function test_proxy_fetch_head_rejects_ftp_redirect_target(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $fetchHead = new \ReflectionMethod($service, 'fetchHead');
+
+        $result = $fetchHead->invoke($service, 'ftp://example.com/video.mp4');
+
+        $this->assertNull($result);
+    }
 }

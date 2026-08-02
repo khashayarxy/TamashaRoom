@@ -12,7 +12,9 @@ root access — see `laravel-backend-rules`).
 ## Before Every Deploy
 
 - [ ] CI is green on the commit being deployed (lint, type-check, PHPUnit,
-      Vitest, build — see `.github/workflows/ci.yml`).
+      Pint, Vitest, Playwright a11y + E2E, build — see
+      `.github/workflows/ci.yml`). Note: CI does **not** run a Prettier check;
+      run `npm run format:check` locally before committing.
 - [ ] `docs/TASK.md` reflects what's actually shipping in this deploy.
 - [ ] No pending migration you haven't reviewed for data loss (a `DROP
       COLUMN` or renamed table on a live database needs a backup first, not
@@ -33,7 +35,9 @@ composer install --no-dev --optimize-autoloader
 
 # 3. Install and build frontend assets
 #    Node 22 is a build-time tool only — it is not running on the server
-#    afterward, per docs/PROJECT.md's tech stack table.
+#    afterward, per docs/PROJECT.md's tech stack table. The build may be run
+#    off-server (any machine with Node 22+); cPanel needs only the resulting
+#    public/build/ (docs/deployment-checklist.md, "Web root").
 npm ci
 npm run build
 
@@ -61,9 +65,9 @@ php artisan storage:link
   ```
   * * * * * php /home/tamasharoom/artisan schedule:run >> /dev/null 2>&1
   ```
-  Everything else (queue draining, sitemap generation, session pruning,
-  room pruning) is registered inside `routes/console.php` — do **not** add
-  additional cron lines for individual tasks.
+  Everything else (queue draining, room pruning, presence timeout) is
+  registered inside `routes/console.php` — do **not** add additional cron
+  lines for individual tasks.
 - [ ] PHP-FPM worker count is set sensibly for 2GB RAM — start from the
   host's recommended default, adjust only after measuring actual memory
   per worker (docs/SYSTEM.md 21.10).
@@ -92,11 +96,12 @@ npm ci && npm run build
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
 
-**If the deploy included a migration**, decide *before* rolling back the
-code whether the migration is safe to leave in place (additive — new
-column, new table) or must also be reversed with
-`php artisan migrate:rollback`. Never assume a migration rollback is safe
-without checking whether the previous code version expects the old schema.
+**If the deploy included a migration**, restore the pre-deployment database
+backup taken before `php artisan migrate --force` (mysqldump via cPanel),
+**or** apply a specifically reviewed corrective migration. Do not run
+`php artisan migrate:rollback` against production — an unrestricted rollback
+can drop data added after the last `migrate` and is not safe on shared
+hosting.
 
 ## Common Failure Points on This Hosting Profile
 

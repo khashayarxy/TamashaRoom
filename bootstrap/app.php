@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\VideoUrlValidationException;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeadersMiddleware;
 use App\Models\ChatMessage;
@@ -48,6 +49,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->render(function (VideoUrlValidationException $e, Request $request) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        });
 
         $exceptions->render(function (Throwable $e, Request $request) {
             if ($request->expectsJson() && config('app.debug') === false && ! ($e instanceof HttpExceptionInterface)) {

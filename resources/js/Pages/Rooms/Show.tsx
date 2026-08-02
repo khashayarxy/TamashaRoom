@@ -12,6 +12,7 @@ import { Button } from "@/Components/ui/button";
 import { Card, CardContent } from "@/Components/ui/card";
 import { Input } from "@/Components/ui/input";
 import { usePresence } from "@/Hooks/use-presence";
+import { useRoomOwnership } from "@/Hooks/use-room-ownership";
 import AppLayout from "@/Layouts/AppLayout";
 import { copyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
@@ -100,7 +101,6 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const setRoomInviteCode = useRoomUiStore((s) => s.setRoomInviteCode);
     const roomIsLocked = useRoomUiStore((s) => s.roomIsLocked);
     const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
-    const ownerId = useRoomUiStore((s) => s.ownerId);
     const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
     const [tracks, setTracks] = useState<SubtitleTrack[]>([]);
     const [activeTrackId, setActiveTrackId] = useState<number | null>(() =>
@@ -116,7 +116,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const { members: presenceMembers, connected } = usePresence(room.id);
     const { settings } = useSubtitleSettings();
     const { auth } = usePage().props;
-    const isOwner = auth.user.id === room.user_id;
+    const { ownerId, isOwner, transferOwnership } = useRoomOwnership({
+        initialOwnerId: room.user_id,
+        currentUserId: auth.user.id,
+        presenceMembers,
+    });
 
     useEffect(() => {
         setRoomName(room.name);
@@ -244,7 +248,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     };
 
     const handleTransfer = (userId: number) => {
-        setOwnerId(userId);
+        transferOwnership(userId);
         setActiveTab("members");
     };
 

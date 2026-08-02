@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -265,6 +266,106 @@ class RoomManagementTest extends TestCase
             ->post('/rooms', ['name' => 'Second Room']);
 
         $response->assertSessionHasErrors('name');
+    }
+
+    #[Test]
+    public function room_cap_race_is_prevented_by_lock(): void
+    {
+        config(['tamasharoom.max_concurrent_rooms' => Room::count() + 1]);
+
+        $lock = Cache::lock('room-cap', 10);
+        $lock->get();
+
+        try {
+            $response = $this->actingAs($this->owner)
+                ->post('/rooms', ['name' => 'Second Room']);
+
+            $response->assertSessionHasErrors('name');
+
+            $this->assertSame(1, Room::where('user_id', $this->owner->id)->count());
+        } finally {
+            $lock->release();
+        }
+    }
+
+    #[Test]
+    public function room_cap_lock_is_cross_process_safe_with_database_cache_store(): void
+    {
+        $originalDefault = config('cache.default');
+        config(['cache.default' => 'database']);
+        Cache::purge('database');
+
+        try {
+            config(['tamasharoom.max_concurrent_rooms' => Room::count() + 1]);
+
+            $lock = Cache::lock('room-cap', 10);
+            $this->assertTrue($lock->get());
+
+            try {
+                $response = $this->actingAs($this->owner)
+                    ->post('/rooms', ['name' => 'Second Room']);
+
+                $response->assertSessionHasErrors('name');
+
+                $this->assertSame(1, Room::where('user_id', $this->owner->id)->count());
+            } finally {
+                $lock->release();
+            }
+        } finally {
+            config(['cache.default' => $originalDefault]);
+            Cache::purge('database');
+        }
+    }
+
+    // ─── Activity Tracking ────────────────────────────────
+
+    #[Test]
+    public function join_updates_room_last_activity(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00'));
+
+        $this->room->update(['last_activity_at' => now()->subMinutes(10)]);
+
+        $joiner = User::factory()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($joiner)
+            ->get("/rooms/join/{$this->room->invite_code}");
+
+        $this->room->refresh();
+
+        $this->assertTrue($this->room->last_activity_at->gt(Carbon::parse('2026-06-01 11:59:00')));
+    }
+
+    #[Test]
+    public function chat_message_updates_room_last_activity(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00'));
+
+        $this->room->update(['last_activity_at' => now()->subMinutes(10)]);
+
+        $this->actingAs($this->member)
+            ->post("/chat/{$this->room->id}/messages", [
+                'body' => 'Hello from activity test',
+            ]);
+
+        $this->room->refresh();
+
+        $this->assertTrue($this->room->last_activity_at->gt(Carbon::parse('2026-06-01 11:59:00')));
+    }
+
+    #[Test]
+    public function heartbeat_updates_room_last_activity(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-01 12:00:00'));
+
+        $this->room->update(['last_activity_at' => now()->subMinutes(10)]);
+
+        $this->actingAs($this->member)
+            ->post("/presence/{$this->room->id}/heartbeat");
+
+        $this->room->refresh();
+
+        $this->assertTrue($this->room->last_activity_at->gt(Carbon::parse('2026-06-01 11:59:00')));
     }
 
     // ─── Data Cleanup ─────────────────────────────────────

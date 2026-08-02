@@ -107,5 +107,9 @@ Before considering any change done, verify you have not introduced:
 - Loading spinners for operations under 200ms.
 - `any` types or `as` casts to silence TypeScript.
 - Inline styles or CSS-in-JS.
-- Client-side data fetching for data a controller could have passed as an
-  Inertia prop.
+- Client-side data fetching for *initial page data* a controller could have
+  passed as an Inertia prop. **Exception (not this anti-pattern):** the approved
+  live-room polling endpoints — playback state, presence members, chat messages —
+  are fetched on mount via dedicated hooks against JSON endpoints in
+  `routes/web.php` (see `laravel-backend-rules`). Those are the deliberate
+  transport-agnostic design, not a data-fetching workaround.

@@ -67,7 +67,11 @@ export default function DeleteUserForm({
                 حذف حساب کاربری
             </DangerButton>
 
-            <Modal show={confirmingUserDeletion} onClose={closeModal}>
+            <Modal
+                show={confirmingUserDeletion}
+                onClose={closeModal}
+                ariaLabel="حذف حساب کاربری"
+            >
                 <form onSubmit={deleteUser} className="p-6">
                     <h2 className="text-lg font-medium text-foreground">
                         آیا از حذف حساب خود مطمئن هستید؟

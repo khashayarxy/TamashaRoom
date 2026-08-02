@@ -34,7 +34,7 @@ Every component belongs to exactly one. This determines its directory.
 | **Primitive** | `Stack`, `Flex`, `Box` | No | No | `Components/ui/` |
 | **UI** | `Button`, `Input`, `Dialog` | No | No | `Components/ui/` |
 | **Composite** | `RoomCard`, `MemberList`, `RoomChat` | Maybe (local state ok) | Yes | `Components/composite/` |
-| **Layout** | `AppLayout`, `Sidebar`, `Header` | No | No | `Components/layout/` |
+| **Layout** | `AppLayout`, `AuthenticatedLayout`, `GuestLayout` | No | No | `Layouts/` |
 | **Page** | `Rooms/Show.tsx`, `Dashboard.tsx` | No (delegates to hooks) | Yes | `Pages/` |
 
 Rules per category:

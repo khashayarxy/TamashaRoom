@@ -22,7 +22,7 @@ Full detail: `docs/SYSTEM.md`, Chapter 28 (Output Rules).
 Group in this order, separated by blank lines:
 1. React / Inertia
 2. Third-party libraries
-3. Absolute imports (`@/components`, `@/lib`)
+3. Absolute imports (`@/Components`, `@/Hooks`, `@/lib`, `@/stores`)
 4. Relative imports (`./`, `../`)
 5. Type-only imports (marked with `type`)
 
@@ -30,11 +30,11 @@ Group in this order, separated by blank lines:
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 
-import { useQuery } from '@tanstack/react-query';
+import { create } from 'zustand';
 import { z } from 'zod';
 
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
+import { Button } from '@/Components/ui/button';
+import { usePresence } from '@/Hooks/use-presence';
 
 import { MemberList } from './member-list';
 import type { Room } from './types';

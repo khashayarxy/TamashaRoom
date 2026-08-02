@@ -6,9 +6,22 @@ description: Testing strategy for TamashaRoom — what to test at each layer (un
 # Testing Strategy
 
 Full detail: `docs/SYSTEM.md`, 14.08 (Component Testing) and the testing
-tooling in `docs/PROJECT.md`. Current test coverage baseline is in
-`docs/TASK.md` — as of the last update: 136 PHPUnit feature tests, 34 PHPUnit unit
-tests, including an 18-test `SecurityTest` and a 15-test `UrlSecurityServiceTest`.
+tooling in `docs/PROJECT.md`. Current test coverage baseline (source-level recount,
+2026-08-02, Batch G8 — synchronized with `docs/TASK.md` and `docs/ai/PROJECT_BASELINE.md`):
+- Backend (PHPUnit): **202 tests = 168 Feature + 34 Unit**, including an 18-test
+  `SecurityTest`, a 15-test `UrlSecurityServiceTest`, the 18-test
+  `tests/Feature/Auth/` suite, and a 15-test `RateLimiterTest`. Static
+  declaration count (`#[Test]` + `test_*`)
+  equals the runtime count — there are **no data providers** in the suite.
+- Frontend (Vitest): **122 tests = 99 component/hook/logic + 23 Zustand store
+  tests** (theme 5, room-ui 11, subtitle 7). No `it.each`/`test.each`
+  parameterized tests, so static declaration count equals runtime count.
+- E2E (Playwright): **12** tests passing. A11y (axe): **11** tests passing.
+
+**Counting caveat:** if new tests are added with data providers (`#[DataProvider]`,
+`it.each`, `test.each`) or parameterized loops, the *static declaration count* will
+be lower than the *runtime count* (each provider row expands to one executed test).
+Report which number you mean when the two differ.
 
 ## Tools — Which One, Where
 

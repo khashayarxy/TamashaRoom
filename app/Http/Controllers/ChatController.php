@@ -41,6 +41,8 @@ class ChatController extends Controller
             'body' => $validated['body'],
         ]);
 
+        $room->touchActivityIfStale();
+
         $message->load('user:id,name');
 
         broadcast(new NewChatMessage($message))->toOthers();

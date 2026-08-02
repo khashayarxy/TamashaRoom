@@ -9,6 +9,7 @@ use App\Models\RoomMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -227,5 +228,169 @@ class RateLimiterTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson("/presence/{$room->id}/heartbeat");
         $response->assertStatus(429);
+    }
+
+    // ─── Auth abuse: register / forgot-password / reset-password ─────────
+
+    #[Test]
+    public function register_limits_at_5_per_ip(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->postJson('/register', [
+                'name' => 'Test User',
+                'email' => "register-{$i}@example.com",
+                'password' => 'password',
+                'password_confirmation' => 'not-matching',
+            ]);
+            $this->assertNotRateLimited($response, "Register attempt $i");
+        }
+
+        $response = $this->postJson('/register', [
+            'name' => 'Test User',
+            'email' => 'register-5@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'not-matching',
+        ]);
+        $response->assertStatus(429);
+    }
+
+    #[Test]
+    public function registration_is_allowed_under_the_limit(): void
+    {
+        $response = $this->postJson('/register', [
+            'name' => 'New User',
+            'email' => 'legit-registration@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $this->assertNotRateLimited($response, 'Registration should be allowed');
+    }
+
+    #[Test]
+    public function register_limiter_is_scoped_per_ip(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+                ->postJson('/register', [
+                    'name' => 'Test User',
+                    'email' => "register-ip-{$i}@example.com",
+                    'password' => 'password',
+                    'password_confirmation' => 'not-matching',
+                ]);
+            $this->assertNotRateLimited($response, "IP A register attempt $i");
+        }
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.10'])
+            ->postJson('/register', [
+                'name' => 'Test User',
+                'email' => 'register-ip-5@example.com',
+                'password' => 'password',
+                'password_confirmation' => 'not-matching',
+            ]);
+        $response->assertStatus(429);
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.11'])
+            ->postJson('/register', [
+                'name' => 'Test User',
+                'email' => 'register-ip-b@example.com',
+                'password' => 'password',
+                'password_confirmation' => 'not-matching',
+            ]);
+        $this->assertNotRateLimited($response, 'IP B should not be blocked');
+    }
+
+    #[Test]
+    public function forgot_password_limits_at_5_per_email_ip(): void
+    {
+        User::factory()->create(['email' => 'forgot-limit@example.com']);
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->postJson('/forgot-password', ['email' => 'forgot-limit@example.com']);
+            $this->assertNotRateLimited($response, "Forgot-password request $i");
+        }
+
+        $response = $this->postJson('/forgot-password', ['email' => 'forgot-limit@example.com']);
+        $response->assertStatus(429);
+    }
+
+    #[Test]
+    public function forgot_password_limiter_is_scoped_per_email(): void
+    {
+        User::factory()->create(['email' => 'forgot-alice@example.com']);
+        User::factory()->create(['email' => 'forgot-bob@example.com']);
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->postJson('/forgot-password', ['email' => 'forgot-alice@example.com']);
+            $this->assertNotRateLimited($response, "Alice attempt $i");
+        }
+
+        $response = $this->postJson('/forgot-password', ['email' => 'forgot-alice@example.com']);
+        $response->assertStatus(429);
+
+        $response = $this->postJson('/forgot-password', ['email' => 'forgot-bob@example.com']);
+        $this->assertNotRateLimited($response, 'Bob should not be blocked');
+    }
+
+    #[Test]
+    public function reset_password_limits_at_5_per_ip(): void
+    {
+        $payload = [
+            'token' => 'invalid-token',
+            'email' => 'reset-limit@example.com',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ];
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->postJson('/reset-password', $payload);
+            $this->assertNotRateLimited($response, "Reset attempt $i");
+        }
+
+        $response = $this->postJson('/reset-password', $payload);
+        $response->assertStatus(429);
+    }
+
+    #[Test]
+    public function reset_password_limiter_is_scoped_per_ip(): void
+    {
+        $payload = [
+            'token' => 'invalid-token',
+            'email' => 'reset-scope@example.com',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ];
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.20'])
+                ->postJson('/reset-password', $payload);
+            $this->assertNotRateLimited($response, "IP A reset attempt $i");
+        }
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.20'])
+            ->postJson('/reset-password', $payload);
+        $response->assertStatus(429);
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.21'])
+            ->postJson('/reset-password', $payload);
+        $this->assertNotRateLimited($response, 'IP B should not be blocked');
+    }
+
+    #[Test]
+    public function auth_abuse_limiters_are_attached_to_their_post_routes(): void
+    {
+        $this->assertPostRouteHasThrottle('register', 'throttle:register');
+        $this->assertPostRouteHasThrottle('forgot-password', 'throttle:forgot-password');
+        $this->assertPostRouteHasThrottle('reset-password', 'throttle:reset-password');
+        $this->assertPostRouteHasThrottle('login', 'throttle:login');
+    }
+
+    private function assertPostRouteHasThrottle(string $uri, string $middleware): void
+    {
+        $route = collect(Route::getRoutes())
+            ->first(fn ($route) => in_array('POST', $route->methods()) && $route->uri() === $uri);
+
+        $this->assertNotNull($route, "POST /{$uri} route not found.");
+        $this->assertContains($middleware, $route->gatherMiddleware());
     }
 }

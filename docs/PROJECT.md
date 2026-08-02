@@ -1,7 +1,7 @@
 # PROJECT.md
 # TamashaRoom Project Specification
 # Version: MVP
-# Last Updated: 2026-07-20
+# Last Updated: 2026-08-02
 
 ---
 
@@ -12,6 +12,7 @@
 **Purpose**: A synchronized watch-party platform for Iranian users — multiple people watch a video together from different locations, with playback kept in sync, so it feels like watching together in person rather than separately.
 **Primary language**: Persian (RTL) — the only MVP language
 **Deployment**: Shared cPanel hosting (Apache, PHP 8.4, MySQL/MariaDB, 2GB RAM, 1 CPU core, 20GB storage) for the MVP/test phase; see "Real-Time Architecture" below for the planned migration path.
+**Design system**: The authoritative design-system document is `design-systems/tamasharoom/DESIGN.md` (draft status — confirm before implementing on any page). There is no `docs/DESIGN.md` or root-level `DESIGN.md`; PRODUCT.md's bare "DESIGN.md" reference was corrected to point here.
 
 ## Core Concept
 
@@ -31,7 +32,7 @@ A user creates a private room and provides a video source (an external link — 
 
 Playback sync is the product's core mechanic, and it is normally built on WebSockets — which the MVP's shared cPanel hosting does not support (see "Tech Stack" below). For the test/MVP phase:
 
-- Playback state changes are written as a Laravel broadcastable Event (`PlaybackStateChanged`); the frontend polls for it every 1–2 seconds (Chapter 18.05, Rule 2). Expect roughly 1–2 seconds of sync drift between members — acceptable for early testing, not frame-accurate.
+- Playback state changes are written as a Laravel broadcastable Event (`PlaybackStateChanged`); the frontend polls for it every 3 seconds while playing (10 seconds when paused) — see `resources/js/Hooks/use-playback-sync.ts` and Chapter 18.05, Rule 2. Expect roughly 1–2 seconds of sync drift between members — acceptable for early testing, not frame-accurate.
 - The write path and the event are deliberately transport-agnostic (Chapter 18.05, Rule 3): moving to real-time later is a `BROADCAST_CONNECTION` config change plus a Laravel Reverb install on a VPS, not a feature rewrite. No component that reads room state needs to change.
 - **Do not build new room-state features against direct polling of a model.** Always go through the Event, so the future migration stays a driver swap.
 
@@ -41,7 +42,7 @@ Playback sync is the product's core mechanic, and it is normally built on WebSoc
 |-------|-----------|---------|---------|
 | Backend Framework | Laravel | 13.20.0 (^13.8) | Routing, ORM (Eloquent), auth, validation, scheduling |
 | Backend Language | PHP | 8.4 | Runs as PHP-FPM under Apache (shared cPanel hosting) |
-| Frontend Bridge | Inertia.js | 2.x | Server-driven SPA — no separate REST layer for the app's own UI |
+| Frontend Bridge | Inertia.js | `@inertiajs/react` 2.x (client) + `inertiajs/inertia-laravel` 3.1.x (server) | Server-driven SPA — no separate REST layer for the app's own UI |
 | Frontend Framework | React | 19.x | UI components, rendered via Inertia |
 | Frontend Language | TypeScript | 5.x | Type safety, strict mode |
 | Build Tool | Vite | 5.x | Frontend bundling; Node.js 22 is used only at build time, never at runtime |
@@ -49,7 +50,7 @@ Playback sync is the product's core mechanic, and it is normally built on WebSoc
 | Database | MySQL/MariaDB | 8.x/10.x | Primary data store |
 | Styling | Tailwind CSS | 4.x | Utility-first CSS; logical properties for RTL |
 | UI Components | Headless UI (@headlessui/react) | 2.x | Accessible primitives; Modal, Dropdown, Transition |
-| State (Client) | Zustand | 5.x | Local UI state only (theme, sidebar, modals) |
+| State (Client) | Zustand | 5.x | Local UI state only (`theme`, `room-ui`, `subtitle`) |
 | Forms | Inertia `useForm` | built-in | Form state, pending, and server-validated errors |
 | Validation (Server) | Laravel Form Requests | built-in | Authoritative validation and authorization |
 | Validation (Client) | Zod | 4.x | Client-side pre-validation UX only |
@@ -65,10 +66,15 @@ Playback sync is the product's core mechanic, and it is normally built on WebSoc
 
 **Deployment target**: shared cPanel hosting — Apache, PHP 8.4, MySQL/MariaDB, 2GB RAM, 1 CPU core, 20GB storage. No Docker, no Redis, no WebSockets, no persistent background workers, no root access. See SYSTEM.md, Chapter 18, for the full rationale and the rules this constrains.
 
+**Zustand stores** (all in `resources/js/stores/`; local UI state only — server data is not stored in Zustand):
+- `theme` — dark/light mode toggle, persisted to `localStorage`.
+- `room-ui` — Room-page UI state (active tab, modal/dialog visibilities, video URL, room name, invite code, locked flag, reactive `ownerId`). The one documented exception where selected server data (`video_url`, `room_name`, `invite_code`, `is_locked`, plus `ownerId` for ownership) is copied into the store to avoid prop drilling; see SYSTEM.md 16.03.
+- `subtitle` — subtitle settings (size, color, enabled, bg opacity, position), persisted to `localStorage`.
+
 ## Architecture Principles
 
-1. **Controllers own data, pages are presentational**. A Laravel controller fetches everything a page needs and passes it as Inertia props; components render props, they do not fetch their own data.
-2. **Co-locate related code**. One controller, one Form Request, one Inertia page per resource; React components grouped by feature under `resources/js`.
+1. **Controllers own data, pages are presentational**. A Laravel controller fetches everything a page needs and passes it as Inertia props; components render props, they do not fetch their own *initial page* data. **The one deliberate exception:** live room data (playback state, presence, chat) is polled on mount through dedicated hooks (`usePlaybackSync`, `usePresence`, `RoomChat`) using the shared axios `api` client (`resources/js/lib/api.ts`) against session-authenticated JSON endpoints in `routes/web.php` — that is the approved transport-agnostic polling design (SYSTEM.md 18.05, Rule 2), not a violation.
+2. **Co-locate related code (preferred organization, not a hard rule)**. As a general pattern, group one controller, one Form Request, and one Inertia page per resource; React components by feature under `resources/js`. This is a helpful default for organizing related code — simple action endpoints may legitimately use inline `$request->validate()` (e.g. `ChatController::store`) instead of a dedicated Form Request, and JSON action endpoints submit through the axios `api` client rather than Inertia forms. Use judgment: the pattern is a preference, not an architectural mandate.
 3. **Prefer composition over inheritance**. Components compose, they do not extend.
 4. **Keep business logic out of components — and out of controllers**. Use Laravel Actions/Services for anything beyond orchestrating a request; use custom hooks and utilities on the frontend.
 5. **Every async operation has explicit states**. Loading, error, success, empty.
@@ -86,13 +92,16 @@ app/
 ├── Console/
 │   └── Commands/                   # Scheduled tasks
 │       ├── PruneInactiveRooms.php
-│       └── PresenceTimeout.php
+│       └── MarkStaleMembersOffline.php   # signature: presence:timeout
 ├── Enums/
 │   └── PlaybackMode.php
 ├── Events/
-│   └── PlaybackStateChanged.php    # broadcastable — polled today, pushed later (SYSTEM.md 18.05)
+│   ├── MemberPresenceChanged.php   # broadcastable — polled today, pushed later (SYSTEM.md 18.05)
+│   ├── NewChatMessage.php
+│   └── PlaybackStateChanged.php
 ├── Http/
 │   ├── Controllers/
+│   │   ├── AdminController.php
 │   │   ├── ChatController.php
 │   │   ├── PlaybackController.php
 │   │   ├── PresenceController.php
@@ -105,8 +114,12 @@ app/
 │   │   ├── HandleInertiaRequests.php
 │   │   └── SecurityHeadersMiddleware.php
 │   └── Requests/                   # Form Requests — validation + authorization
+│       ├── JoinRoomRequest.php
+│       ├── ProfileUpdateRequest.php
 │       ├── StoreRoomRequest.php
-│       └── UpdatePlaybackRequest.php
+│       ├── UpdatePlaybackRequest.php
+│       ├── UpdateRoomRequest.php
+│       └── UploadSubtitleRequest.php
 ├── Models/
 │   ├── ChatMessage.php
 │   ├── Room.php
@@ -115,9 +128,7 @@ app/
 │   └── User.php
 ├── Policies/                       # Authorization: can this user act on this resource
 │   ├── ChatMessagePolicy.php
-│   ├── RoomMemberPolicy.php
-│   ├── RoomPolicy.php
-│   └── SubtitleTrackPolicy.php
+│   └── RoomPolicy.php
 ├── Providers/
 │   └── AppServiceProvider.php      # Rate limiters, Vite prefetch
 └── Services/                       # Domain services
@@ -127,9 +138,12 @@ app/
     └── VideoProxyService.php
 
 routes/
-├── web.php                         # Inertia routes (the app's own UI)
+├── web.php                         # Inertia routes (the app's own UI) + live-room JSON endpoints
 ├── api.php                         # Sanctum-authenticated JSON routes (external consumers)
-└── console.php                     # Scheduled tasks — the only cron entry fans out from here
+├── auth.php                        # Auth routes (login, register, password, verification)
+├── channels.php                    # Broadcast channel authorization
+├── console.php                     # Scheduled tasks — the only cron entry fans out from here
+└── test-helpers.php                # Test-only routes — loaded only in local/testing
 
 database/
 ├── migrations/
@@ -161,13 +175,17 @@ resources/
 │   │   ├── use-playback-sync.ts    # today: polling; later: Echo — same return shape (SYSTEM.md 18.05)
 │   │   ├── use-polling-reload.ts
 │   │   ├── use-presence.ts
+│   │   ├── use-room-ownership.ts
 │   │   └── use-toast.ts
 │   ├── Layouts/
-│   │   └── AppLayout.tsx           # Persistent Inertia layout
+│   │   ├── AppLayout.tsx           # Persistent Inertia layout
+│   │   ├── AuthenticatedLayout.tsx
+│   │   └── GuestLayout.tsx
 │   ├── lib/
-│   │   ├── types/                  # Zod schemas + inferred TypeScript types
-│   │   ├── utils.ts                # cn(), formatDuration, timeAgo, copyToClipboard
-│   │   └── subtitle-parser.ts      # SRT/VTT parsing
+│   │   ├── api.ts                  # axios instance for JSON endpoints (web.php)
+│   │   ├── types/                  # Shared TypeScript types — playback.ts, subtitle.ts
+│   │   ├── utils.ts                # cn(), toPersianDigits, formatDuration, timeAgo, copyToClipboard, sanitizeText
+│   │   └── (SRT/VTT parsing lives in Components/composite/subtitle-overlay.tsx — parseVtt/parseSrt/parseSubtitle)
 │   ├── Pages/                      # One Inertia page component per route
 │   │   ├── Auth/                   # Login, register, password reset, verification
 │   │   ├── Profile/
@@ -182,7 +200,8 @@ resources/
 │   │   └── theme.ts
 │   └── types/                      # Ambient type declarations
 │       ├── global.d.ts
-│       └── index.d.ts
+│       ├── index.d.ts
+│       └── vite-env.d.ts
 └── views/
     ├── app.blade.php               # Root template Inertia renders into
     └── errors/
@@ -203,7 +222,7 @@ APP_NAME=TamashaRoom
 APP_ENV=production
 APP_KEY=                      # php artisan key:generate
 APP_DEBUG=false                # non-negotiable in production — see SYSTEM.md 18.08, Rule 6
-APP_URL=https://tamasharoom.app
+APP_URL=https://yourdomain.com  # production domain not finalized — set to the real one (deployment-checklist.md uses this placeholder)
 APP_LOCALE=fa                  # Persian — the only MVP locale
 
 # Database
@@ -226,8 +245,14 @@ QUEUE_CONNECTION=database
 # Change to BROADCAST_CONNECTION=reverb only after migrating to a VPS.
 BROADCAST_CONNECTION=log
 
+# Capacity ceiling — system-wide active-room cap (config/tamasharoom.php)
+TAMASHAROOM_MAX_CONCURRENT_ROOMS=50
+
 # Logging
 LOG_CHANNEL=daily
+
+# Error monitoring — leave empty to disable (config/sentry.php)
+SENTRY_DSN=
 ```
 
 There is no `NEXT_PUBLIC_*` prefix convention on this stack — Laravel exposes only what a controller explicitly passes as an Inertia prop or a Blade variable; nothing is exposed to the client by naming convention alone.
@@ -251,6 +276,7 @@ php artisan view:cache
 npm run lint              # ESLint
 npm run lint:fix          # ESLint with fixes
 npm run format             # Prettier format
+npm run format:check       # Prettier check (not part of CI)
 npm run type-check         # TypeScript check
 ./vendor/bin/pint          # PHP formatting (Laravel Pint)
 

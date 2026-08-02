@@ -2,6 +2,15 @@
 
 > Run these steps in order on your production server.
 
+**Web root:** the cPanel document root must point at `public/`. Built frontend
+assets live in `public/build/` (output of `npm run build`); upload the whole project
+so `public/build` sits inside the web root.
+
+**Node.js is a build-time tool only.** `npm ci` and `npm run build` may be run
+off-server (any machine with Node 22+) before uploading. cPanel needs only the
+resulting `public/build/` assets — Node.js does **not** need to be installed on
+production hosting.
+
 ---
 
 ## 1. Environment Configuration
@@ -15,11 +24,11 @@ cp .env.example .env
 |---|---|---|
 | `APP_ENV` | `production` | Disables debug mode |
 | `APP_DEBUG` | `false` | Hides stack traces |
-| `APP_KEY` | (generate) | `php artisan key:generate` |
-| `SESSION_SECURE_COOKIE` | `true` | HTTPS-only session cookies |
-| `SESSION_DRIVER` | `file` or `database` | File is fine for single-server |
-| `QUEUE_CONNECTION` | `database` | Required for subtitle uploads |
-| `CACHE_DRIVER` | `file` | Single-server default |
+| `APP_KEY` | (generate) | `php artisan key:generate --force` — **only** on a new install; never regenerate an existing production key |
+| `SESSION_SECURE_COOKIE` | `true` | HTTPS-only session cookies (required — see TAM-008) |
+| `SESSION_DRIVER` | `database` | DB-backed sessions — required on a single server |
+| `QUEUE_CONNECTION` | `database` | Queue drained by the scheduler; no persistent worker |
+| `CACHE_STORE` | `database` | DB cache store — required (Laravel 13 uses `CACHE_STORE`, not `CACHE_DRIVER`) |
 | `DB_*` | Your production DB credentials | — |
 | `SENTRY_DSN` | (optional) | For error monitoring |
 
@@ -31,7 +40,7 @@ cp .env.example .env
 php artisan migrate --force
 ```
 
-This runs all 13 migrations (users, rooms, room_member, chat_messages, subtitle_tracks, password_reset_tokens, personal_access_tokens, sessions, cache, jobs + any audit fix migrations).
+This runs all 13 migrations: 3 framework base files (users + password_reset_tokens + sessions, cache + cache_locks, jobs + job_batches + failed_jobs) plus 10 application migrations (rooms, room_members, chat_messages, playback state version, subtitle_tracks, presence fields, is_locked, playback_mode, last_activity_at index, personal_access_tokens).
 
 **Expected output:** `Migration table created successfully.` then all migrations marked as `[OK]`.
 
@@ -49,65 +58,24 @@ Creates `public/storage → storage/app/public`. Required for subtitle file uplo
 
 ---
 
-## 4. Queue Worker
+## 4. Background Work (no persistent worker)
 
-The app uses `QUEUE_CONNECTION=database` for subtitle uploads and other async work.
+TamashaRoom has **no persistent queue worker and no daemon process** — shared hosting
+cannot keep one running reliably, and the host disallows it. Subtitle uploads are
+handled synchronously inside the request; nothing is queued for them.
 
-### On cPanel (shared hosting):
+`routes/console.php` schedules `queue:work --stop-when-empty --max-time=30` every minute
+(without overlapping), so any queued job is drained in small batches by the same
+`schedule:run` cron entry that runs the scheduled tasks. **No separate worker,
+supervisor, or wrapper script is needed.**
 
-Create a **python wrapper** to keep the worker alive (Node.js may not be available, but Python usually is):
+| Task | Frequency | How it runs |
+|---|---|---|
+| `queue:work --stop-when-empty` | Every minute | Drained by the scheduled `schedule:run` cron |
+| `presence:timeout` | Every minute | Same `schedule:run` cron |
+| `rooms:prune-inactive` | Daily | Same `schedule:run` cron |
 
-Save this as `worker.py` outside the web root:
-
-```python
-import subprocess, sys, time, os
-
-os.chdir("/path/to/tamasharoom")
-while True:
-    proc = subprocess.run(
-        ["php", "artisan", "queue:work", "--queue=default", "--tries=3", "--timeout=60"],
-        capture_output=True, text=True
-    )
-    print(proc.stdout, flush=True)
-    print(proc.stderr, flush=True)
-    if proc.returncode != 0:
-        print(f"Worker crashed (code {proc.returncode}), restarting in 5s...", flush=True)
-        time.sleep(5)
-```
-
-Run via a cPanel **cron job** (every minute) that checks if the worker is running:
-
-```
-* * * * * pgrep -f "artisan queue:work" || python3 /path/to/worker.py &
-```
-
-### On a VPS (systemd):
-
-Create `/etc/systemd/system/tamasharoom-queue.service`:
-
-```ini
-[Unit]
-Description=TamashaRoom Queue Worker
-After=network.target
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/path/to/tamasharoom
-ExecStart=/usr/bin/php artisan queue:work --queue=default --tries=3 --timeout=60
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl enable tamasharoom-queue
-sudo systemctl start tamasharoom-queue
-```
-
----
+**Verify:** `php artisan schedule:list` confirms all three are registered.
 
 ## 5. Scheduled Tasks (cron)
 
@@ -120,17 +88,20 @@ Add ONE cron entry for `schedule:run`:
 | Task | Frequency | What it does |
 |---|---|---|
 | `presence:timeout` | Every minute | Marks stale members (90s+ no heartbeat) as offline |
-| `rooms:prune-inactive` | Daily | Deletes rooms inactive 7+ days + their files/messages/members |
+| `rooms:prune-inactive --days=7` | Daily | Deletes rooms inactive 7+ days + their files/messages/members |
+| `queue:work --stop-when-empty --max-time=30` | Every minute | Drains any queued jobs in batches |
 
-**Verify:** Run `php artisan schedule:list` to confirm both tasks are registered.
+**Verify:** Run `php artisan schedule:list` to confirm **all three** tasks above are registered.
 
 ---
 
 ## 6. Security Hardening
 
 ```bash
-# Generate production APP_KEY if not already set
+# Generate APP_KEY ONLY on a new installation with no existing production APP_KEY:
 php artisan key:generate --force
+# Never regenerate an existing production APP_KEY during normal deployment or
+# rollback — doing so invalidates all active sessions, cookies, and signed data.
 
 # Cache config & routes for performance
 php artisan config:cache
@@ -153,7 +124,7 @@ php artisan view:cache
 | Login works | Visit `/login` — form renders in Persian |
 | Registration works | Create a test account |
 | Storage accessible | `curl -s -o /dev/null -w "%{http_code}" https://yourdomain.com/storage/` → `200` or redirect |
-| Queue is running | `php artisan queue:status` → `"Queue worker is running"` |
+| Queue drained | `php artisan queue:failed` → no failed jobs (jobs table stays empty) |
 | Cron is running | Create a room, wait 1+ minute, verify `presence:timeout` worked |
 | Rate limiting | Login with wrong password 6+ times → `429 Too Many Requests` |
 | Security headers | `curl -s -I https://yourdomain.com | grep -i 'content-security-policy'` → CSP present |
@@ -164,17 +135,22 @@ php artisan view:cache
 
 If a deployment fails:
 
-```bash
-# Roll back database
-php artisan migrate:rollback
+- **Database:** restore the pre-deployment backup taken before `migrate --force`
+  (see below), **or** apply a specifically reviewed corrective migration. Do not run
+  `php artisan migrate:rollback` against production — an unrestricted rollback can
+  drop data added after the last `migrate` and is not safe on shared hosting.
+- **Code/assets:** deploy the previous build's `public/build/` assets and revert any
+  code changes.
 
-# Clear caches
+```bash
+# Clear caches after rollback
 php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 ```
 
-For a full rollback, deploy the previous build's `public/build/` assets and revert any code changes.
+**Before every deployment**, take a database backup (mysqldump via cPanel) so a
+rollback has a restore point.
 
 ---
 
@@ -191,7 +167,8 @@ For a full rollback, deploy the previous build's `public/build/` assets and reve
 
 ```bash
 # 1. Set up
-php artisan key:generate --force
+composer install --no-dev --optimize-autoloader
+# php artisan key:generate --force   # ONLY on a new install (no existing production APP_KEY)
 
 # 2. Database
 php artisan migrate --force
@@ -199,17 +176,15 @@ php artisan migrate --force
 # 3. Storage
 php artisan storage:link
 
-# 4. Start queue worker (on VPS with systemd)
-sudo systemctl enable tamasharoom-queue && sudo systemctl start tamasharoom-queue
-
-# 5. Add cron entry
+# 4. Add cron entry
 #    * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
+#    (runs scheduled tasks + drains the queue in batches — no separate worker needed)
 
-# 6. Cache
+# 5. Cache
 php artisan config:cache
 php artisan route:cache
 
-# 7. Build frontend
-npm ci --production
+# 6. Build frontend (may be run off-server; upload only public/build/ to cPanel)
+npm ci
 npm run build
 ```

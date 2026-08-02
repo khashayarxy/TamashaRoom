@@ -289,4 +289,43 @@ class SubtitleTest extends TestCase
         $this->assertStringContainsString('00:00:01.000 --> 00:00:04.000', $content);
         $this->assertStringContainsString('Test content', $content);
     }
+
+    #[Test]
+    public function uploaded_srt_with_script_payload_returns_sanitized_cues(): void
+    {
+        $srt = "1\n00:00:01,000 --> 00:00:04,000\n<script>alert('xss')</script> سلام <b>دنیا</b>";
+
+        $file = UploadedFile::fake()->createWithContent('payload.srt', $srt);
+        $upload = $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}", ['file' => $file]);
+        $trackId = $upload->json('id');
+
+        $response = $this->actingAs($this->member)
+            ->getJson("/subtitles/{$this->room->id}/{$trackId}/cues");
+
+        $response->assertOk();
+        $cueText = $response->json('cues.0.text');
+        $this->assertStringNotContainsString('<script', $cueText);
+        $this->assertStringNotContainsString('</script>', $cueText);
+        $this->assertStringNotContainsString('<b>', $cueText);
+        $this->assertStringContainsString('سلام دنیا', $cueText);
+    }
+
+    #[Test]
+    public function stored_vtt_is_served_with_text_vtt_content_type_not_html(): void
+    {
+        $vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n<img src=x onerror=\"alert(1)\"> payload";
+
+        $file = UploadedFile::fake()->createWithContent('payload.vtt', $vtt);
+        $upload = $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}", ['file' => $file]);
+        $trackId = $upload->json('id');
+
+        $response = $this->actingAs($this->member)
+            ->get("/subtitles/{$this->room->id}/{$trackId}");
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'text/vtt; charset=utf-8');
+        $this->assertNotSame('text/html', $response->headers->get('Content-Type'));
+    }
 }

@@ -106,4 +106,30 @@ class SubtitleConverterTest extends TestCase
         $this->assertCount(1, $cues);
         $this->assertEquals('Visible cue', $cues[0]['text']);
     }
+
+    #[Test]
+    public function it_strips_script_payloads_from_cue_text(): void
+    {
+        $vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n<script>alert('xss')</script> Hello <b>world</b>";
+
+        $cues = $this->converter->extractCues($vtt);
+
+        $this->assertCount(1, $cues);
+        $this->assertStringNotContainsString('<script', $cues[0]['text']);
+        $this->assertStringNotContainsString('<b>', $cues[0]['text']);
+        $this->assertEquals("alert('xss') Hello world", $cues[0]['text']);
+    }
+
+    #[Test]
+    public function it_strips_event_handler_payloads_from_cue_text(): void
+    {
+        $vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n<img src=x onerror=\"alert(1)\"> plain text";
+
+        $cues = $this->converter->extractCues($vtt);
+
+        $this->assertCount(1, $cues);
+        $this->assertStringNotContainsString('<img', $cues[0]['text']);
+        $this->assertStringNotContainsString('onerror', $cues[0]['text']);
+        $this->assertEquals('plain text', trim($cues[0]['text']));
+    }
 }

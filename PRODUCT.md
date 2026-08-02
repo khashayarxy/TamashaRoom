@@ -33,4 +33,4 @@ default rather than a deliberate choice.
 Design work should produce Tailwind-based components that fit this stack, not raw 
 inline CSS.
 
-**Design system**: See DESIGN.md for the full visual system (colors, typography, numeral rules, calendar system) — this document covers brand/product direction only.
+**Design system**: The referenced `DESIGN.md` does not currently exist at the root or in `docs/`. The authoritative design-system document for this stack is `design-systems/tamasharoom/DESIGN.md` (draft status — colors, typography, numeral rules, calendar system). This document covers brand/product direction only.

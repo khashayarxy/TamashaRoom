@@ -4,9 +4,16 @@
 > frontend depends on. If a route, prop, model field, form field, polling endpoint, or
 > constant is not listed here, the backend does not expose it — do not code against it.
 >
-> **Stack constraints:** The frontend is React 19 + Inertia.js 2 + TypeScript (strict) +
-> Tailwind CSS 4. It never fetches its own data on mount — controllers own data fetching.
-> The backend is Laravel 13 on shared cPanel hosting (no WebSockets, no Redis).
+> **Stack constraints:** The frontend is React 19 + Inertia.js + TypeScript (strict) +
+> Tailwind CSS 4. The backend is Laravel 13 on shared cPanel hosting (no WebSockets, no Redis).
+> Inertia adapters: `@inertiajs/react` 2.x (client) + `inertiajs/inertia-laravel` 3.1.x (server).
+>
+> **Data fetching split:** A page's *initial* data arrives as Inertia props from the
+> controller that rendered it. *Live* room data (playback state, presence, chat messages)
+> is deliberately polled on mount via the JSON endpoints in §1.2 / §5 using the axios
+> `api` client (`resources/js/lib/api.ts`) — that polling is the intended
+> transport-agnostic design (see docs/SYSTEM.md ch. 18.05), not a violation of the
+> "controllers own data fetching" rule.
 
 ---
 
@@ -27,7 +34,7 @@ All Inertia page routes. Every page receives `auth.user` via the shared middlewa
 | `password.confirm` | `/confirm-password` | GET | `Auth/ConfirmPassword` | *(none)* | `auth` |
 | `verification.notice` | `/verify-email` | GET | `Auth/VerifyEmail` | `status: string\|null` | `auth` |
 | `dashboard` | `/dashboard` | GET | `Dashboard` | `rooms: Room[]` (see §3) | `auth`, `verified` |
-| `rooms.show` | `/rooms/{room}` | GET | `Rooms/Show` | `room: Room` (with `owner`, `members.user`, `chatMessages.user`) | `auth`, `verified` |
+| `rooms.show` | `/rooms/{room}` | GET | `Rooms/Show` | `room: Room` (with `owner`, `members.user`, `chat_messages.user`) | `auth`, `verified` |
 | `profile.edit` | `/profile` | GET | `Profile/Edit` | `mustVerifyEmail: bool`, `status: string\|null` | `auth`, `verified` |
 
 ### 1.2 JSON Action Routes (no page render)
@@ -36,12 +43,12 @@ All Inertia page routes. Every page receives `auth.user` via the shared middlewa
 
 | URL | Method | Route Name | Body / Params | Auth |
 |---|---|---|---|---|
-| `/login` | POST | *(inherits `login`)* | `email: string`, `password: string`, `remember: bool` (optional) | Guest, throttle:login (5/min) |
+| `/login` | POST | *unnamed* — frontend posts to `route('login')` (URL of the named GET `login` route; the POST route itself has no name) | `email: string`, `password: string`, `remember: bool` (optional) | Guest, throttle:login (5/min) |
 | `/logout` | POST | `logout` | *(none)* | `auth` |
-| `/register` | POST | *(inherits `register`)* | `name: string`, `email: string`, `password: string`, `password_confirmation: string` | Guest |
-| `/forgot-password` | POST | `password.email` | `email: string` | Guest |
-| `/reset-password` | POST | `password.store` | `token: string`, `email: string`, `password: string`, `password_confirmation: string` | Guest |
-| `/confirm-password` | POST | *(inherits `password.confirm`)* | `password: string` | `auth` |
+| `/register` | POST | *unnamed* — frontend posts to `route('register')` (URL of the named GET `register` route; the POST route itself has no name) | `name: string`, `email: string`, `password: string`, `password_confirmation: string` | Guest, throttle:register (5/min per IP) |
+| `/forgot-password` | POST | `password.email` | `email: string` | Guest, throttle:forgot-password (5/min per email+IP) |
+| `/reset-password` | POST | `password.store` | `token: string`, `email: string`, `password: string`, `password_confirmation: string` | Guest, throttle:reset-password (5/min per IP) |
+| `/confirm-password` | POST | *unnamed* — frontend posts to `route('password.confirm')` (URL of the named GET `password.confirm` route; the POST route itself has no name) | `password: string` | `auth` |
 | `/password` | PUT | `password.update` | `current_password: string`, `password: string`, `password_confirmation: string` | `auth` |
 | `/email/verification-notification` | POST | `verification.send` | *(none)* | `auth`, throttle:6,1 |
 
@@ -87,10 +94,12 @@ All Inertia page routes. Every page receives `auth.user` via the shared middlewa
 | URL | Method | Route Name | Body | Auth |
 |---|---|---|---|---|
 | `GET /subtitles/{room}` | GET | `subtitles.index` | *(none)* | `auth`, `verified` |
-| `POST /subtitles/{room}` | POST | `subtitles.store` | Multipart: `file: File` (required, mimes:srt,vtt, max:2048KB), `label: string` (optional, max:255), `language: string` (optional, max:10, default `"fa"`) | `auth`, `verified` |
+| `POST /subtitles/{room}` | POST | `subtitles.store` | Multipart: `file: File` (required, mimes:srt,vtt,txt, max:2048KB), `label: string` (optional, max:255), `language: string` (optional, max:10, default `"fa"`) | `auth`, `verified` |
 | `GET /subtitles/{room}/{track}` | GET | `subtitles.show` | *(none)* — returns raw VTT content | `auth`, `verified` |
 | `GET /subtitles/{room}/{track}/cues` | GET | `subtitles.cues` | *(none)* | `auth`, `verified` |
 | `DELETE /subtitles/{room}/{track}` | DELETE | `subtitles.destroy` | *(none)* | `auth`, `verified` |
+
+**Subtitle filename extensions:** supported filename extensions are **only `.srt` and `.vtt`**. The `txt` value in the `mimes:` rule exists **only** as a MIME-detection fallback — Symfony's `guessExtension()` detects SRT *content* as `txt`. A `.txt` **filename** itself is NOT accepted: the `after()` hook compares the detected format against the uploaded file's client extension, so a file named `foo.txt` (regardless of content) fails validation. See §7.6.
 
 #### Presence
 
@@ -256,7 +265,7 @@ interface RoomWithOwner extends Room {
 interface RoomFull extends Room {
     owner: User;                        // the room creator
     members: RoomMember[];              // includes nested user objects
-    chatMessages: ChatMessage[];        // includes nested user objects
+    chat_messages: ChatMessage[];       // includes nested user objects
 }
 ```
 
@@ -533,7 +542,7 @@ Every HTTP mutation the frontend must send, with exact field names and validatio
 
 | Field | Type | Required | Rules |
 |---|---|---|---|
-| `file` | `File` | Yes | Must be a file, mimes:srt,vtt, max:2048 KB. Content is validated — `.srt` files must match SRT timing pattern, `.vtt` files must start with `WEBVTT`. |
+| `file` | `File` | Yes | Must be a file, mimes:srt,vtt,txt, max:2048 KB. Supported filename extensions are **only `.srt` and `.vtt`**; `txt` appears in the MIME rule **only** as a fallback because Symfony's MIME guesser detects SRT *content* as `txt` — a `.txt` filename itself is NOT accepted (the `after()` hook rejects it via the extension comparison). Content is validated — `.srt` files must match SRT timing pattern, `.vtt` files must start with `WEBVTT`. |
 | `label` | `string` | No | max:255 (defaults to original filename) |
 | `language` | `string` | No | max:10 (default `'fa'`) |
 
@@ -823,7 +832,8 @@ type PresenceStatus = 'online' | 'offline';
 
 | Rule | Value |
 |---|---|
-| Allowed extensions | `.srt`, `.vtt` |
+| Allowed filename extensions | `.srt`, `.vtt` — **only** these are accepted filenames |
+| MIME rule | `mimes:srt,vtt,txt` — `txt` is a MIME-detection fallback only (Symfony's guesser detects SRT content as `txt`); a `.txt` filename is **not** accepted by the post-validation extension check |
 | Max file size | 2048 KB (2 MB) |
 | Default language | `'fa'` (Persian) |
 | Content validation | SRT files must match `HH:MM:SS,mmm --> HH:MM:SS,mmm` timing format on second non-empty line; VTT files must start with `WEBVTT` |

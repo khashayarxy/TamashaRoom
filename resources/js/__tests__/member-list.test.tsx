@@ -229,6 +229,39 @@ describe("MemberList", () => {
         expect(onTransfer).toHaveBeenCalledWith(2);
     });
 
+    it("does not call onTransfer when the transfer request fails", async () => {
+        const user = userEvent.setup();
+        const onTransfer = vi.fn();
+        mockPost.mockRejectedValue(new Error("network"));
+
+        const members = [
+            makeMember({ id: 1, user_id: 1, name: "Owner", is_owner: true }),
+            makeMember({ id: 2, user_id: 2, name: "Target" }),
+        ];
+        render(
+            <MemberList
+                members={members}
+                roomId={1}
+                ownerId={1}
+                currentUserId={1}
+                onTransfer={onTransfer}
+                connected
+            />,
+        );
+
+        await user.click(screen.getByTitle("انتقال مالکیت"));
+
+        const confirmButtons = screen.getAllByRole("button", {
+            name: "انتقال مالکیت",
+        });
+        await user.click(confirmButtons[confirmButtons.length - 1]);
+
+        await waitFor(() => {
+            expect(mockPost).toHaveBeenCalledWith("/rooms/1/transfer/2");
+        });
+        expect(onTransfer).not.toHaveBeenCalled();
+    });
+
     it("shows last seen for offline members", () => {
         const members = [
             makeMember({

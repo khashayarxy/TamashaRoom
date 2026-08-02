@@ -1,9 +1,27 @@
 # TamashaRoom — Quality Report
 
-**Generated:** July 24, 2026  
-**Project root:** `C:\Users\Khashayar\Documents\TamashaRoom`  
-**Branch:** `frontend_rebuild`  
-**Stack:** Laravel 13 + Inertia.js 2 + React 19 + TypeScript + Tailwind CSS 4
+> **⚠️ HISTORICAL REPORT — NON-AUTHORITATIVE.**
+>
+> This is a point-in-time snapshot generated on **July 24, 2026** (branch
+> `frontend_rebuild`). It is **not** the current state of the project. Do not
+> treat its test counts, file inventory, or "Cannot run" notes as current facts.
+> For the current state, read the canonical docs instead:
+> - `docs/TASK.md` — current test counts and what is done/pending
+> - `docs/PROJECT.md` — current stack, structure, env vars
+> - `docs/deployment-checklist.md` — current deployment procedure
+> - `docs/SYSTEM.md` — current operating rules
+>
+> **Known stale claims in this snapshot (as of 2026-08-02):**
+> - §5 "Stores (4 Zustand)" lists `stores/sidebar.ts` — **that store does not
+>   exist**. The current stores are `theme`, `room-ui`, `subtitle`.
+> - §5 "Backend" lists `PollingController` — **removed**. Playback state is
+>   served by `PlaybackController`.
+> - §1 "Total: 10 Feature + 4 Unit test files (14 PHP tests)" — that counts
+>   **files**, not tests; the PHP suites now contain far more test methods. See
+>   `docs/TASK.md` for current counts.
+> - §6 references a "195-step checklist" — `docs/deployment-checklist.md` is a
+>   10-section document, not a 195-step checklist.
+> - §2.2 lists 3 a11y specs; there are now 4 (including `welcome-a11y.spec.ts`).
 
 ---
 
@@ -184,7 +202,7 @@
    npm audit
    composer audit
    ```
-5. Follow `docs/deployment-checklist.md` for production deployment (195-step checklist covering env, migrations, queue worker, cron, security, rollback).
+5. Follow `docs/deployment-checklist.md` for production deployment (195-step checklist covering env, migrations, scheduled-task cron entry — which fans out to the `queue:work --stop-when-empty --max-time=30` batch drain, no persistent worker — security, rollback).
 
 ### Known Issues
 | Issue | Severity | Status |

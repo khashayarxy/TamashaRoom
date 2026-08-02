@@ -55,4 +55,51 @@ test.describe("Accessibility audit — auth pages", () => {
     const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
     expect(serious).toEqual([]);
   });
+
+  test("Reset password page has no critical or serious a11y violations", async ({ page }) => {
+    await page.goto("/reset-password/test-token?email=test@example.com");
+    await page.waitForLoadState("networkidle");
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+      .analyze();
+
+    const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+    expect(serious).toEqual([]);
+  });
+
+  test("Confirm password page has no critical or serious a11y violations", async ({ page }) => {
+    await page.goto("/__test/setup-verified-room");
+    await page.waitForLoadState("networkidle");
+
+    await page.goto("/confirm-password");
+    await page.waitForLoadState("networkidle");
+    expect(page.url()).toContain("/confirm-password");
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+      .analyze();
+
+    const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+    expect(serious).toEqual([]);
+  });
+
+  test("Profile delete-account modal (open) has no critical or serious a11y violations", async ({ page }) => {
+    await page.goto("/__test/setup-verified-room");
+    await page.waitForLoadState("networkidle");
+
+    await page.goto("/profile");
+    await page.waitForLoadState("networkidle");
+    expect(page.url()).toContain("/profile");
+
+    await page.getByRole("button", { name: "حذف حساب کاربری" }).click();
+    await page.getByRole("dialog").waitFor();
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+      .analyze();
+
+    const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+    expect(serious).toEqual([]);
+  });
 });

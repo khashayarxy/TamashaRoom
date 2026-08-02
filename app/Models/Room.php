@@ -88,6 +88,20 @@ class Room extends Model
         $this->update(['last_activity_at' => now()]);
     }
 
+    /**
+     * Update the activity timestamp without writing on every poll/heartbeat.
+     * Only writes when the last write is older than the given interval.
+     */
+    public function touchActivityIfStale(int $intervalSeconds = 300): void
+    {
+        if ($this->last_activity_at !== null
+            && $this->last_activity_at->gt(now()->subSeconds($intervalSeconds))) {
+            return;
+        }
+
+        $this->touchActivity();
+    }
+
     public function updatePlaybackState(array $data): void
     {
         DB::transaction(function () use ($data): void {
@@ -96,6 +110,7 @@ class Room extends Model
             $room->update(array_merge($data, [
                 'server_timestamp' => microtime(true),
                 'state_version' => $room->state_version + 1,
+                'last_activity_at' => now(),
             ]));
 
             $this->refresh();

@@ -137,4 +137,34 @@ describe("SubtitleOverlay", () => {
         );
         expect(container.innerHTML).toBe("");
     });
+
+    it("renders script-like cue payload as escaped text, not executable markup", () => {
+        const ref = { current: createMockVideo(2.5) };
+        const cues: SubtitleCue[] = [
+            {
+                start: 1000,
+                end: 4000,
+                text: '<script>window.pwned = 1</script> <img src=x onerror="alert(1)"> سلام',
+            },
+        ];
+
+        const { container } = render(
+            <SubtitleOverlay
+                videoRef={ref}
+                cues={cues}
+                settings={DEFAULT_SETTINGS}
+            />,
+        );
+
+        act(() => {
+            vi.advanceTimersByTime(100);
+        });
+
+        expect(container.querySelector("script")).toBeNull();
+        expect(container.querySelector("img")).toBeNull();
+        expect(container.innerHTML).not.toContain("<script");
+        expect(container.innerHTML).not.toContain("<img");
+        expect(screen.getByText(/سلام/)).toBeInTheDocument();
+        expect(window).not.toHaveProperty("pwned");
+    });
 });

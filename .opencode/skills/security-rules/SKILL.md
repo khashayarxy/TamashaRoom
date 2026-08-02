@@ -25,8 +25,11 @@ Don't re-solve these — extend the existing services/middleware instead:
   `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`
   (all disabled), HSTS (production only), `X-Powered-By`/`Server` removed.
 - **Rate limiting**: named limiters in `AppServiceProvider` — login (5/min
-  per email+IP), chat (30/min), playback (60/min), video proxy (30/min),
-  presence (60/min).
+  per email+IP), register (5/min per IP), forgot-password (5/min per email+IP),
+  reset-password (5/min per IP), chat (30/min), playback (60/min), video proxy
+  (30/min), presence (60/min), join (10/min); email-verification routes use
+  inline `throttle:6,1`. Every auth POST route is throttled (Authentication
+  Rate-Limit Hardening batch, 2026-08-02).
 - **Info leakage**: production error handler returns a generic message for
   non-HTTP exceptions; debug info hidden when `APP_DEBUG=false`.
 
@@ -37,13 +40,20 @@ TamashaRoom's own UI — a mobile client, third-party integration, webhook
 sender, or a script replaying a captured request. If a URL exists, something
 you didn't write will eventually call it.
 
-1. **Choose Inertia vs. API routes by who's calling.** TamashaRoom's own UI →
-   Inertia route in `routes/web.php`. Anything else → Sanctum-authenticated
-   route in `routes/api.php`.
-2. **Every API route is a public network boundary.** Auth, authorization,
-   input shape, and rate limits are enforced inside the controller/Form
-   Request — never assumed from "only our app calls this."
-3. **Validate all input with a Form Request. No exceptions.**
+1. **Choose the route surface by who's calling.** TamashaRoom's own UI uses
+   `routes/web.php` exclusively — Inertia page routes for initial data *plus*
+   session-authenticated JSON polling/action endpoints (playback state, presence,
+   chat, room actions) reached via the axios `api` client. Anything else (mobile
+   client, third party, webhook) → Sanctum-authenticated route in
+   `routes/api.php`.
+2. **Every endpoint is a public network boundary.** Auth, authorization,
+   input shape, and rate limits are enforced inside the controller/Form Request
+   — never assumed from "only our app calls this." This holds for the
+   `web.php` JSON endpoints just as much as for `api.php`.
+3. **Validate all input.** Structured multi-field input goes through a Form
+   Request (`authorize()` + `rules()`); simple single-field action endpoints may
+   use inline `$request->validate()` (e.g. `ChatController::store`). Either way
+   only validated data reaches Eloquent — never `$request->all()`.
 4. **Authenticate then authorize, inside the controller, as the first two
    actions**:
    ```php
@@ -59,7 +69,9 @@ you didn't write will eventually call it.
    Policy that only checks the first would let anyone delete any room.
 5. **Rate limit every public endpoint** — anything reachable without an
    established session (login, registration, password reset, webhooks) —
-   using `throttle` middleware backed by the database cache driver.
+   using `throttle` middleware backed by the database cache driver. Current
+   state: login, register, forgot-password, reset-password, email
+   verification, chat, playback, proxy, presence, and join are all throttled.
 6. **Never expose internal errors.** `APP_DEBUG=false` in production without
    exception; the exception handler returns a generic message while logging
    the real error server-side. This is the single most consequential setting

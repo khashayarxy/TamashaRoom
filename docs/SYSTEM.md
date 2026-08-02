@@ -590,7 +590,7 @@ Before adding any dependency, answer:
 
 2\. **Can we solve this with the standard library or built-ins?**
 
-- - Modern browsers and Node.js are powerful. Intl.DateTimeFormat replaces date-fns for many cases. fetch replaces Axios for simple cases.
+- - Modern browsers and Node.js are powerful. Intl.DateTimeFormat replaces date-fns for many cases. fetch replaces Axios for simple cases. (Exception: TamashaRoom's own live-room JSON polling/actions — playback state, presence, chat — use the shared axios `api` client `resources/js/lib/api.ts` against session-authenticated JSON endpoints in `routes/web.php`; see Chapter 18.05, Rule 2. That contract is deliberate and does not get replaced by generic fetch guidance.)
 
 3\. **What is the total cost of this dependency?**
 
@@ -5332,23 +5332,25 @@ File structure is the physical manifestation of architecture. A developer should
 ### File Organization
 
   
-Components/  
-├── ui/ # UI components (custom, Tailwind-styled)  
+resources/js/Components/  
+├── ui/ # UI primitives (custom, Tailwind-styled)  
 │ ├── button.tsx  
 │ ├── input.tsx  
+│ ├── card.tsx  
 │ ├── dialog.tsx  
 │ └── ...  
 ├── composite/ # Domain-specific composites (cross-feature)  
-│ ├── project-card.tsx  
-│ ├── user-avatar.tsx  
-│ └── ...  
-├── layout/ # Layout components  
-│ ├── page-container.tsx  
-│ ├── sidebar.tsx  
-│ └── ...  
-└── providers/ # Context providers  
-├── theme-provider.tsx  
-└── auth-provider.tsx  
+│ ├── room-chat.tsx  
+│ ├── member-list.tsx  
+│ ├── video-player.tsx  
+│ ├── subtitle-overlay.tsx  
+│ ├── subtitle-settings.tsx  
+│ ├── room-settings.tsx  
+│ ├── confirm-dialog.tsx  
+│ └── toast.tsx  
+└── (plus legacy Breeze components at the root: PrimaryButton, TextInput, Modal, Dropdown, …)
+
+Layout components do not live under Components/ — they live in `resources/js/Layouts/` (AppLayout, AuthenticatedLayout, GuestLayout).  
 
 ### The File Location Rule
 
@@ -5357,10 +5359,10 @@ Components/
 | Primitive | Components/ui/ or inline in UI component | Shared across all components |
 | UI Component | Components/ui/ | Shared across all features |
 | Composite (cross-feature) | Components/composite/ | Used by multiple features |
-| Composite (feature-specific) | features/\[feature\]/components/ | Co-located with feature logic |
-| Layout | Components/layout/ | Shared across all pages |
+| Composite (feature-specific) | Components/composite/ (or inline in the page that owns it) | Co-located with the feature it serves |
+| Layout | resources/js/Layouts/ | Shared across all pages |
 | Page | resources/js/Pages/\[Feature\]/\[Page\].tsx | One per route |
-| Provider | Components/providers/ | Global context providers |
+| Provider | inline with the component that needs it (no dedicated directory) | Global context providers |
 
 ### File Template
 
@@ -5911,7 +5913,7 @@ page.tsx
 
 **When NOT to Co-locate**:
 
-- Shared components used by multiple features → Components/ui/ or resources/js/Components/shared/.
+- Shared components used by multiple features → Components/ui/ or Components/composite/.
 - Global utilities → lib/ at root.
 - Global types → types/ at root.
 
@@ -6154,7 +6156,7 @@ export const useUIActions = () => useUIStore(s => s.actions);
 
 The API layer is a contract. It should be typed, tested, and isolated from UI concerns.
 
-This section applies to routes/api.php --- external consumers such as a mobile client or a Sanctum-authenticated integration (Chapter 18.08). TamashaRoom's own UI does not talk to a hand-rolled API client for its own pages: a page's data arrives as Inertia props from the controller that rendered it (Chapter 16.03), and mutations go through Inertia's useForm (Chapter 18.04). Treat the pattern below as what an external client --- or TamashaRoom's own code, if it ever calls its own public API --- uses to talk to routes/api.php.
+This section applies to routes/api.php --- external consumers such as a mobile client or a Sanctum-authenticated integration (Chapter 18.08). TamashaRoom's own UI does not call routes/api.php at all: a page's initial data arrives as Inertia props from the controller that rendered it (Chapter 16.03), and live room interactions (playback sync, presence, chat) use the axios `api` client (`resources/js/lib/api.ts`) against session-authenticated JSON endpoints in routes/web.php (Chapter 18.05, Rule 2). Treat the pattern below as what an external client --- or TamashaRoom's own code, if it ever calls its own public API --- uses to talk to routes/api.php.
 
 ### Why API Isolation Matters
 
@@ -6164,7 +6166,7 @@ The API layer is the boundary between the frontend and the backend. If that boun
 
   
 // lib/api/client.ts  
-const API_BASE_URL = 'https://tamasharoom.app/api/v1';  
+const API_BASE_URL = 'https://yourdomain.com/api/v1';  
 <br/>async function apiRequest&lt;T&gt;(  
 endpoint: string,  
 options: RequestInit = {}  
@@ -6942,7 +6944,7 @@ For every component:
 
 ## 18.00 Purpose of This Chapter
 
-This chapter defines how TamashaRoom's backend works, given where it actually runs: shared cPanel hosting on Apache, PHP 8.4, and MySQL/MariaDB, with 2GB RAM, 1 CPU core, 20GB storage, no Docker, no Redis, no WebSockets, no background workers, and no root access. Node.js 22 is available on the host but is used only as a build tool --- to compile the React frontend with Vite --- never as a production runtime. There is no persistent Node process serving traffic.
+This chapter defines how TamashaRoom's backend works, given where it actually runs: shared cPanel hosting on Apache, PHP 8.4, and MySQL/MariaDB, with 2GB RAM, 1 CPU core, 20GB storage, no Docker, no Redis, no WebSockets, no background workers, and no root access. Node.js is a build-time tool only --- to compile the React frontend with Vite --- never a production runtime. The frontend build may be produced off-server (any machine with Node 22+) and only `public/build/` uploaded, so Node does not need to be installed on production hosting (see the deployment checklist). There is no persistent Node process serving traffic.
 
 This constraint set rules out the Next.js App Router model this framework previously assumed: there is no edge runtime, no serverless function platform managing cold starts, and no infrastructure to run background revalidation or queue workers. The backend is PHP, using Laravel, chosen because it is the most maintainable, best-documented option for exactly this hosting profile --- Composer-based deployment, migrations against MySQL, a mature ecosystem, and a request model (PHP-FPM under Apache) that fits a single CPU core far better than a persistent Node.js server competing with Apache and MySQL for the same 2GB of RAM. The frontend is still React, still styled with Tailwind, still governed by Chapter 17 (React Rules) --- but it is delivered through Inertia.js instead of the Next.js App Router. Inertia lets a Laravel controller return a React page component with server-fetched props, giving most of the App Router's ergonomics (server-owned data, no hand-rolled REST layer for the app's own UI) without requiring a Node.js server to render it.
 
@@ -6969,48 +6971,54 @@ Each level depends on the one above it, exactly as before: a controller that ret
 
 ### Rule 1: Controllers Own Data, Pages Are Presentational
 
-Rule: A Laravel controller fetches everything a page needs and passes it as Inertia props. The React page component renders those props; it does not fetch its own data on mount.
+Rule: A Laravel controller fetches everything a page needs for its initial render and passes it as Inertia props. The React page component renders those props; it does not fetch its own *initial page* data on mount.
+
+**The one deliberate exception:** live room data (playback state, presence members, chat messages) is polled on mount through dedicated hooks (`usePlaybackSync`, `usePresence`, `RoomChat`) using the axios `api` client against JSON endpoints in routes/web.php. That is the transport-agnostic polling design (Chapter 18.05, Rule 2 and Rule 3) — build new live-room reads that way, never as a workaround for a prop the controller could have passed. "The controller provides initial props; the hooks keep live state fresh" is the rule, not "components never fetch anything."
 
 ### Why This Matters
 
-This is the same discipline the App Router enforced with Server Components, applied through a different mechanism: the component that renders data is not the component that decides how to get it. A page that fetches its own data with useEffect on mount adds a client-server round trip after the page has already loaded empty, which is strictly slower than the controller providing the data in the same response that rendered the page.
+This is the same discipline the App Router enforced with Server Components, applied through a different mechanism: the component that renders data is not the component that decides how to get it. A page that fetches its own *initial* data with useEffect on mount adds a client-server round trip after the page has already loaded empty, which is strictly slower than the controller providing the data in the same response that rendered the page. (This argument applies to initial page data only; it is not an argument against the approved live-room polling described in Chapter 18.05.)
 
 ### Correct
 
-  
-// app/Http/Controllers/ProjectController.php  
-public function index(): Response  
+   
+// app/Http/Controllers/RoomController.php  
+public function index(Request $request): Response  
 {  
-return Inertia::render('Projects/Index', \[  
-'projects' => Project::query()  
-\->where('team_id', auth()->user()->team_id)  
+return Inertia::render('Dashboard', \[  
+'rooms' => Room::query()  
+\->whereHas('members', fn ($q) => $q->where('user_id', $request->user()->id))  
+\->orWhere('user_id', $request->user()->id)  
 \->with('owner')  
-\->latest()  
+\->withCount('members')  
+\->latest('last_activity_at')  
 \->get(),  
 \]);  
 }  
 
-  
-// resources/js/Pages/Projects/Index.tsx  
-export default function ProjectsIndex({ projects }: { projects: Project\[\] }) {  
+   
+// resources/js/Pages/Dashboard.tsx  
+export default function Dashboard({ rooms }: { rooms: Room[] }) {  
 return (  
 &lt;AppLayout&gt;  
-&lt;ProjectList projects={projects} /&gt;  
+&lt;RoomList rooms={rooms} /&gt;  
 &lt;/AppLayout&gt;  
 );  
 }  
 
 ### Incorrect
 
-  
-// ❌ Bad: page fetches its own data client-side after an empty first render  
-export default function ProjectsIndex() {  
-const \[projects, setProjects\] = useState&lt;Project\[\]&gt;(\[\]);  
+   
+// ❌ Bad: page fetches its own initial data client-side after an empty first render  
+export default function Dashboard() {  
+const \[rooms, setRooms\] = useState&lt;Room\[\]&gt;(\[\]);  
 useEffect(() => {  
-axios.get('/api/projects').then((res) => setProjects(res.data));  
+axios.get('/rooms').then((res) => setRooms(res.data));  
 }, \[\]);  
-return &lt;ProjectList projects={projects} /&gt;;  
+return &lt;RoomList rooms={rooms} /&gt;;  
 }  
+
+(Note: this rule covers a page's *initial* data. Polling live room state on mount through the approved hooks is a separate, intentional pattern — see Chapter 18.05.)
 
 ### Rule 2: Keep the Client Bundle to What the Page Needs
 
@@ -7132,42 +7140,45 @@ Header set Cache-Control "public, max-age=31536000, immutable"
 
 ### Rule 1: Mutations Go Through a Form Request
 
-Rule: Every mutation is validated by a dedicated Form Request class, not inline validation inside the controller. The Form Request owns both authorization (can this user do this at all) and validation (is this input shaped correctly).
+Rule: Structured user input --- a form that submits multiple fields --- is validated by a dedicated Form Request class, not inline validation inside the controller. The Form Request owns both authorization (can this user do this at all) and validation (is this input shaped correctly). Simple action endpoints that take a single field may use the inline `$request->validate()` pattern instead (e.g. `ChatController::store` validates `body => required|string|max:500` inline), but the boundary is the same in both cases: what reaches Eloquent is validated data, never raw `$request->all()`.
 
-  
-// app/Http/Requests/StoreProjectRequest.php  
-class StoreProjectRequest extends FormRequest  
+   
+// app/Http/Requests/StoreRoomRequest.php  
+class StoreRoomRequest extends FormRequest  
 {  
 public function authorize(): bool  
 {  
-return $this->user()->can('create', Project::class);  
+return $this->user()->can('create', Room::class);  
 }  
 <br/>public function rules(): array  
 {  
 return \[  
-'name' => \['required', 'string', 'max:100'\],  
-'description' => \['nullable', 'string', 'max:500'\],  
+'name' => \['required', 'string', 'max:255'\],  
+'max_members' => \['sometimes', 'integer', 'min:2', 'max:50'\],  
 \];  
 }  
 }  
 
-  
-// app/Http/Controllers/ProjectController.php  
-public function store(StoreProjectRequest $request): RedirectResponse  
+   
+// app/Http/Controllers/RoomController.php  
+public function store(StoreRoomRequest $request): RedirectResponse  
 {  
-$project = Project::create(\[  
+$this->authorize('create', Room::class);  
+$room = Room::create(\[  
 ...$request->validated(),  
-'team_id' => $request->user()->team_id,  
+'user_id' => $request->user()->id,  
+'invite_code' => Room::generateInviteCode(),  
 \]);  
-Cache::forget("project-stats:{$project->id}");  
-return to_route('projects.show', $project);  
+return to_route('rooms.show', $room);  
 }  
 
-A request that never passes through a Form Request has no enforced boundary between what the client sent and what the database will accept --- the same principle that governed Server Action validation, unchanged by the hosting environment. (See Chapter 19.04, Runtime Validation with Zod, for the equivalent discipline on the client.)
+A request that never goes through validation has no enforced boundary between what the client sent and what the database will accept --- the same principle that governed Server Action validation, unchanged by the hosting environment. The Form Request (or inline `validate()` for single-field action endpoints) is that boundary: only validated data reaches Eloquent, never `$request->all()`. (See Chapter 19.04, Runtime Validation with Zod, for the equivalent discipline on the client.)
 
 ### Rule 2: Inertia Forms Own Pending and Error State
 
 Rule: Use Inertia's useForm hook for form state, submission, and validation errors. Do not hand-roll pending/error state with useState for a form that already submits through Inertia.
+
+This applies to forms that submit through Inertia --- the auth pages (Login, Register, password flows) and the Profile partials, which post via `useForm` and receive field errors from a Form Request through the session. It does **not** apply to JSON action endpoints: live room actions (room settings `api.patch`, chat send, playback sync, presence heartbeat) call the axios `api` client directly and track their own local `saving`/`processing` state (see Chapter 18.05, Rule 2). The boundary is "what does this submit through" — Inertia form → `useForm`; JSON endpoint → `api` client with local state.
 
   
 // resources/js/Pages/Projects/Create.tsx  
@@ -7232,20 +7243,20 @@ The initial page load is not held up waiting for the deferred prop; Inertia requ
 
 Rule: For data that should feel "live" without WebSockets, poll a lightweight endpoint on a client-side interval rather than attempting any form of server-push. Keep the interval long enough that it cannot meaningfully load a single CPU core: seconds, not milliseconds, and only while the relevant part of the UI is actually visible.
 
-  
-// resources/js/hooks/use-polling-reload.ts  
+   
+// resources/js/Hooks/use-polling-reload.ts  
 import { router } from '@inertiajs/react';  
 import { useEffect } from 'react';  
-<br/>export function usePollingReload(only: string\[\], intervalMs = 15000) {  
+<br/>export function usePollingReload(intervalMs: number = 5000) {  
 useEffect(() => {  
 const id = setInterval(() => {  
-router.reload({ only });  
+router.reload();  
 }, intervalMs);  
 return () => clearInterval(id);  
-}, \[only, intervalMs\]);  
+}, \[intervalMs\]);  
 }  
 
-router.reload({ only }) is Inertia's partial reload --- it re-requests just the named props from the current page's controller, not the whole page, which keeps a polling loop cheap. Reserve polling for the few surfaces that genuinely benefit from it (a live activity feed, a background job's status); do not apply it by default.
+`router.reload()` is Inertia's partial reload --- it re-requests the current page's props from the controller without a full navigation, which keeps a polling loop cheap. Note: production live-room polling does **not** use this hook --- it uses the axios `api` client against JSON endpoints (`usePlaybackSync` → `GET /playback/{room}/state`, `usePresence` → `GET /presence/{room}`, `RoomChat` → `GET /chat/{room}/messages`), because those endpoints return typed JSON, not page props. `usePollingReload` exists as a utility but is used by no production feature. Reserve polling for the few surfaces that genuinely benefit from it (room state, presence, chat); do not apply it by default.
 
 ### Rule 3: Design the Sync Transport to Be Swappable, Not the Feature
 
@@ -7287,7 +7298,7 @@ Nothing above depends on how the event reaches other clients. That is decided on
 On the frontend, hide this behind one hook so components never know which transport is active:
 
   
-// resources/js/hooks/use-playback-sync.ts  
+// resources/js/Hooks/use-playback-sync.ts  
 export function usePlaybackSync(roomId: string) {  
 // Today: polling implementation (Chapter 18.05, Rule 2)  
 // Later: swap the body for Laravel Echo's channel().listen(),  
@@ -7321,23 +7332,12 @@ return (
 
 A shared default (site name, fallback description, viewport, theme-color) lives once in the root Blade template (resources/views/app.blade.php) that Inertia renders into; a page-level Head only needs to override what is actually page-specific. (See Chapter 23.02, Metadata Strategy.)
 
-### Rule 2: Generate Sitemap and Robots as Static Files, on a Schedule
+### Rule 2: Serve robots.txt as a Static File; Do Not Generate a Sitemap
 
-Rule: Do not compute sitemap.xml on every request. Generate it as a real static file on a schedule (see 18.07) and let Apache serve it directly, the same way it serves any other file in public/.
-
-  
-// app/Console/Commands/GenerateSitemap.php  
-public function handle(): void  
-{  
-$sitemap = Sitemap::create()  
-\->add(Url::create('/'))  
-\->add(Project::publicOnly()->get()->map(  
-fn ($p) => Url::create(route('projects.show', $p))  
-));  
-$sitemap->writeToFile(public_path('sitemap.xml'));  
-}  
-
-robots.txt needs no generation at all --- it is a plain static file in public/, edited directly.
+Rule: TamashaRoom does not generate a sitemap. There is no sitemap-generation
+command (no `sitemap:generate` in routes/console.php) and no sitemap.xml is
+served or scheduled. robots.txt needs no generation at all --- it is a plain
+static file in public/, edited directly.
 
 ## 18.07 Middleware and Scheduled Tasks
 
@@ -7371,11 +7371,17 @@ Every other scheduled or background task is registered inside Laravel itself, no
 
   
 // routes/console.php  
-Schedule::command('queue:work --stop-when-empty --max-time=50')  
+Schedule::command(PruneInactiveRooms::class, ['--days=7'])  
+\->daily()  
+\->description('Remove rooms inactive for 7+ days');  
+<br/>Schedule::command('queue:work --stop-when-empty --max-time=30')  
 \->everyMinute()  
-\->withoutOverlapping();  
-<br/>Schedule::command('sitemap:generate')->daily();  
-Schedule::command('sessions:prune')->daily();  
+\->withoutOverlapping()  
+\->description('Process queued jobs one batch at a time');  
+<br/>Schedule::command('presence:timeout')  
+\->everyMinute()  
+\->withoutOverlapping()  
+\->description('Mark stale members as offline');  
 
 ### Choosing Sync vs. Queued
 
@@ -7387,19 +7393,19 @@ Schedule::command('sessions:prune')->daily();
 
 This section governs everything reachable by someone other than TamashaRoom’s own UI: a mobile client, a third-party integration, a webhook sender, or a script replaying a captured request. Where 18.04 governs mutations initiated from within the app’s own pages, this section governs routes/api.php. Every rule follows from the same assumption as before: if a URL exists, something you did not write will eventually call it. This connects to Chapter 19 (typed request and response contracts), Chapter 24 (what a boundary may reveal when it fails), and Chapter 21 (rate limiting protects the budget every other rule assumes, which matters more, not less, on a single core).
 
-### Rule 1: Choose Inertia Routes vs. API Routes by Who Is Calling
+### Rule 1: Choose the Route Surface by Who Is Calling
 
-Rule: If the caller is TamashaRoom's own UI, it is an Inertia route in routes/web.php. If the caller is anything else, it is a token-authenticated route in routes/api.php, using Laravel Sanctum.
+Rule: If the caller is TamashaRoom's own UI, it uses routes/web.php exclusively — Inertia page routes for initial props *plus* session-authenticated JSON polling/action endpoints (playback state, presence, chat, room actions) reached through the axios `api` client (Chapter 18.05, Rule 2). If the caller is anything else, it is a token-authenticated route in routes/api.php, using Laravel Sanctum.
 
-An Inertia route returns page props shaped for one specific React page and is not a stable public contract. An API route returns a documented, versioned JSON shape any external caller can rely on. Using an Inertia route as an ad hoc API for a mobile client forces that client to reverse-engineer page-specific prop shapes that can change with the UI at any time.
+An Inertia page route returns props shaped for one specific React page and is not a stable public contract; the web.php JSON action endpoints are likewise session-bound internal endpoints, not public contracts. An API route returns a documented, versioned JSON shape any external caller can rely on. Using an Inertia route or an internal JSON endpoint as an ad hoc API for a mobile client forces that client to reverse-engineer page-specific prop shapes that can change with the UI at any time.
 
 ### Rule 2: Every API Route Is a Public Network Boundary
 
-Rule: Treat every route in routes/api.php as reachable by anyone on the internet. Authentication, authorization, input shape, and rate limits are enforced inside the route’s controller and Form Request, never assumed from "only our app calls this."
+Rule: Treat every route in routes/api.php as reachable by anyone on the internet. Authentication, authorization, input shape, and rate limits are enforced inside the route's controller — with a Form Request wherever the endpoint accepts structured input — never assumed from "only our app calls this." Endpoints that take no input (e.g. `GET /user`) need no Form Request; they still need the Sanctum middleware and an appropriate authorization check.
 
-### Rule 3: Validate All Input With a Form Request --- No Exceptions
+### Rule 3: Validate All Input With a Form Request
 
-Rule: Every API controller method receives a Form Request, exactly as in 18.04. An unvalidated $request->all() reaching Eloquent is not an efficiency shortcut; it is an open boundary.
+Rule: Every API controller method receives a Form Request for structured input, exactly as in 18.04; simple single-field action endpoints may use inline `$request->validate()` instead (e.g. `ChatController::store`). An unvalidated $request->all() reaching Eloquent is not an efficiency shortcut; it is an open boundary.
 
 ### Rule 4: Authenticate and Authorize Inside the Controller
 
@@ -7416,16 +7422,16 @@ return response()->noContent();
 
 Authentication answers "is this a real caller." Authorization answers "is this specific caller allowed to do this to this specific resource." A Policy that only checks the first would let one team delete another team's project. (See Chapter 18.09.)
 
-### Rule 5: Rate Limit Every Public Endpoint
+### Rule 5: Rate Limit Public Endpoints
 
-Rule: Any endpoint reachable without an established session --- login, registration, password reset, public webhooks --- is rate limited using Laravel's built-in throttle middleware, backed by the database cache driver since Redis is unavailable.
+Rule: An endpoint reachable without an established session is the cheapest possible target for abuse, because the attacker pays no cost to reach it. On a single CPU core, an unthrottled brute-force attempt is also a straightforward denial-of-service against every other user.
+
+Current state (2026-08-02): named limiters in `AppServiceProvider` cover login (`throttle:login`, 5/min per email+IP), register (`throttle:register`, 5/min per IP), forgot-password (`throttle:forgot-password`, 5/min per email+IP), reset-password (`throttle:reset-password`, 5/min per IP), chat (30/min), playback (60/min), video proxy (30/min), presence (60/min), join (10/min), and the email-verification routes use inline `throttle:6,1`. Every auth POST route is throttled (Authentication Rate-Limit Hardening, 2026-08-02). New unauthenticated endpoints must be rate limited using Laravel's built-in throttle middleware, backed by the database cache driver since Redis is unavailable:
 
   
-// routes/api.php  
-Route::post('/login', LoginController::class)  
-\->middleware('throttle:5,1'); // 5 attempts per minute  
-
-An unauthenticated endpoint is the cheapest possible target for abuse, because the attacker pays no cost to reach it. On a single CPU core, an unthrottled brute-force attempt is also a straightforward denial-of-service against every other user.
+// routes/web.php  
+Route::post('/login', [LoginController::class, 'store'])  
+\->middleware('throttle:login'); // named limiter, 5/min per email+IP  
 
 ### Rule 6: Never Expose Internal Errors
 
@@ -7515,28 +7521,27 @@ Rule: Refetch only the props that actually changed, using Inertia's only or exce
 router.reload({ only: \['projects'\] }); // re-runs the controller,  
 // but only returns this prop  
 
-The controller method still runs in full, but Inertia serializes and returns only the requested props --- cheaper over the wire, and the parts of the page not tied to that prop (the layout, the filters UI) are not replaced or remounted. This is the mechanism 18.05's polling pattern is built on.
+The controller method still runs in full, but Inertia serializes and returns only the requested props --- cheaper over the wire, and the parts of the page not tied to that prop (the layout, the filters UI) are not replaced or remounted. Note: this partial-reload mechanism is available, but production live-room polling does **not** use it --- it polls JSON endpoints through the axios `api` client (Chapter 18.05, Rule 2), because those endpoints return typed JSON rather than page props.
 
 ## 18.11 Backend Rules Checklist
 
 For every route and every controller:
 
-- The controller, not the page component, fetches the data the page needs.
+- The controller, not the page component, fetches the initial data the page needs (live-room polling through the approved hooks is the documented exception — Chapter 18.05).
 - Relationships are eager-loaded; lazy loading is disabled outside production.
 - Every route that can resolve to a missing or unauthorized resource returns a 404.
 - Expensive, slow-changing reads are cached with the database cache driver and invalidated on the write that changes them.
 - config:cache, route:cache, and view:cache run on every production deploy.
-- Mutations go through a Form Request with both authorize() and rules() defined.
-- Forms use useForm; pending and error state are not hand-rolled.
+- Mutations go through a Form Request with both authorize() and rules() defined; simple single-field action endpoints may use inline $request->validate() instead. Validated data only — never $request->all().
+- Inertia-submitted forms use useForm; pending and error state are not hand-rolled. JSON action endpoints use the axios api client with local state.
 - Slow, secondary data is deferred with Inertia::defer(), not loaded synchronously with the rest of the page.
-- Anything "live" is polled on a multi-second interval via a partial reload, never assumed to push.
+- Anything "live" is polled on a multi-second interval via the axios `api` client against JSON endpoints (or a `router.reload()` partial reload), never assumed to push.
 - Room-wide state (playback sync, presence) is written as a broadcastable Event, not directly polled from a model --- so the transport can move from polling to Reverb without touching the write path (Chapter 18.05, Rule 3).
 - Every page sets its own title and description with Head.
-- Sitemap generation runs on a schedule and writes a static file; it does not run per-request.
 - The one cPanel cron entry runs php artisan schedule:run every minute; all other scheduling lives in routes/console.php.
 - Nothing assumes sub-minute background processing.
-- Every routes/api.php endpoint uses Sanctum, a Form Request, and an explicit Policy check.
-- Public endpoints are rate limited with throttle.
+- Every routes/api.php endpoint uses Sanctum; endpoints that accept structured input use a Form Request (simple single-field action endpoints may use inline $request->validate() instead), and endpoints that access a protected resource use an explicit Policy check.
+- Public endpoints are rate limited with throttle where a named limiter is attached (login 5/min, register 5/min, forgot-password 5/min, reset-password 5/min, chat 30/min, playback 60/min, proxy 30/min, presence 60/min, join 10/min, email verification 6/min).
 - APP_DEBUG is false in production; caught errors never leak internals to the response.
 - Webhook handlers verify the signature against the raw body before parsing it.
 - API responses are typed with an API Resource, not left as inferred JSON.
@@ -8832,17 +8837,10 @@ Allow: /
 Disallow: /dashboard/  
 Disallow: /api/  
 
-3\. **Sitemap**: generated on a schedule (Chapter 18.07) as a static file, not computed per request.
-
-  
-// app/Console/Commands/GenerateSitemap.php  
-$sitemap = Sitemap::create()  
-\->add(Url::create('/'))  
-\->add(Project::publicOnly()->get()->map(  
-fn ($p) => Url::create(route('projects.show', $p))  
-\->setLastModificationDate($p->updated_at)  
-));  
-$sitemap->writeToFile(public_path('sitemap.xml'));  
+3\. **Sitemap**: not generated. TamashaRoom serves no sitemap.xml and defines
+no sitemap-generation command (no `sitemap:generate` in routes/console.php).
+robots.txt (requirement 2) is the only search-engine guidance file and is
+plain static content requiring no generation.
 
 4\. **Canonical URLs**: set per page with &lt;link rel="canonical"&gt;, built from Laravel's own url() helper (see 23.02) to prevent duplicate-content issues from query strings or trailing slashes.
 
@@ -8884,7 +8882,7 @@ For every page:
 - Images have descriptive alt text.
 - URLs are descriptive and use hyphens (/project-management, not /p/123).
 - robots.txt allows public pages.
-- Sitemap is generated on a schedule and includes all public pages.
+- robots.txt is a static file in public/; no sitemap.xml is generated (no sitemap-generation command exists).
 - Core Web Vitals meet targets, including the TTFB budget this hosting profile makes more fragile.
 - No client-side-only redirects (use Laravel redirects).
 
@@ -9102,33 +9100,24 @@ Form errors are specific, actionable, and associated with the relevant field.
 
 ### Implementation
 
-Every form in TamashaRoom's own UI uses Inertia's useForm hook (Chapter 18.04, Rule 2) --- it already provides values, per-field errors, a pending flag, and submission, all populated from the Laravel Form Request's validation result with no hand-rolled state machine. There is no separate form-state hook to build or maintain here; the discipline this rule protects is how those errors are displayed, not how they are tracked.
+Inertia-submitted forms (the auth pages and Profile partials) use Inertia's useForm hook (Chapter 18.04, Rule 2) --- it already provides values, per-field errors, a pending flag, and submission, all populated from the Laravel Form Request's validation result with no hand-rolled state machine. Live room JSON actions (room settings, chat send, playback sync) submit through the axios `api` client and track their own local pending/error state instead (Chapter 18.04, Rule 2); their errors are surfaced with the toast system rather than field-level Inertia errors. There is no separate form-state hook to build or maintain; the discipline this rule protects is how those errors are displayed, not how they are tracked.
 
 ### Error Display
 
-  
-// resources/js/Components/FormField.tsx  
-interface FormFieldProps {  
-label: string;  
-name: string;  
-error?: string;  
-children: React.ReactNode;  
+Field-level errors on Inertia forms are rendered with the existing `InputError` component (`resources/js/Components/InputError.tsx`) beneath the associated input:
+
+   
+// resources/js/Components/InputError.tsx  
+export default function InputError({ message, className = '', ...props }:  
+HTMLAttributes&lt;HTMLParagraphElement&gt; &amp; { message?: string }) {  
+return message ? (  
+&lt;p {...props} className={'text-sm text-destructive ' + className}&gt;  
+{message}  
+&lt;/p&gt;  
+) : null;  
 }  
-<br/>export function FormField({ label, name, error, children }: FormFieldProps) {  
-return (  
-&lt;div&gt;  
-&lt;label htmlFor={name} className="block text-sm font-medium"&gt;  
-{label}  
-&lt;/label&gt;  
-&lt;div className="mt-1"&gt;{children}&lt;/div&gt;  
-{error && (  
-&lt;div id={\`${name}-error\`} className="mt-1 text-sm text-error" role="alert"&gt;  
-{error}  
-&lt;/div&gt;  
-)}  
-&lt;/div&gt;  
-);  
-}  
+
+used as `&lt;InputError message={errors.name} className="mt-2" /&gt;` inside the form.
 
 Inertia's errors object holds one message per field, not an array --- Laravel's validator returns the first failing rule’s message for each field by default, which is enough for inline display without a list.
 
@@ -9306,7 +9295,7 @@ The reviewer has three responsibilities:
 - No unnecessary re-renders; manual memoization is added only where the React Compiler does not reach (profiled, not guessed).
 - Images are pre-optimized (Chapter 21.04), with explicit width and height.
 - No large dependencies added without bundle analysis.
-- Controllers own data-fetching; pages do not fetch client-side what a controller could have passed as a prop.
+- Controllers own initial data-fetching; pages do not fetch client-side what a controller could have passed as a prop — except approved live-room polling (playback state, presence, chat) per Chapter 18.05.
 - No blocking operations in render.
 - Every fetch's cache behavior is explicit --- cached deliberately with the database cache driver, or accepted as a fresh query, never accidental.
 
@@ -9932,7 +9921,7 @@ Group imports in this order, separated by blank lines:
 
 2\. Third-party libraries
 
-3\. Absolute imports (@/components, @/lib)
+3\. Absolute imports (@/Components, @/Hooks, @/lib, @/stores)
 
 4\. Relative imports (./, ../)
 
@@ -9943,8 +9932,8 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';  
 <br/>import { z } from 'zod';  
 <br/>import { Button } from '@/Components/ui/button';  
-import { useAuth } from '@/hooks/use-auth';  
-import { api } from '@/lib/api';  
+import { useToast } from '@/Hooks/use-toast';  
+import api from '@/lib/api';  
 <br/>import { ProjectCard } from './project-card';  
 import type { Project } from './types';  
 
@@ -10034,8 +10023,8 @@ Before any code is considered complete, it must pass this checklist. This is the
 ### Code Quality
 
 - TypeScript compiles with zero errors (npm run type-check).
-- ESLint passes with zero errors (npm run lint).
-- Prettier formatting is applied (npm run format).
+- ESLint passes with zero errors and at most 4 warnings (npm run lint — the script runs `eslint resources/js --max-warnings 4`).
+- Prettier formatting is applied (npm run format). Note: formatting is **not** gated in CI — run `npm run format:check` locally before committing.
 - All tests pass (npm run test).
 - No any types without documented justification.
 - No console.log statements.
@@ -10080,7 +10069,7 @@ Before any code is considered complete, it must pass this checklist. This is the
 
 - No unnecessary re-renders; manual memoization is added only where the React Compiler does not reach.
 - Images are pre-optimized (Chapter 21.04), with explicit width and height.
-- Controllers own data-fetching; pages do not fetch client-side what a controller could have passed as a prop.
+- Controllers own initial data-fetching; pages do not fetch client-side what a controller could have passed as a prop — except approved live-room polling (playback state, presence, chat) per Chapter 18.05.
 - No blocking operations in render.
 - Every fetch's cache behavior is explicit.
 - Bundle size impact is considered.
@@ -10105,7 +10094,7 @@ Before any code is considered complete, it must pass this checklist. This is the
 - Self-review completed using the Review Engine checklist.
 - PR is under 500 lines (or split if larger).
 - All review comments are addressed.
-- CI passes (build, lint, test, type-check).
+- CI passes (build, lint, Pint, type-check, PHPUnit, Vitest, Playwright a11y + E2E).
 
 ## 29.03 The Definition of Done
 

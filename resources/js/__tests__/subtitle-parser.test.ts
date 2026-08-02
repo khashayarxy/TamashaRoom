@@ -46,6 +46,30 @@ Hello <b>world</b> <i>test</i>`;
         expect(cues[0].text).toBe("Hello world test");
     });
 
+    it("renders script-like payloads as plain text, not markup", () => {
+        const vtt = `WEBVTT
+
+00:00:00.000 --> 00:00:03.000
+<script>alert('xss')</script> normal <img src=x onerror="alert(1)">`;
+        const cues = parseVtt(vtt);
+        expect(cues).toHaveLength(1);
+        expect(cues[0].text).not.toContain("<");
+        expect(cues[0].text).not.toContain("script");
+        expect(cues[0].text).not.toContain("img");
+        expect(cues[0].text).toContain("alert('xss')");
+        expect(cues[0].text).toContain("normal");
+    });
+
+    it("strips javascript: href payloads from cue text", () => {
+        const vtt = `WEBVTT
+
+00:00:00.000 --> 00:00:03.000
+Click <a href="javascript:alert(1)">here</a> now`;
+        const cues = parseVtt(vtt);
+        expect(cues[0].text).toBe("Click here now");
+        expect(cues[0].text).not.toContain("javascript:");
+    });
+
     it("handles NOTE blocks", () => {
         const vtt = `WEBVTT
 
@@ -137,6 +161,19 @@ Line two`;
         const cues = parseSrt(srt);
         expect(cues).toHaveLength(1);
         expect(cues[0].text).toBe("Line one\nLine two");
+    });
+
+    it("renders script-like payloads as plain text, not markup", () => {
+        const srt = `1
+00:00:01,000 --> 00:00:04,000
+<script>alert('xss')</script> متن <img src=x onerror="alert(1)">`;
+        const cues = parseSrt(srt);
+        expect(cues).toHaveLength(1);
+        expect(cues[0].text).not.toContain("<");
+        expect(cues[0].text).not.toContain("script");
+        expect(cues[0].text).not.toContain("img");
+        expect(cues[0].text).toContain("alert('xss')");
+        expect(cues[0].text).toContain("متن");
     });
 });
 

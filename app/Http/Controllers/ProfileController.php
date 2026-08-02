@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\DeleteRoomAction;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -50,6 +51,8 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        app(DeleteRoomAction::class)->deleteFilesForOwnedRooms($user);
 
         Auth::logout();
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\PlaybackMode;
+use App\Exceptions\VideoUrlValidationException;
 use App\Services\UrlSecurityService;
 use Illuminate\Support\Facades\Http;
 
@@ -19,7 +20,7 @@ class DetermineVideoPlaybackModeAction
         $error = $this->urlSecurity->validateVideoUrl($url);
 
         if ($error !== null) {
-            return PlaybackMode::Proxy;
+            throw new VideoUrlValidationException($error);
         }
 
         try {

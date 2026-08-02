@@ -44,16 +44,50 @@ export function usePlaybackSync({
     const lastPollRef = useRef(0);
     const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const cancelledRef = useRef(false);
+    const activeControllerRef = useRef<AbortController | null>(null);
+    const requestIdRef = useRef(0);
 
     useEffect(() => {
         stateRef.current = state;
     }, [state]);
 
+    const fetchStateRef = useRef<() => Promise<void>>(async () => {});
+
+    const schedulePoll = useCallback(() => {
+        if (cancelledRef.current) {
+            return;
+        }
+
+        if (pollTimerRef.current) {
+            clearTimeout(pollTimerRef.current);
+        }
+        const interval = stateRef.current.isPlaying ? POLL_ACTIVE : POLL_IDLE;
+        pollTimerRef.current = setTimeout(() => {
+            void fetchStateRef.current();
+        }, interval);
+    }, []);
+
     const fetchState = useCallback(async () => {
+        if (cancelledRef.current) {
+            return;
+        }
+
+        activeControllerRef.current?.abort();
+        const controller = new AbortController();
+        activeControllerRef.current = controller;
+        const requestId = ++requestIdRef.current;
+
         try {
             const { data } = await api.get<PlaybackStateResponse>(
                 `/playback/${roomId}/state`,
+                { signal: controller.signal },
             );
+
+            if (cancelledRef.current || requestId !== requestIdRef.current) {
+                return;
+            }
+
             const incoming = toPlaybackState(data);
 
             if (incoming.stateVersion <= versionRef.current) {
@@ -69,19 +103,46 @@ export function usePlaybackSync({
             );
             const corrected = { ...incoming, positionSeconds: expected };
 
+            stateRef.current = corrected;
             setState(corrected);
             onRemoteChange?.(corrected);
             setError(null);
         } catch {
+            if (cancelledRef.current || requestId !== requestIdRef.current) {
+                return;
+            }
             setError("Failed to sync playback");
         } finally {
+            if (activeControllerRef.current === controller) {
+                activeControllerRef.current = null;
+            }
+            if (cancelledRef.current || requestId !== requestIdRef.current) {
+                return;
+            }
             setLoading(false);
+            schedulePoll();
         }
-    }, [roomId, onRemoteChange]);
+    }, [roomId, onRemoteChange, schedulePoll]);
+
+    useEffect(() => {
+        fetchStateRef.current = fetchState;
+    }, [fetchState]);
+
+    useEffect(() => {
+        cancelledRef.current = false;
+        void fetchState();
+        return () => {
+            cancelledRef.current = true;
+            activeControllerRef.current?.abort();
+            if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+            if (debounceTimerRef.current)
+                clearTimeout(debounceTimerRef.current);
+        };
+    }, [fetchState]);
 
     const sync = useCallback(
         async (partial: Partial<PlaybackState>) => {
-            if (!isHost) return;
+            if (!isHost || cancelledRef.current) return;
 
             const prev = stateRef.current;
             const payload = {
@@ -103,6 +164,7 @@ export function usePlaybackSync({
                     `/playback/${roomId}`,
                     payload,
                 );
+                if (cancelledRef.current) return;
                 if (data.status === "ok") {
                     versionRef.current = data.state_version;
                     lastPollRef.current = Date.now() / 1000;
@@ -111,34 +173,23 @@ export function usePlaybackSync({
                         ...partial,
                         stateVersion: data.state_version,
                         serverTimestamp: data.server_timestamp,
+                        ...(data.playback_mode
+                            ? { playbackMode: data.playback_mode }
+                            : {}),
                     }));
                 }
                 setError(null);
             } catch {
+                if (cancelledRef.current) return;
                 setError("Failed to sync playback");
             }
         },
         [roomId, isHost],
     );
 
-    const schedulePoll = useCallback(() => {
-        if (pollTimerRef.current) {
-            clearTimeout(pollTimerRef.current);
-        }
-        const interval = stateRef.current.isPlaying ? POLL_ACTIVE : POLL_IDLE;
-        pollTimerRef.current = setTimeout(fetchState, interval);
-    }, [fetchState]);
-
-    useEffect(() => {
-        fetchState();
-        schedulePoll();
-        return () => {
-            if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-        };
-    }, [fetchState, schedulePoll]);
-
     const debouncedSync = useCallback(
         (partial: Partial<PlaybackState>) => {
+            if (cancelledRef.current) return;
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
             }
@@ -151,10 +202,16 @@ export function usePlaybackSync({
 
     const syncImmediate = useCallback(
         (partial: Partial<PlaybackState>) => {
+            if (cancelledRef.current) return;
+
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
             }
-            sync(partial).then(() => fetchState());
+            void sync(partial).then(() => {
+                if (!cancelledRef.current) {
+                    void fetchState();
+                }
+            });
         },
         [sync, fetchState],
     );

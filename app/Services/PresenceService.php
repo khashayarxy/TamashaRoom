@@ -24,6 +24,8 @@ class PresenceService
             'heartbeat_version' => $member->heartbeat_version + 1,
         ]);
 
+        $room->touchActivityIfStale();
+
         $this->dispatchPresenceEvent($room);
 
         return $member->fresh();

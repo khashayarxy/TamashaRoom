@@ -65,6 +65,7 @@ class PlaybackSyncTest extends TestCase
         $this->assertEquals(30, $this->room->position_seconds);
         $this->assertEquals(1, $this->room->state_version);
         $this->assertNotNull($this->room->server_timestamp);
+        $this->assertNotNull($this->room->last_activity_at);
     }
 
     public function test_member_cannot_update_playback_state(): void
@@ -333,5 +334,138 @@ class PlaybackSyncTest extends TestCase
 
         $response->assertOk()
             ->assertJson(['playback_mode' => 'direct']);
+    }
+
+    public function test_host_can_update_video_url_via_sync(): void
+    {
+        Http::fake([
+            '*' => Http::response(null, 200, [
+                'Access-Control-Allow-Origin' => '*',
+                'Accept-Ranges' => 'bytes',
+            ]),
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => false,
+                'position_seconds' => 0,
+                'duration_seconds' => 120,
+                'video_url' => 'https://example.com/new-video.mp4',
+            ]);
+
+        $response->assertOk()
+            ->assertJson(['playback_mode' => 'direct']);
+
+        $this->room->refresh();
+
+        $this->assertEquals('https://example.com/new-video.mp4', $this->room->video_url);
+        $this->assertTrue($this->room->playback_mode === PlaybackMode::Direct);
+    }
+
+    public function test_sync_rejects_ssrf_video_url(): void
+    {
+        $response = $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => false,
+                'position_seconds' => 0,
+                'duration_seconds' => 120,
+                'video_url' => 'http://127.0.0.1/internal.mp4',
+            ]);
+
+        $response->assertStatus(422);
+
+        $this->room->refresh();
+        $this->assertEquals('https://example.com/video.mp4', $this->room->video_url);
+        $this->assertEquals(0, $this->room->state_version);
+    }
+
+    public function test_sync_rejects_invalid_scheme_video_url(): void
+    {
+        $response = $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => false,
+                'position_seconds' => 0,
+                'duration_seconds' => 120,
+                'video_url' => 'ftp://example.com/video.mp4',
+            ]);
+
+        $response->assertStatus(422);
+
+        $this->room->refresh();
+        $this->assertEquals('https://example.com/video.mp4', $this->room->video_url);
+    }
+
+    public function test_set_video_rejects_ssrf_video_url(): void
+    {
+        $response = $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'http://127.0.0.1/internal.mp4',
+            ]);
+
+        $response->assertStatus(422);
+
+        $this->room->refresh();
+        $this->assertEquals('https://example.com/video.mp4', $this->room->video_url);
+        $this->assertEquals(0, $this->room->state_version);
+    }
+
+    public function test_set_video_rejects_invalid_scheme_video_url(): void
+    {
+        $response = $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'ftp://example.com/video.mp4',
+            ]);
+
+        $response->assertStatus(422);
+
+        $this->room->refresh();
+        $this->assertEquals('https://example.com/video.mp4', $this->room->video_url);
+        $this->assertEquals(0, $this->room->state_version);
+    }
+
+    public function test_sync_recomputes_proxy_mode_for_new_video(): void
+    {
+        Http::fake([
+            '*' => Http::response(null, 500),
+        ]);
+
+        $this->room->update(['playback_mode' => 'direct']);
+
+        $response = $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => false,
+                'position_seconds' => 0,
+                'duration_seconds' => 120,
+                'video_url' => 'https://example.com/proxy-video.mp4',
+            ]);
+
+        $response->assertOk()
+            ->assertJson(['playback_mode' => 'proxy']);
+
+        $this->room->refresh();
+        $this->assertTrue($this->room->playback_mode === PlaybackMode::Proxy);
+    }
+
+    public function test_sync_does_not_recompute_mode_for_unchanged_url(): void
+    {
+        Http::fake([
+            '*' => Http::response(null, 500),
+        ]);
+
+        $this->room->update(['playback_mode' => 'direct']);
+
+        $response = $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 30,
+                'duration_seconds' => 120,
+                'video_url' => 'https://example.com/video.mp4',
+            ]);
+
+        $response->assertOk()
+            ->assertJson(['playback_mode' => 'direct']);
+
+        $this->room->refresh();
+        $this->assertTrue($this->room->playback_mode === PlaybackMode::Direct);
     }
 }

@@ -16,6 +16,8 @@ class VideoProxyService
 
     private const READ_TIMEOUT = 30;
 
+    private const MAX_REDIRECTS = 5;
+
     private const MAX_FILE_SIZE = 4 * 1024 * 1024 * 1024;
 
     private const MIME_MAP = [
@@ -53,91 +55,176 @@ class VideoProxyService
             return $this->errorResponse('Failed to reach video source.', 502);
         }
 
-        $contentType = $this->detectContentType($headInfo['content_type'] ?? '', $videoUrl);
+        $finalUrl = $headInfo['url'];
+        $contentType = $this->detectContentType($headInfo['content_type'] ?? '', $finalUrl);
         $contentLength = $headInfo['content_length'] ?? null;
         $acceptRanges = $headInfo['accept_ranges'] ?? false;
 
         if ($rangeHeader !== null && $acceptRanges) {
-            return $this->handleRangeRequest($videoUrl, $rangeHeader, $contentType, $contentLength);
+            return $this->handleRangeRequest($finalUrl, $rangeHeader, $contentType, $contentLength);
         }
 
-        return $this->handleFullRequest($videoUrl, $contentType);
+        return $this->handleFullRequest($finalUrl, $contentType);
     }
 
     private function fetchHead(string $url): ?array
     {
-        $context = stream_context_create([
+        $current = $url;
+        $visited = [];
+
+        for ($hop = 0; $hop < self::MAX_REDIRECTS; $hop++) {
+            $error = $this->urlSecurity->validateVideoUrl($current);
+
+            if ($error !== null) {
+                return null;
+            }
+
+            if (isset($visited[$current])) {
+                return null;
+            }
+
+            $visited[$current] = true;
+
+            $context = $this->createStreamContext([
+                'User-Agent: TamashaRoom/1.0',
+            ], self::CONNECT_TIMEOUT);
+
+            $headers = @get_headers($current, true, $context);
+
+            if ($headers === false) {
+                return null;
+            }
+
+            $statusCode = $this->extractStatusCode($headers);
+
+            if ($statusCode === null || $statusCode < 200 || $statusCode >= 400) {
+                return null;
+            }
+
+            if ($statusCode >= 300 && $statusCode < 400) {
+                $location = $this->extractHeaderValue($headers, 'Location');
+
+                if ($location === null) {
+                    return null;
+                }
+
+                $current = $this->resolveRelativeUrl($current, $location);
+
+                if ($current === null) {
+                    return null;
+                }
+
+                continue;
+            }
+
+            $contentLength = $this->extractContentLength($headers);
+
+            if ($contentLength !== null && $contentLength > self::MAX_FILE_SIZE) {
+                return null;
+            }
+
+            return [
+                'url' => $current,
+                'content_type' => $this->extractHeaderValue($headers, 'Content-Type'),
+                'content_length' => $contentLength,
+                'accept_ranges' => $this->hasAcceptRanges($headers),
+                'status_code' => $statusCode,
+            ];
+        }
+
+        return null;
+    }
+
+    private function createStreamContext(array $headers, int $timeout = self::READ_TIMEOUT)
+    {
+        return stream_context_create([
             'http' => [
                 'method' => 'GET',
-                'timeout' => self::CONNECT_TIMEOUT,
-                'follow_location' => 1,
-                'max_redirects' => 5,
-                'header' => "User-Agent: TamashaRoom/1.0\r\n",
+                'timeout' => $timeout,
+                'follow_location' => 0,
+                'max_redirects' => 0,
+                'header' => $headers,
             ],
             'ssl' => [
-                // SSL verification disabled for external video source compatibility
-                // (self-signed, expired, or misconfigured certs on third-party hosts).
-                // This is an accepted MVP trade-off: the proxy does not handle sensitive
-                // data, and the risk is limited to the proxied video URL (already validated
-                // by UrlSecurityService for SSRF). Re-enable with a proper CA bundle
-                // if the proxy is ever used for authenticated/internal streams.
-                'verify_peer' => false,
-                'verify_peer_name' => false,
+                'verify_peer' => true,
+                'verify_peer_name' => true,
             ],
         ]);
+    }
 
-        $headers = @get_headers($url, true, $context);
+    private function extractStatusCode(array $headers): ?int
+    {
+        $first = $headers[0] ?? null;
 
-        if ($headers === false) {
+        if (! is_string($first)) {
             return null;
         }
 
-        $statusCode = 0;
+        preg_match('/\d{3}/', $first, $matches);
 
-        if (isset($headers[0]) && is_string($headers[0])) {
-            preg_match('/\d{3}/', $headers[0], $matches);
-            $statusCode = (int) ($matches[0] ?? 0);
+        return isset($matches[0]) ? (int) $matches[0] : null;
+    }
+
+    private function extractHeaderValue(array $headers, string $name): ?string
+    {
+        $value = $headers[$name] ?? null;
+
+        if (is_array($value)) {
+            $value = end($value);
         }
 
-        if ($statusCode < 200 || $statusCode >= 400) {
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function extractContentLength(array $headers): ?int
+    {
+        $value = $this->extractHeaderValue($headers, 'Content-Length');
+
+        if ($value === null || ! is_numeric($value)) {
             return null;
         }
 
-        $contentType = null;
+        return (int) $value;
+    }
 
-        if (isset($headers['Content-Type'])) {
-            $contentType = is_array($headers['Content-Type'])
-                ? end($headers['Content-Type'])
-                : $headers['Content-Type'];
+    private function hasAcceptRanges(array $headers): bool
+    {
+        $value = $this->extractHeaderValue($headers, 'Accept-Ranges');
+
+        return $value !== null && strtolower($value) === 'bytes';
+    }
+
+    private function resolveRelativeUrl(string $base, string $location): ?string
+    {
+        if (preg_match('/^https?:\/\//i', $location)) {
+            return $location;
         }
 
-        $contentLength = null;
+        $parts = parse_url($base);
 
-        if (isset($headers['Content-Length'])) {
-            $contentLength = (int) (is_array($headers['Content-Length'])
-                ? end($headers['Content-Length'])
-                : $headers['Content-Length']);
-        }
-
-        if ($contentLength !== null && $contentLength > self::MAX_FILE_SIZE) {
+        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
             return null;
         }
 
-        $acceptRanges = false;
+        $scheme = $parts['scheme'];
+        $host = $parts['host'];
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
 
-        if (isset($headers['Accept-Ranges'])) {
-            $acceptRangesValue = is_array($headers['Accept-Ranges'])
-                ? end($headers['Accept-Ranges'])
-                : $headers['Accept-Ranges'];
-            $acceptRanges = strtolower($acceptRangesValue) === 'bytes';
+        if (str_starts_with($location, '//')) {
+            return $scheme.':'.$location;
         }
 
-        return [
-            'content_type' => $contentType,
-            'content_length' => $contentLength,
-            'accept_ranges' => $acceptRanges,
-            'status_code' => $statusCode,
-        ];
+        if (str_starts_with($location, '/')) {
+            return $scheme.'://'.$host.$port.$location;
+        }
+
+        $path = $parts['path'] ?? '/';
+
+        $lastSlash = strrpos($path, '/');
+
+        $basePath = $lastSlash !== false ? substr($path, 0, $lastSlash + 1) : '/';
+
+        return $scheme.'://'.$host.$port.$basePath.$location;
     }
 
     private function detectContentType(?string $remoteType, string $url): string
@@ -170,22 +257,9 @@ class VideoProxyService
             $end = $contentLength - 1;
         }
 
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => self::READ_TIMEOUT,
-                'follow_location' => 1,
-                'max_redirects' => 5,
-                'header' => [
-                    'User-Agent: TamashaRoom/1.0',
-                    "Range: bytes={$start}-".($end !== null ? $end : ''),
-                ],
-            ],
-            'ssl' => [
-                // SSL verification disabled — see fetchHead() for rationale (same trade-off).
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-            ],
+        $context = $this->createStreamContext([
+            'User-Agent: TamashaRoom/1.0',
+            "Range: bytes={$start}-".($end !== null ? $end : ''),
         ]);
 
         $stream = @fopen($url, 'r', false, $context);
@@ -216,19 +290,8 @@ class VideoProxyService
 
     private function handleFullRequest(string $url, string $contentType): Response
     {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => self::READ_TIMEOUT,
-                'follow_location' => 1,
-                'max_redirects' => 5,
-                'header' => "User-Agent: TamashaRoom/1.0\r\n",
-            ],
-            'ssl' => [
-                // SSL verification disabled — see fetchHead() for rationale (same trade-off).
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-            ],
+        $context = $this->createStreamContext([
+            'User-Agent: TamashaRoom/1.0',
         ]);
 
         $stream = @fopen($url, 'r', false, $context);

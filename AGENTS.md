@@ -41,11 +41,16 @@ Event**, so the future migration stays a driver swap. See the
 
 - No feature may assume Docker, Redis, WebSockets, a persistent worker, or
   horizontal scaling as a fallback. Design within the hosting budget.
-- Controllers own data fetching. Pages/components are presentational — they
-  render props, they never fetch their own data on mount.
-- Strict TypeScript on the frontend, strict Form Request validation on the
-  backend. No `any` without a documented reason. No `$request->all()` reaching
-  Eloquent unvalidated.
+- Controllers own initial data fetching. Pages/components are presentational for
+  page data — they render props and don't fetch their own page data on mount.
+  The exception: live room data (playback state, presence, chat) is deliberately
+  polled through dedicated hooks (`usePlaybackSync`, `usePresence`, `RoomChat`)
+  via the axios `api` client against JSON endpoints in `routes/web.php`. That is
+  the transport-agnostic polling design, not a violation.
+- Strict TypeScript on the frontend. On the backend, structured input is
+  validated by Form Requests; simple action endpoints may use inline
+  `$request->validate()` (e.g. `ChatController::store`). No `any` without a
+  documented reason. No `$request->all()` reaching Eloquent unvalidated.
 - Persian (RTL) and dark mode are the default, not an overlay. Use Tailwind's
   logical properties (`ms-*`, `me-*`, `ps-*`, `pe-*`, `text-start`, `text-end`),
   never physical ones (`ml-*`, `mr-*`, `pl-*`, `pr-*`).
@@ -123,6 +128,7 @@ reference them by name — just describe the task.
 
 See `docs/TASK.md` for the itemized list. Core infrastructure, rooms, playback
 sync, chat, subtitles, presence/heartbeat, scheduled tasks, and security
-hardening are complete with test coverage. Pending: production deployment
-steps, room-ownership-transfer UX polish, eventual WebSocket migration, and
-Playwright + axe E2E accessibility tests.
+hardening are complete with test coverage, including the Playwright E2E
+(12/12) and axe accessibility (11/11) suites; room-ownership-transfer UX
+polish is done (Batch 2C, TAM-005). Pending: production deployment steps and
+the eventual WebSocket migration.
