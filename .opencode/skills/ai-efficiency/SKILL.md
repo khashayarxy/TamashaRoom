@@ -155,20 +155,11 @@ read the rest "just in case." Re-read only the edited region after a change.
 
 ## Targeted Test Execution
 
-Run only the suites the change can affect (see `testing-strategy`, "Verification
-Escalation" — that is the canonical Levels 1–4 decision table; this section is
-its quick reminder).
-
-| Change touches | Run at minimum |
-|---|---|
-| One backend class | `php artisan test --filter=ThatTest` |
-| One frontend module | `npx vitest run path/to/file.test.tsx` |
-| Backend broadly / frontend broadly | full `php artisan test` or `npm run test` |
-| Nothing frontend | skip `npm run test`/`type-check`/`lint` |
-
-Rule of thumb: start at Level 1–2; escalate to the full suite only for the
-justifications listed in `testing-strategy`. Running everything for a doc edit
-is wasted tokens.
+Run only the suites the change can affect. Start at `testing-strategy`,
+"Verification Escalation" (Levels 1–4) — that is the canonical decision table and
+command matrix. Recommend Level 1–2 by default; escalate to the full suite only
+for the justifications listed there. Running everything for a doc edit is wasted
+tokens.
 
 ## Avoid Re-Reading
 
