@@ -318,10 +318,18 @@ class VideoProxyService
 
         set_time_limit(self::READ_TIMEOUT + 5);
 
+        $relayed = 0;
+
         while (! feof($stream)) {
             $chunk = fread($stream, self::CHUNK_SIZE);
 
             if ($chunk === false) {
+                break;
+            }
+
+            $relayed += strlen($chunk);
+
+            if ($relayed > $this->maxRelayedBytes()) {
                 break;
             }
 
@@ -335,6 +343,11 @@ class VideoProxyService
         }
 
         fclose($stream);
+    }
+
+    protected function maxRelayedBytes(): int
+    {
+        return self::MAX_FILE_SIZE;
     }
 
     private function errorResponse(string $message, int $statusCode): Response

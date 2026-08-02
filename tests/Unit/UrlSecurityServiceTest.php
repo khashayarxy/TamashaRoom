@@ -122,4 +122,55 @@ class UrlSecurityServiceTest extends TestCase
         $error = $this->service->validateVideoUrl('http:///video.mp4');
         $this->assertNotNull($error);
     }
+
+    // ─── IPv4-mapped IPv6 (::ffff:a.b.c.d) must be evaluated by the IPv4 checks ───
+
+    private function isPrivateIp(string $ip): bool
+    {
+        $method = new \ReflectionMethod($this->service, 'isPrivateIp');
+
+        return $method->invoke($this->service, $ip);
+    }
+
+    #[Test]
+    public function rejects_ipv4_mapped_loopback(): void
+    {
+        $this->assertTrue($this->isPrivateIp('::ffff:127.0.0.1'));
+    }
+
+    #[Test]
+    public function rejects_ipv4_mapped_private_10_x(): void
+    {
+        $this->assertTrue($this->isPrivateIp('::ffff:10.0.0.1'));
+    }
+
+    #[Test]
+    public function rejects_ipv4_mapped_private_172_16_x(): void
+    {
+        $this->assertTrue($this->isPrivateIp('::ffff:172.16.5.1'));
+    }
+
+    #[Test]
+    public function rejects_ipv4_mapped_private_192_168_x(): void
+    {
+        $this->assertTrue($this->isPrivateIp('::ffff:192.168.1.1'));
+    }
+
+    #[Test]
+    public function rejects_ipv4_mapped_link_local(): void
+    {
+        $this->assertTrue($this->isPrivateIp('::ffff:169.254.1.1'));
+    }
+
+    #[Test]
+    public function rejects_ipv4_mapped_cgnat(): void
+    {
+        $this->assertTrue($this->isPrivateIp('::ffff:100.64.0.1'));
+    }
+
+    #[Test]
+    public function allows_ipv4_mapped_public_address(): void
+    {
+        $this->assertFalse($this->isPrivateIp('::ffff:8.8.8.8'));
+    }
 }

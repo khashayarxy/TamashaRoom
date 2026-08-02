@@ -176,6 +176,15 @@ class UrlSecurityService
 
         $hex = bin2hex($expanded);
 
+        // IPv4-mapped IPv6 (::ffff:a.b.c.d) — evaluate the embedded IPv4 address
+        // using the existing IPv4 private/loopback/link-local checks so a mapped
+        // private address (e.g. ::ffff:127.0.0.1) cannot bypass them.
+        if (str_starts_with($hex, '00000000000000000000ffff')) {
+            $embeddedV4 = unpack('N', hex2bin(substr($hex, -8)))[1];
+
+            return $this->isPrivateIp(long2ip($embeddedV4));
+        }
+
         if (str_starts_with($hex, 'fe80')) {
             return true;
         }

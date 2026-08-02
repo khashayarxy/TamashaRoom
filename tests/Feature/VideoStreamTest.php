@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use App\Services\UrlSecurityService;
 use App\Services\VideoProxyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -316,5 +317,96 @@ class VideoStreamTest extends TestCase
         $result = $fetchHead->invoke($service, 'ftp://example.com/video.mp4');
 
         $this->assertNull($result);
+    }
+
+    // ─── Actual-bytes streaming cap (MAX_FILE_SIZE enforced on relayed bytes) ───
+
+    private function proxyWithMaxRelayedBytes(int $maxBytes): VideoProxyService
+    {
+        return new class(app(UrlSecurityService::class), $maxBytes) extends VideoProxyService
+        {
+            public function __construct(
+                UrlSecurityService $urlSecurity,
+                private readonly int $maxBytes,
+            ) {
+                parent::__construct($urlSecurity);
+            }
+
+            protected function maxRelayedBytes(): int
+            {
+                return $this->maxBytes;
+            }
+        };
+    }
+
+    private function captureStreamChunks(VideoProxyService $service, string $content): string
+    {
+        $stream = fopen('php://temp', 'r+');
+        fwrite($stream, $content);
+        rewind($stream);
+
+        $streamChunks = new \ReflectionMethod($service, 'streamChunks');
+
+        ob_start();
+        try {
+            $streamChunks->invoke($service, $stream);
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+
+        return (string) ob_get_clean();
+    }
+
+    public function test_stream_relays_all_bytes_when_content_length_is_within_max_file_size(): void
+    {
+        $service = $this->proxyWithMaxRelayedBytes(8192 * 3);
+
+        $content = str_repeat('a', 8192 * 2);
+
+        $this->assertSame($content, $this->captureStreamChunks($service, $content));
+    }
+
+    public function test_stream_stops_at_max_file_size_when_content_length_is_missing(): void
+    {
+        $service = $this->proxyWithMaxRelayedBytes(8192 * 3);
+
+        $relayed = $this->captureStreamChunks($service, str_repeat('b', 8192 * 10));
+
+        $this->assertSame(8192 * 3, strlen($relayed));
+        $this->assertSame(str_repeat('b', 8192 * 3), $relayed);
+    }
+
+    public function test_stream_never_relays_more_than_max_file_size_even_with_larger_content_length(): void
+    {
+        $service = $this->proxyWithMaxRelayedBytes(8192 * 3);
+
+        $relayed = $this->captureStreamChunks($service, str_repeat('c', 8192 * 100));
+
+        $this->assertLessThanOrEqual(8192 * 3, strlen($relayed));
+        $this->assertSame(8192 * 3, strlen($relayed));
+    }
+
+    public function test_stream_handles_exact_max_file_size_boundary(): void
+    {
+        $service = $this->proxyWithMaxRelayedBytes(8192 * 2);
+
+        $exact = str_repeat('d', 8192 * 2);
+
+        $this->assertSame($exact, $this->captureStreamChunks($service, $exact));
+
+        $over = str_repeat('e', (8192 * 2) + 1);
+
+        $this->assertSame(8192 * 2, strlen($this->captureStreamChunks($service, $over)));
+    }
+
+    public function test_default_max_file_size_is_four_gigabytes(): void
+    {
+        $service = app(VideoProxyService::class);
+
+        $max = new \ReflectionMethod($service, 'maxRelayedBytes');
+
+        $this->assertSame(4 * 1024 * 1024 * 1024, $max->invoke($service));
     }
 }
