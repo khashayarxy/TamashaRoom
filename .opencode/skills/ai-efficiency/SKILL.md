@@ -102,17 +102,72 @@ prompt.
   (`php artisan test --filter=ClassName`), not the whole suite, when only one
   area changed.
 
+## Code Reading Order — Function Before File
+
+Prefer this order; expand only if ambiguity remains:
+
+1. Locate the **symbol** (grep/`docs/MAP.md`).
+2. Read the **surrounding function/class** only.
+3. If needed, read the **caller**.
+4. If needed, read the **callee**.
+5. If needed, read the **relevant test**.
+6. Expand to a wider window only when a question is still unresolved.
+
+For large files prefer symbol search, line-range reads, and
+call-chain traversal over whole-file reads and repeated same-symbol searches.
+When you have the function you need, stop — do not read the rest "just in
+case."
+
+## Task Scoping — Decide Before Reading
+
+Before opening anything, resolve these against `docs/MAP.md` and the relevant
+skill — they pin the smallest window needed:
+
+1. **Objective** — the outcome, in one sentence.
+2. **Subsystem** — which `docs/MAP.md` entry owns it.
+3. **Owning skill** — which skill holds the rules.
+4. **Likely files** — the MAP.md entry for that subsystem.
+5. **Authoritative system chapter** — the `docs/SYSTEM.md` chapter (use its
+   line index).
+6. **Smallest source window** — the function/symbol, not the file.
+7. **Smallest test scope** — the `--filter=`/file that can prove the change.
+
+Do not expand scope until evidence requires it. If the answer to any of these
+is still fuzzy after one targeted read, that is a signal to ask, not to read
+more of the repository.
+
+## Stop-Reading / Stop-Searching
+
+Once you have enough, stop. Objective stop conditions:
+
+**STOP exploration when:** the affected code path is identified, the owning
+rules are known, the implementation location is known, the expected behavior
+is understood, and the existing tests covering it are located — i.e. no
+unresolved architecture question remains. Do not search further "to gain
+confidence."
+
+**STOP test exploration when:** existing tests establish current behavior, the
+new behavior is clear, and the smallest test location is known. Do not keep
+browsing test files.
+
+**STOP reading a file** once you have the function/symbol you need — do not
+read the rest "just in case." Re-read only the edited region after a change.
+
 ## Targeted Test Execution
 
-| Change touches | Run |
+Run only the suites the change can affect (see `testing-strategy`, "Verification
+Escalation" — that is the canonical Levels 1–4 decision table; this section is
+its quick reminder).
+
+| Change touches | Run at minimum |
 |---|---|
 | One backend class | `php artisan test --filter=ThatTest` |
-| Backend broadly | `php artisan test` |
 | One frontend module | `npx vitest run path/to/file.test.tsx` |
-| Frontend broadly | `npm run test` |
+| Backend broadly / frontend broadly | full `php artisan test` or `npm run test` |
 | Nothing frontend | skip `npm run test`/`type-check`/`lint` |
 
-Only run the suites the change can affect. Running everything for a doc edit
+Rule of thumb: start at Level 1–2; escalate to the full suite only for the
+justifications listed in `testing-strategy`. Running everything for a doc edit
 is wasted tokens.
 
 ## Avoid Re-Reading
@@ -122,6 +177,15 @@ is wasted tokens.
 - After editing a file, re-read only the edited region, not the whole file.
 - Trust your own verified statements from earlier in the session — restating
   "the PHPUnit count is in `docs/TASK.md`" doesn't require re-running the suite.
+
+## Tool-Agnostic
+
+These rules apply to any coding agent (OpenCode, Claude Code, Codex, Gemini
+CLI). Nothing here depends on a specific tool's command surface; the repo's
+"search before read", "reference known facts", "progressive disclosure", and
+"escalating verification" apply the same way everywhere. Where tool-specific
+behavior exists (e.g. OpenCode skills), it lives in `.opencode/`, never in
+this rule.
 
 ## Reports & Outputs
 

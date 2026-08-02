@@ -105,6 +105,27 @@ Never refactor without tests covering the code first (see `code-review-rules`).
 If coverage is missing, write the test that captures current behavior, confirm
 it passes, then refactor, then confirm it still passes.
 
+## Verification Escalation — Run Only What the Change Warrants
+
+Escalate only when lower levels provably cover the change. Do not default to
+the full suite; a doc-only or isolated change stops at Level 1–2.
+
+| Level | Scope | When |
+|---|---|---|
+| **1** | Static/format/lint **for the edited files** | Every code change, before anything else |
+| **2** | **Targeted** test for the affected subsystem | The behavior changed; `--filter=` or single-file vitest |
+| **3** | Related integration / E2E / a11y test | Flow spans systems (join→playback→chat) or touches UI |
+| **4** | **Full** suite (`php artisan test`, `npm run test`, `test:e2e`, `test:a11y`) | Only when the change is broadly reachable (below) |
+
+**Level 4 (full suite) is required only for:** shared infrastructure changes;
+cross-cutting behavior; authentication/authorization; database/schema;
+routing; core playback/synchronization; dependencies/config; and the
+pre-push verification sequence. For anything else, stop at the matched level.
+
+See `docs/TASK.md` (canonical counts) and the test-location index in
+`docs/MAP.md`. Command names (not custom) come from AGENTS.md / package.json —
+never invent commands.
+
 ## Checklist
 
 - Unit tests exist for business logic and utilities.

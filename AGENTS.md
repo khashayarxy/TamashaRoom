@@ -124,7 +124,7 @@ reference them by name — just describe the task.
 | `code-review-rules` | Reviewing a diff, self-reviewing before finishing a change, anti-patterns, refactoring, Definition of Done |
 | `output-conventions` | File naming, import order, comments, commit messages |
 | `git-workflow` | Any commit/push, pre-push audit, or git-safety decision |
-| `ai-efficiency` | Starting any task: how to minimize context/token usage, what to read, targeted test runs |
+| `ai-efficiency` | Exploring the repo or reading docs; drafting a prompt for another agent; minimizing context/token usage |
 | `debugging` | A bug report, an unexpected test failure, or behavior that doesn't match expectations |
 | `skill-maintenance` | Adding, editing, merging, or removing a skill; updating the AGENTS.md skill table |
 
