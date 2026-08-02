@@ -2,10 +2,12 @@
 
 This file is always loaded into context. Keep it short. Deep-dive rules live in
 `.opencode/skills/` and are loaded on demand — see "Available Skills" below.
-The full source of truth is `docs/SYSTEM.md` (29 chapters); `docs/PROJECT.md`
-(tech stack, directory layout, env vars) and `docs/TASK.md` (what's done, what's
-pending) are the other two reference docs. Skills summarize these three files;
-if a skill and SYSTEM.md ever disagree, SYSTEM.md wins.
+The full source of truth is `docs/SYSTEM.md` (29 chapters; chapter→line index
+at its top). `docs/MAP.md` maps every subsystem to its docs chapter, skill,
+and source files — read it before exploring code. `docs/PROJECT.md` (tech
+stack, directory layout, env vars) and `docs/TASK.md` (what's done, pending;
+canonical test counts) are the other reference docs. Skills summarize these
+documents; if a skill and SYSTEM.md ever disagree, SYSTEM.md wins.
 
 ## What This Project Is
 
@@ -128,9 +130,9 @@ reference them by name — just describe the task.
 
 ## Current Status
 
-See `docs/TASK.md` for the itemized list. Core infrastructure, rooms, playback
+See `docs/TASK.md` for the itemized list and **canonical test counts** (do not
+hardcode counts in AGENTS.md or skills). Core infrastructure, rooms, playback
 sync, chat, subtitles, presence/heartbeat, scheduled tasks, and security
-hardening are complete with test coverage, including the Playwright E2E
-(12/12) and axe accessibility (11/11) suites; room-ownership-transfer UX
-polish is done (Batch 2C, TAM-005). Pending: production deployment steps and
-the eventual WebSocket migration.
+hardening are complete with backend, frontend, E2E, and a11y test coverage;
+room-ownership-transfer UX polish is done (Batch 2C, TAM-005). Pending:
+production deployment steps and the eventual WebSocket migration.

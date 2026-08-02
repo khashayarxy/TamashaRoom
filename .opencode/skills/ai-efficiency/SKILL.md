@@ -1,6 +1,6 @@
 ---
 name: ai-efficiency
-description: How to minimize AI context/token usage while working in TamashaRoom — progressive disclosure, never repeating established context, efficient task-prompt construction, what to read first, targeted exploration and test execution, and avoiding re-reading known files. Use at the start of any task, when drafting a prompt for another agent, or whenever a task involves exploring the repo or reading docs.
+description: How to minimize AI context/token usage while working in TamashaRoom — progressive disclosure, never repeating established context, efficient task-prompt construction, what to read first, targeted exploration and test execution, and avoiding re-reading known files. Use when a task involves exploring the repo or reading docs, or when drafting a prompt for another agent.
 ---
 
 # AI Efficiency (Token & Context Optimization)
@@ -16,8 +16,10 @@ a token not spent reasoning about the actual problem.
 2. The **one skill** that matches the task (load it via the skill tool, not
    by opening the file manually).
 3. Only the **specific chapter** of `docs/SYSTEM.md` the skill points to —
-   never the whole 10,000-line file.
-4. The actual source files, via targeted searches first.
+   never the whole 10,000-line file. Use the chapter→line index at the top
+   of `docs/SYSTEM.md` to open exactly that range.
+4. `docs/MAP.md` to locate the subsystem's files, then the actual source
+   files via targeted searches first.
 
 **Never read whole files you only need a slice of.** Use grep/glob to locate
 the exact function, then read only that window. `docs/SYSTEM.md` is the
@@ -53,9 +55,12 @@ re-produce it per task:
 - The constraint: shared cPanel, 1 core, 2GB RAM, no Redis/WebSockets/
   persistent workers; polling architecture; database-backed
   cache/session/queue.
-- The test baseline: PHPUnit **214** (173 Feature + 41 Unit), Vitest **122**,
-  E2E **12**, a11y **11** — recounted 2026-08-02. When docs conflict with
-  the actual test run, the run wins and the doc needs a correction.
+- **Where things live:** use `docs/MAP.md` to jump straight to a subsystem's
+  files instead of hunting through directories or re-grepping.
+- **Test counts:** live canonically in `docs/TASK.md`. Never hardcode or
+  re-derive them; if you need a number, read TASK.md or (rarely) re-count.
+  When docs conflict with an actual test run, the run wins and the doc needs
+  a correction.
 - `docs/TASK.md` is the canonical done/pending record — check it before
   assuming something is unimplemented.
 
@@ -86,12 +91,13 @@ prompt.
 ## Targeted Exploration Patterns
 
 - **Find a symbol**: grep for the class/function name (include `app/`,
-  `resources/js/`) — don't browse directories.
+  `resources/js/`) — don't browse directories. For a subsystem's full file
+  set, use `docs/MAP.md` instead of repeated searches.
 - **Understand a flow**: read the route definition, then the controller,
   then only the service/action it calls. Follow the call chain, don't fan out.
 - **Check if something exists**: `Test-Path` / glob — one command, not a search.
-- **Check test counts**: count `#[Test]`/`test_*` declarations, don't run the
-  full suite just to count.
+- **Check test counts**: read `docs/TASK.md` — do not run the full suite just
+  to re-derive a count that is already canonical.
 - **Verify behavior**: run the *filtered* test
   (`php artisan test --filter=ClassName`), not the whole suite, when only one
   area changed.
@@ -115,7 +121,7 @@ is wasted tokens.
   changed (ask: did anyone modify it since?).
 - After editing a file, re-read only the edited region, not the whole file.
 - Trust your own verified statements from earlier in the session — restating
-  "the test count is 214" doesn't require re-running the suite.
+  "the PHPUnit count is in `docs/TASK.md`" doesn't require re-running the suite.
 
 ## Reports & Outputs
 

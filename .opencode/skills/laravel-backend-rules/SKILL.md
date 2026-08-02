@@ -60,6 +60,9 @@ Rules: every route resolving to a missing/unauthorized resource calls
 routes with middleware; use persistent Inertia layouts so shared UI isn't
 remounted on navigation.
 
+(The security lens on which routes are public network boundaries lives in
+`security-rules`, see "API Boundary Rules".)
+
 ## Mutations & Validation
 
 - Structured multi-field input → **Form Request** with `authorize()` + `rules()`.

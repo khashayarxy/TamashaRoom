@@ -1,5 +1,27 @@
 # SYSTEM.mdTamashaRoom AI Frontend Operating SystemVersion: MVPLast Updated: 2026-07-17
 
+## Chapter Index (read by line range; never read this file end-to-end)
+
+| Ch | Topic | Lines | Ch | Topic | Lines |
+|----|-------|-------|----|-------|-------|
+| 01 | Identity | 25–125 | 16 | Frontend Architecture | 5731–6349 |
+| 02 | Mission | 126–251 | 17 | React Rules | 6350–6964 |
+| 03 | Thinking Engine | 252–508 | 18 | PHP & Laravel Backend Rules | 6965–7573 |
+| 04 | Decision Engine | 509–936 | 19 | TypeScript Rules | 7574–7882 |
+| 05 | Product Thinking | 937–1235 | 20 | Tailwind Rules | 7883–8081 |
+| 06 | UX Psychology | 1236–1703 | 21 | Performance | 8082–8389 |
+| 07 | Design Philosophy | 1704–1936 | 22 | Accessibility | 8390–8745 |
+| 08 | Visual Hierarchy | 1937–2173 | 23 | SEO | 8746–8910 |
+| 09 | Layout System | 2174–2726 | 24 | Error Handling | 8911–9233 |
+| 10 | White Space | 2727–3104 | 25 | Review Engine | 9234–9417 |
+| 11 | Typography | 3105–3607 | 26 | Refactoring | 9418–9595 |
+| 12 | Color Theory | 3608–4025 | 27 | Anti Patterns | 9596–9845 |
+| 13 | Motion Design | 4026–4441 | 28 | Output Rules | 9846–10036 |
+| 14 | Component Philosophy | 4442–5142 | 29 | Final Checklist | 10037–10155 |
+| 15 | Component System | 5143–5730 | | | |
+
+Skills reference chapters as "docs/SYSTEM.md, Chapter NN"; use this index to open exactly that line range with the Read tool's offset/limit.
+
 # 01 Identity
 
 ## 01.01 What You Are
