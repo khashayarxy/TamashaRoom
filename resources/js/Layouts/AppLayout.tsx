@@ -3,6 +3,7 @@ import { Link, router, usePage } from "@inertiajs/react";
 import { Home, LogOut, Moon, Plus, Sun, Tv, User } from "lucide-react";
 import { PropsWithChildren } from "react";
 import { useThemeStore } from "@/stores/theme";
+import { CREATE_ROOM_INTENT_KEY } from "@/lib/utils";
 
 interface UserData {
     id: number;
@@ -50,7 +51,13 @@ export default function AppLayout({ children }: PropsWithChildren) {
                         <Button
                             variant="primary"
                             size="sm"
-                            onClick={() => router.post(route("rooms.store"))}
+                            onClick={() => {
+                                sessionStorage.setItem(
+                                    CREATE_ROOM_INTENT_KEY,
+                                    "1",
+                                );
+                                router.visit(route("dashboard"));
+                            }}
                         >
                             <Plus className="h-4 w-4" />
                             اتاق جدید

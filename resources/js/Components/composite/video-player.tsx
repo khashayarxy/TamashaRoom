@@ -1,7 +1,16 @@
 import { usePlaybackSync } from "@/Hooks/use-playback-sync";
 import { computeExpectedPosition } from "@/lib/types/playback";
 import { cn, formatDuration } from "@/lib/utils";
-import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import {
+    Maximize,
+    Minimize,
+    Pause,
+    Play,
+    SkipBack,
+    SkipForward,
+    Volume2,
+    VolumeX,
+} from "lucide-react";
 import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 const DRIFT_THRESHOLD = 2;
@@ -37,6 +46,58 @@ export function VideoPlayer({
     const [isSeeking, setIsSeeking] = useState(false);
     const [displayTime, setDisplayTime] = useState(0);
     const [proxyFailed, setProxyFailed] = useState(false);
+    const [muted, setMuted] = useState(false);
+    const [volume, setVolume] = useState(1);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const isMuted = muted || volume === 0;
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        // eslint-disable-next-line react-compiler/react-compiler
+        video.volume = volume;
+        video.muted = muted;
+    }, [volume, muted, videoRef]);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(Boolean(document.fullscreenElement));
+        };
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+        return () =>
+            document.removeEventListener(
+                "fullscreenchange",
+                handleFullscreenChange,
+            );
+    }, []);
+
+    const toggleMute = useCallback(() => {
+        setMuted((prev) => !prev);
+        setVolume((prevVolume) =>
+            muted && prevVolume === 0 ? 0.5 : prevVolume,
+        );
+    }, [muted]);
+
+    const handleVolumeChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const next = Number(e.target.value);
+            setVolume(next);
+            setMuted(next === 0);
+        },
+        [],
+    );
+
+    const toggleFullscreen = useCallback(() => {
+        const video = videoRef.current;
+        if (!video || typeof video.requestFullscreen !== "function") return;
+
+        if (document.fullscreenElement) {
+            void document.exitFullscreen();
+        } else {
+            void video.requestFullscreen();
+        }
+    }, [videoRef]);
 
     const sourceUrl: string | undefined =
         state.playbackMode === "direct" || proxyFailed
@@ -84,7 +145,6 @@ export function VideoPlayer({
             const expected = computeExpectedPosition(state, Date.now() / 1000);
             const diff = Math.abs(video.currentTime - expected);
             if (diff > DRIFT_THRESHOLD) {
-                // eslint-disable-next-line react-compiler/react-compiler
                 video.currentTime = expected;
             }
             video.play().catch(() => {});
@@ -194,7 +254,7 @@ export function VideoPlayer({
                 crossOrigin="anonymous"
             />
 
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12 transition-opacity group-focus-within:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100">
                 <div
                     className="h-1 bg-white/30 rounded-full cursor-pointer mb-3"
                     onClick={handleSeek}
@@ -239,9 +299,45 @@ export function VideoPlayer({
                     </div>
 
                     <div className="flex items-center gap-2 text-xs">
+                        <button
+                            onClick={toggleMute}
+                            className="p-1 hover:text-primary transition-colors"
+                            aria-label={
+                                isMuted ? "باز کردن صدا" : "بی‌صدا کردن"
+                            }
+                        >
+                            {isMuted ? (
+                                <VolumeX className="h-5 w-5" />
+                            ) : (
+                                <Volume2 className="h-5 w-5" />
+                            )}
+                        </button>
+                        <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={isMuted ? 0 : volume}
+                            onChange={handleVolumeChange}
+                            aria-label="صدا"
+                            className="w-16 sm:w-24 accent-primary"
+                        />
                         <span>{formatDuration(displayTime)}</span>
                         <span>/</span>
                         <span>{formatDuration(state.durationSeconds)}</span>
+                        <button
+                            onClick={toggleFullscreen}
+                            className="p-1 hover:text-primary transition-colors"
+                            aria-label={
+                                isFullscreen ? "خروج از تمام صفحه" : "تمام صفحه"
+                            }
+                        >
+                            {isFullscreen ? (
+                                <Minimize className="h-5 w-5" />
+                            ) : (
+                                <Maximize className="h-5 w-5" />
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>

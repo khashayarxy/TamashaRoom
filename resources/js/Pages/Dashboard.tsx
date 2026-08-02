@@ -2,10 +2,10 @@ import { Button } from "@/Components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 import { Input } from "@/Components/ui/input";
 import AppLayout from "@/Layouts/AppLayout";
-import { copyToClipboard, timeAgo } from "@/lib/utils";
-import { Link, router } from "@inertiajs/react";
+import { copyToClipboard, CREATE_ROOM_INTENT_KEY, timeAgo } from "@/lib/utils";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Copy, Link2, Plus, Trash2, Tv, Users } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 interface Room {
     id: number;
@@ -29,6 +29,14 @@ export default function Dashboard({ rooms }: DashboardProps) {
     const [joinCode, setJoinCode] = useState("");
     const [creating, setCreating] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const { errors: pageErrors } = usePage().props;
+
+    useEffect(() => {
+        if (sessionStorage.getItem(CREATE_ROOM_INTENT_KEY) === "1") {
+            sessionStorage.removeItem(CREATE_ROOM_INTENT_KEY);
+            setShowCreateForm(true);
+        }
+    }, []);
 
     const createRoom = async (e: FormEvent) => {
         e.preventDefault();
@@ -115,7 +123,19 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                 placeholder="کد دعوت را وارد کنید"
                                 value={joinCode}
                                 onChange={(e) => setJoinCode(e.target.value)}
+                                aria-invalid={
+                                    Boolean(pageErrors?.invite_code) ||
+                                    undefined
+                                }
                             />
+                            {pageErrors?.invite_code && (
+                                <p
+                                    className="text-sm text-destructive mt-1"
+                                    role="alert"
+                                >
+                                    {pageErrors.invite_code}
+                                </p>
+                            )}
                         </div>
                         <Button type="submit" variant="secondary">
                             <Link2 className="h-4 w-4" />

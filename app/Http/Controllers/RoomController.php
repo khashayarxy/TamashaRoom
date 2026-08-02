@@ -12,6 +12,7 @@ use App\Http\Requests\UpdateRoomRequest;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,7 +72,13 @@ class RoomController extends Controller
                 ->where('invite_code', $inviteCode)
                 ->firstOrFail();
 
-            $this->authorize('join', $room);
+            try {
+                $this->authorize('join', $room);
+            } catch (AuthorizationException $e) {
+                return back()
+                    ->withInput(['invite_code' => $inviteCode])
+                    ->withErrors(['invite_code' => $e->getMessage()]);
+            }
 
             RoomMember::create([
                 'room_id' => $room->id,

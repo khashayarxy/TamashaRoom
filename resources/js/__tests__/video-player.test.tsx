@@ -223,4 +223,43 @@ describe("VideoPlayer", () => {
             "https://example.com/backup.mp4",
         );
     });
+
+    it("shows volume, mute and fullscreen controls for guests", () => {
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl={false}
+            />,
+        );
+        expect(screen.getByLabelText("بی\u200cصدا کردن")).toBeInTheDocument();
+        expect(screen.getByLabelText("صدا")).toBeInTheDocument();
+        expect(screen.getByLabelText("تمام صفحه")).toBeInTheDocument();
+    });
+
+    it("toggles mute state when mute button is clicked", () => {
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+            />,
+        );
+        fireEvent.click(screen.getByLabelText("بی\u200cصدا کردن"));
+        expect(screen.getByLabelText("باز کردن صدا")).toBeInTheDocument();
+    });
+
+    it("mutes the video when volume slider is set to zero", () => {
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+            />,
+        );
+        fireEvent.change(screen.getByLabelText("صدا"), {
+            target: { value: "0" },
+        });
+        expect(screen.getByLabelText("باز کردن صدا")).toBeInTheDocument();
+        const video = container.querySelector("video");
+        expect(video!.muted).toBe(true);
+    });
 });

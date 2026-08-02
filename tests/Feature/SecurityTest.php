@@ -240,9 +240,11 @@ class SecurityTest extends TestCase
         $this->room->update(['is_locked' => true]);
 
         $response = $this->actingAs($this->stranger)
+            ->from(route('dashboard'))
             ->get("/rooms/join/{$this->room->invite_code}");
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('dashboard'));
+        $response->assertSessionHasErrors('invite_code');
     }
 
     // ─── Info Leakage ───────────────────────────────────────

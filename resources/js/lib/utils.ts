@@ -5,6 +5,8 @@ export function cn(...inputs: ClassValue[]): string {
     return twMerge(clsx(inputs));
 }
 
+export const CREATE_ROOM_INTENT_KEY = "tamasharoom.open-create-room";
+
 const persianDigits: Record<string, string> = {
     "0": "۰",
     "1": "۱",

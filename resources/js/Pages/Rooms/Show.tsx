@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/Components/ui/card";
 import { Input } from "@/Components/ui/input";
 import { usePresence } from "@/Hooks/use-presence";
 import { useRoomOwnership } from "@/Hooks/use-room-ownership";
+import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
 import { copyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
@@ -148,7 +149,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             setShowSetVideo(false);
             setVideoUrl("");
         } catch {
-            /* silently fail */
+            toast.error("تنظیم ویدیو ناموفق بود. لطفاً دوباره تلاش کنید.");
         }
     };
 

@@ -147,9 +147,11 @@ class RoomManagementTest extends TestCase
             ->postJson("/rooms/{$this->room->id}/toggle-lock");
 
         $response = $this->actingAs($this->stranger)
-            ->getJson("/rooms/join/{$this->room->invite_code}");
+            ->from(route('dashboard'))
+            ->get("/rooms/join/{$this->room->invite_code}");
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('dashboard'));
+        $response->assertSessionHasErrors('invite_code');
     }
 
     #[Test]
@@ -249,9 +251,11 @@ class RoomManagementTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->stranger)
+            ->from(route('dashboard'))
             ->get("/rooms/join/{$fullRoom->invite_code}");
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('dashboard'));
+        $response->assertSessionHasErrors('invite_code');
     }
 
     #[Test]
@@ -478,9 +482,11 @@ class RoomManagementTest extends TestCase
         $secondJoiner = User::factory()->create(['email_verified_at' => now()]);
 
         $response = $this->actingAs($secondJoiner)
+            ->from(route('dashboard'))
             ->get("/rooms/join/{$tightRoom->invite_code}");
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('dashboard'));
+        $response->assertSessionHasErrors('invite_code');
     }
 
     #[Test]
