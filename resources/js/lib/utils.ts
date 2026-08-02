@@ -54,6 +54,12 @@ export function copyToClipboard(text: string): Promise<void> {
     return navigator.clipboard.writeText(text);
 }
 
+export function extractInviteCode(input: string): string {
+    const trimmed = input.trim();
+    const match = trimmed.match(/\/rooms\/join\/([A-Za-z0-9]+)/);
+    return match ? match[1] : trimmed;
+}
+
 const HTML_TAG_RE = /<[^>]*>/g;
 
 export function sanitizeText(text: string): string {

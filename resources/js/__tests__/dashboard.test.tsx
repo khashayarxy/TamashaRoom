@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import Dashboard from "@/Pages/Dashboard";
-import { usePage } from "@inertiajs/react";
+import { usePage, router } from "@inertiajs/react";
 import { CREATE_ROOM_INTENT_KEY } from "@/lib/utils";
 
 vi.mock("@inertiajs/react", () => ({
@@ -18,6 +18,9 @@ vi.mock("@inertiajs/react", () => ({
 
 const usePageMock = vi.mocked(usePage);
 type UsePageReturn = ReturnType<typeof usePage>;
+
+globalThis.route = ((name: string, params?: unknown) =>
+    `/__route/${name}/${String(params ?? "")}`) as never;
 
 function mockPage(errors: Record<string, string> = {}) {
     usePageMock.mockReturnValue({
@@ -57,5 +60,27 @@ describe("Dashboard", () => {
     it("does not open the create form without an intent flag", () => {
         render(<Dashboard rooms={[]} />);
         expect(screen.queryByText("ساخت اتاق جدید")).not.toBeInTheDocument();
+    });
+
+    it("extracts the invite code from a pasted join URL", () => {
+        render(<Dashboard rooms={[]} />);
+        const input = screen.getByPlaceholderText(
+            "کد یا لینک دعوت را وارد کنید",
+        );
+        fireEvent.change(input, {
+            target: { value: "https://tamasharoom.example/rooms/join/ABC123" },
+        });
+        fireEvent.submit(input.closest("form")!);
+        expect(router.get).toHaveBeenCalledWith("/__route/rooms.join/ABC123");
+    });
+
+    it("joins with a bare code", () => {
+        render(<Dashboard rooms={[]} />);
+        const input = screen.getByPlaceholderText(
+            "کد یا لینک دعوت را وارد کنید",
+        );
+        fireEvent.change(input, { target: { value: "ABC123" } });
+        fireEvent.submit(input.closest("form")!);
+        expect(router.get).toHaveBeenCalledWith("/__route/rooms.join/ABC123");
     });
 });

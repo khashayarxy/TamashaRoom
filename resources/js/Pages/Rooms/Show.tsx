@@ -1,5 +1,6 @@
 import { MemberList } from "@/Components/composite/member-list";
 import { RoomChat } from "@/Components/composite/room-chat";
+import { RoomOnboarding } from "@/Components/composite/room-onboarding";
 import { RoomSettingsDialog } from "@/Components/composite/room-settings";
 import {
     SubtitleOverlay,
@@ -111,6 +112,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const [subLoading, setSubLoading] = useState(false);
     const [subError, setSubError] = useState<string | null>(null);
     const [chatUnread, setChatUnread] = useState(0);
+    const [showOnboarding, setShowOnboarding] = useState(true);
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +130,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         setRoomInviteCode(room.invite_code);
         setRoomIsLocked(room.is_locked);
         setOwnerId(room.owner.id);
+        setShowOnboarding(true);
     }, [
         room.id,
         room.name,
@@ -272,13 +275,39 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => copyToClipboard(roomInviteCode)}
+                            onClick={() =>
+                                copyToClipboard(
+                                    route("rooms.join", roomInviteCode),
+                                )
+                            }
                         >
                             <Copy className="h-4 w-4" />
+                            کپی لینک دعوت
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(roomInviteCode)}
+                        >
                             کپی کد دعوت
                         </Button>
                     </div>
                 </div>
+
+                {isOwner &&
+                    room.video_url === null &&
+                    room.members.length <= 1 &&
+                    showOnboarding && (
+                        <RoomOnboarding
+                            onCopyInvite={() =>
+                                copyToClipboard(
+                                    route("rooms.join", roomInviteCode),
+                                )
+                            }
+                            onAddVideo={() => setShowSetVideo(true)}
+                            onDismiss={() => setShowOnboarding(false)}
+                        />
+                    )}
 
                 <div className="flex-1 relative">
                     <VideoPlayer
@@ -304,7 +333,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             <div className="flex gap-2 flex-1 min-w-0">
                                 <div className="flex-1">
                                     <Input
-                                        placeholder="آدرس ویدیو (YouTube, MP4, ...)"
+                                        placeholder="آدرس مستقیم ویدیو (MP4, WebM, ...)"
                                         value={videoUrl}
                                         onChange={(e) =>
                                             setVideoUrl(e.target.value)

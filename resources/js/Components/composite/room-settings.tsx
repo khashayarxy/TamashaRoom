@@ -11,7 +11,7 @@ import { Input } from "@/Components/ui/input";
 import { copyToClipboard } from "@/lib/utils";
 import { toast } from "@/Hooks/use-toast";
 import api from "@/lib/api";
-import { Copy, Key, Loader2, Lock, Unlock } from "lucide-react";
+import { Copy, Key, LinkIcon, Loader2, Lock, Unlock } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
 interface RoomSettingsProps {
@@ -96,6 +96,11 @@ export function RoomSettingsDialog({
         toast.success("کد دعوت کپی شد");
     };
 
+    const handleCopyLink = () => {
+        copyToClipboard(route("rooms.join", inviteCode));
+        toast.success("لینک دعوت کپی شد");
+    };
+
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogContent>
@@ -116,7 +121,7 @@ export function RoomSettingsDialog({
 
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-foreground">
-                            کد دعوت
+                            کد و لینک دعوت
                         </label>
                         <div className="flex gap-2">
                             <div className="flex-1 flex items-center h-10 rounded-xl border border-input bg-transparent px-3 text-sm font-mono text-foreground ltr">
@@ -130,6 +135,15 @@ export function RoomSettingsDialog({
                                 title="کپی"
                             >
                                 <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCopyLink}
+                                title="کپی لینک"
+                            >
+                                <LinkIcon className="h-4 w-4" />
                             </Button>
                             <Button
                                 type="button"

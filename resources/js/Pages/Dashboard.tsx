@@ -2,7 +2,12 @@ import { Button } from "@/Components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 import { Input } from "@/Components/ui/input";
 import AppLayout from "@/Layouts/AppLayout";
-import { copyToClipboard, CREATE_ROOM_INTENT_KEY, timeAgo } from "@/lib/utils";
+import {
+    copyToClipboard,
+    CREATE_ROOM_INTENT_KEY,
+    extractInviteCode,
+    timeAgo,
+} from "@/lib/utils";
 import { Link, router, usePage } from "@inertiajs/react";
 import { Copy, Link2, Plus, Trash2, Tv, Users } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
@@ -62,8 +67,9 @@ export default function Dashboard({ rooms }: DashboardProps) {
 
     const joinRoom = (e: FormEvent) => {
         e.preventDefault();
-        if (!joinCode.trim()) return;
-        router.get(route("rooms.join", joinCode.trim()));
+        const code = extractInviteCode(joinCode);
+        if (!code.trim()) return;
+        router.get(route("rooms.join", code.trim()));
     };
 
     const deleteRoom = (room: Room) => {
@@ -120,7 +126,7 @@ export default function Dashboard({ rooms }: DashboardProps) {
                     <form onSubmit={joinRoom} className="flex gap-3">
                         <div className="flex-1">
                             <Input
-                                placeholder="کد دعوت را وارد کنید"
+                                placeholder="کد یا لینک دعوت را وارد کنید"
                                 value={joinCode}
                                 onChange={(e) => setJoinCode(e.target.value)}
                                 aria-invalid={
