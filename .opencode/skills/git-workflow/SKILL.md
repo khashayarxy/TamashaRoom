@@ -1,6 +1,6 @@
 ---
 name: git-workflow
-description: Safe Git workflow for TamashaRoom — when to commit, what must never be staged, pre-commit verification, pre-push audit, and destructive-command guardrails. Use before any commit/push, when asked to commit or push work, or when recovering from a git mistake. The repo's pre-push verification sequence is also captured in docs/TASK.md.
+description: Safe Git workflow for TamashaRoom — when to commit, what must never be staged, pre-commit verification, pre-push audit, and destructive-command guardrails. Use before any commit/push, when asked to commit or push work, or when recovering from a git mistake.
 ---
 
 # Git Workflow & Safety

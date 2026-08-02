@@ -71,7 +71,8 @@ npm run dev                # Vite dev server (HMR)
 # Quality — run before considering any change done
 npm run lint                # ESLint
 npm run type-check          # TypeScript strict check
-npm run format               # Prettier
+npm run format               # Prettier (write)
+npm run format:check         # Prettier check (read-only)
 ./vendor/bin/pint            # PHP formatting (Laravel Pint)
 
 # Testing
