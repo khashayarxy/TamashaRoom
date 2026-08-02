@@ -81,5 +81,5 @@ skill for the CSS-first config mechanics).
   reverse inside RTL text.
 - Arbitrary hex colors instead of semantic tokens, breaking dark mode.
 - Loading spinners for every async operation regardless of duration — see
-  the `anti-patterns` skill for the graduated response (no indicator under
+  the `code-review-rules` skill for the graduated response (no indicator under
   200ms, skeleton 200ms-1s, skeleton + progress beyond 1s).

@@ -6,12 +6,12 @@ description: Testing strategy for TamashaRoom — what to test at each layer (un
 # Testing Strategy
 
 Full detail: `docs/SYSTEM.md`, 14.08 (Component Testing) and the testing
-tooling in `docs/PROJECT.md`. Current test coverage baseline (source-level recount,
-2026-08-02, Batch G8 — synchronized with `docs/TASK.md` and `docs/ai/PROJECT_BASELINE.md`):
-- Backend (PHPUnit): **202 tests = 168 Feature + 34 Unit**, including an 18-test
-  `SecurityTest`, a 15-test `UrlSecurityServiceTest`, the 18-test
-  `tests/Feature/Auth/` suite, and a 15-test `RateLimiterTest`. Static
-  declaration count (`#[Test]` + `test_*`)
+tooling in `docs/PROJECT.md`. Current test coverage baseline (source-level
+recount 2026-08-02, synchronized with `docs/TASK.md`):
+- Backend (PHPUnit): **214 tests = 173 Feature + 41 Unit**, including an 18-test
+  `SecurityTest`, a 22-test `UrlSecurityServiceTest`, a 15-test
+  `RateLimiterTest`, a 23-test `VideoStreamTest`, and the 18-test
+  `tests/Feature/Auth/` suite. Static declaration count (`#[Test]` + `test_*`)
   equals the runtime count — there are **no data providers** in the suite.
 - Frontend (Vitest): **122 tests = 99 component/hook/logic + 23 Zustand store
   tests** (theme 5, room-ui 11, subtitle 7). No `it.each`/`test.each`
@@ -90,10 +90,12 @@ function UserName() {
   bugs get caught. Follow the existing pattern in `SecurityTest` for
   anything touching auth, headers, or rate limits.
 - Unit tests target isolated logic — services like `UrlSecurityService`,
-  value objects, anything with branching logic worth testing without HTTP overhead.
+  value objects, anything with branching logic worth testing without HTTP
+  overhead. Reflection is an accepted pattern for exercising private
+  methods (see `UrlSecurityServiceTest`, `VideoStreamTest`).
 - Test error paths as thoroughly as happy paths: an unauthorized user hitting
   a room they don't belong to, a malformed subtitle upload, an expired
-  invite code.
+  invite code, a rate limit exceeded.
 
 ## Frontend Testing (Vitest + RTL)
 
@@ -108,9 +110,9 @@ function UserName() {
 
 ## Before Any Refactor
 
-Never refactor without tests covering the code first (see `code-review-rules`
-and `anti-patterns`). If coverage is missing, write the test that captures
-current behavior, confirm it passes, then refactor, then confirm it still passes.
+Never refactor without tests covering the code first (see `code-review-rules`).
+If coverage is missing, write the test that captures current behavior, confirm
+it passes, then refactor, then confirm it still passes.
 
 ## Checklist
 
@@ -123,4 +125,4 @@ current behavior, confirm it passes, then refactor, then confirm it still passes
 - New/changed interactive UI has an accessibility audit pass
   (`@axe-core/playwright`).
 - A component that's hard to test is treated as a design smell, not a
-  testing problem — see `component-architecture` for the fix.
+  testing problem — see `react-rules` for the fix.

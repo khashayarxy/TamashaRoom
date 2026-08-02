@@ -1,30 +1,27 @@
 ---
 name: deployment-checklist
-description: Step-by-step deployment procedure for TamashaRoom's shared cPanel hosting — pre-deploy checks, the deploy sequence, cron setup, and rollback. Use when deploying to production, setting up a new environment, or troubleshooting a broken production deploy.
+description: Deployment procedure for TamashaRoom's shared cPanel hosting — the deploy sequence, cron setup, rollback, and common failure points. Use when deploying to production, setting up a new environment, or troubleshooting a broken production deploy. The step-by-step authority is docs/deployment-checklist.md; this skill is the operational summary.
 ---
 
 # Deployment Checklist (Shared cPanel Hosting)
 
-Full context: `docs/PROJECT.md` (Scripts, Environment Variables) and
-`docs/SYSTEM.md` Chapter 18 (no Docker, no Redis, no persistent workers, no
-root access — see `laravel-backend-rules`).
+**Source of truth: `docs/deployment-checklist.md`** — read it for the full
+step-by-step procedure before any deploy. Full project context:
+`docs/PROJECT.md` (Scripts, Environment Variables) and `docs/SYSTEM.md`
+Chapter 18. This skill is the condensed operational summary.
 
 ## Before Every Deploy
 
 - [ ] CI is green on the commit being deployed (lint, type-check, PHPUnit,
-      Pint, Vitest, Playwright a11y + E2E, build — see
-      `.github/workflows/ci.yml`). Note: CI does **not** run a Prettier check;
-      run `npm run format:check` locally before committing.
-- [ ] `docs/TASK.md` reflects what's actually shipping in this deploy.
+      Pint, Vitest, Playwright a11y + E2E, build — see `.github/workflows/ci.yml`).
+      Note: CI does **not** run a Prettier check; run `npm run format:check`
+      locally before committing.
+- [ ] `docs/TASK.md` reflects what's actually shipping.
 - [ ] No pending migration you haven't reviewed for data loss (a `DROP
-      COLUMN` or renamed table on a live database needs a backup first, not
-      just a green CI run).
-- [ ] `.env` on the server has `APP_DEBUG=false` — verify this explicitly,
-      don't assume it's still set correctly (see `security-rules`).
+      COLUMN` or renamed table needs a backup first).
+- [ ] `.env` on the server has `APP_DEBUG=false` — verify explicitly, don't assume.
 
-## The Deploy Sequence
-
-Run in this exact order. Each step depends on the one before it.
+## The Deploy Sequence (exact order)
 
 ```bash
 # 1. Pull the deployed commit
@@ -33,20 +30,16 @@ git pull origin master
 # 2. Install PHP dependencies (no dev deps, optimized autoloader)
 composer install --no-dev --optimize-autoloader
 
-# 3. Install and build frontend assets
-#    Node 22 is a build-time tool only — it is not running on the server
-#    afterward, per docs/PROJECT.md's tech stack table. The build may be run
-#    off-server (any machine with Node 22+); cPanel needs only the resulting
-#    public/build/ (docs/deployment-checklist.md, "Web root").
+# 3. Install and build frontend assets (Node 22 is build-time only; run
+#    off-server and upload the resulting public/build/ — Node is not needed
+#    on cPanel)
 npm ci
 npm run build
 
 # 4. Run database migrations
 php artisan migrate --force
 
-# 5. Rebuild Laravel's optimization caches — mandatory, not optional.
-#    Skipping this means every request re-parses config and re-resolves
-#    every route from scratch (docs/SYSTEM.md 18.03, Rule 3).
+# 5. Rebuild Laravel's optimization caches — mandatory, not optional
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
@@ -57,64 +50,42 @@ php artisan storage:link
 
 ## One-Time Environment Setup (new server only)
 
-- [ ] `.env` configured per `docs/PROJECT.md`'s Environment Variables table
-      — especially `CACHE_STORE=database`, `SESSION_DRIVER=database`,
-      `QUEUE_CONNECTION=database`, `BROADCAST_CONNECTION=log`
-      (there is no Redis; see `laravel-backend-rules`).
-- [ ] The **one** cPanel cron entry is set, and only one:
-  ```
-  * * * * * php /home/tamasharoom/artisan schedule:run >> /dev/null 2>&1
-  ```
+- `.env` per `docs/PROJECT.md` — especially `CACHE_STORE=database`,
+  `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database`,
+  `BROADCAST_CONNECTION=log` (no Redis).
+- **One** cPanel cron entry, and only one:
+  `* * * * * php /home/tamasharoom/artisan schedule:run >> /dev/null 2>&1`.
   Everything else (queue draining, room pruning, presence timeout) is
-  registered inside `routes/console.php` — do **not** add additional cron
-  lines for individual tasks.
-- [ ] PHP-FPM worker count is set sensibly for 2GB RAM — start from the
-  host's recommended default, adjust only after measuring actual memory
-  per worker (docs/SYSTEM.md 21.10).
-- [ ] `storage/` and `bootstrap/cache/` are writable by the web server user.
+  registered inside `routes/console.php` — do **not** add individual cron lines.
+- PHP-FPM workers sized for 2GB RAM; `storage/` and `bootstrap/cache/`
+  writable by the web server user.
 
 ## After Every Deploy
 
-- [ ] Load the app in a browser — confirm it actually renders, not just
-      that the deploy commands exited 0.
-- [ ] Check `storage/logs/laravel.log` for anything unexpected in the first
-      few minutes.
-- [ ] Confirm the scheduler is still firing: `php artisan schedule:list`
-      shows the expected jobs, and the cron entry above is unchanged.
+- [ ] Load the app in a browser — confirm it renders, not just exit 0.
+- [ ] Check `storage/logs/laravel.log` in the first few minutes.
+- [ ] `php artisan schedule:list` shows the expected jobs; cron entry unchanged.
 - [ ] Spot-check one room end-to-end: create, join with a second session,
-      confirm playback sync polling is working.
+      playback sync polling works.
 
-## Rollback
+## Rollback (safe, shared-hosting)
 
-Shared hosting has no blue-green deploy and no instant traffic-shifting.
-Rollback here means:
-
-```bash
-git checkout <previous-known-good-commit>
-composer install --no-dev --optimize-autoloader
-npm ci && npm run build
-php artisan config:cache && php artisan route:cache && php artisan view:cache
-```
-
-**If the deploy included a migration**, restore the pre-deployment database
-backup taken before `php artisan migrate --force` (mysqldump via cPanel),
-**or** apply a specifically reviewed corrective migration. Do not run
-`php artisan migrate:rollback` against production — an unrestricted rollback
-can drop data added after the last `migrate` and is not safe on shared
-hosting.
+- **Database:** restore the pre-deployment backup taken before
+  `migrate --force` (mysqldump via cPanel), **or** apply a specifically
+  reviewed corrective migration. **Never** run unrestricted
+  `php artisan migrate:rollback` against production.
+- **Code/assets:** `git checkout <previous-known-good-commit>` +
+  `composer install --no-dev --optimize-autoloader` + rebuild `public/build/`
+  + re-run `config:cache`/`route:cache`/`view:cache`.
 
 ## Common Failure Points on This Hosting Profile
 
-- **Stale route/config cache**: if a route or env change doesn't seem to
-  take effect, re-run step 5 above — a cached route/config file silently
-  overrides the new `.env` or `routes/` changes.
-- **Missing storage symlink** after a fresh deploy to a new document root —
-  subtitle uploads will 404 until `php artisan storage:link` runs.
-- **Queue backlog**: since there's no persistent worker, queued jobs only
-  drain on the scheduled `queue:work --stop-when-empty` tick (see
-  `laravel-backend-rules`). A burst of queued jobs right after deploy may
-  take a minute or two to fully clear — this is expected, not a bug.
-- **N+1 queries slipping through**: `Model::preventLazyLoading()` is
-  disabled in production by design (docs/SYSTEM.md 18.03) — an N+1 that
-  never threw locally can still exist in prod. Watch `laravel.log` and slow
-  query patterns after any change touching Eloquent relationships.
+- **Stale route/config cache**: a cached config silently overrides new
+  `.env`/`routes/` changes — re-run step 5.
+- **Missing storage symlink** after a fresh deploy — subtitle uploads 404
+  until `php artisan storage:link` runs.
+- **Queue backlog**: queued jobs only drain on the scheduled
+  `queue:work --stop-when-empty` tick — a burst may take a minute or two to
+  clear; expected, not a bug.
+- **N+1 queries**: `Model::preventLazyLoading()` is disabled in production by
+  design — watch `laravel.log` for slow query patterns after any Eloquent change.

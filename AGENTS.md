@@ -109,20 +109,22 @@ reference them by name — just describe the task.
 | Skill | Load it when working on... |
 |---|---|
 | `mvp-scope-decisions` | A new feature request, a new dependency, or anything that might expand scope — check this *before* writing code |
-| `component-architecture` | Deciding whether/where to extract a component or hook, which category it belongs to, where state should live |
-| `laravel-backend-rules` | Controllers, models, Events, routes, caching, queues, the polling/broadcast pattern |
-| `react-rules` | Components, hooks, state, React Compiler-aware performance |
+| `laravel-backend-rules` | Controllers, models, Events, routes, caching, queues, the polling/broadcast pattern, Actions/Services |
+| `react-rules` | Components, hooks, state, component architecture/categories, where state lives, React Compiler-aware performance |
 | `typescript-tailwind-rules` | Types, Zod schemas, Tailwind classes, `cn()`, dark mode |
 | `rtl-and-design-system` | Layout, typography, color, RTL/Persian-specific UI, motion |
-| `performance-rules` | Anything touching load time, bundle size, queries, the single-core CPU budget |
 | `accessibility-rules` | Any interactive UI, forms, modals, WCAG 2.2 compliance |
 | `security-rules` | Auth, API routes, file uploads, SSRF, anything reachable from outside TamashaRoom's own UI |
+| `performance-rules` | Anything touching load time, bundle size, queries, the single-core CPU budget |
 | `error-handling-rules` | Error boundaries, API errors, form errors, error UI |
 | `testing-strategy` | Writing any test, deciding what layer (unit/integration/E2E) a change needs |
 | `deployment-checklist` | Deploying to production, setting up a new environment, troubleshooting a broken deploy |
-| `anti-patterns` | Self-review before finishing any change; also covers when/how to refactor |
-| `code-review-rules` | Reviewing a diff, self-reviewing before a PR, the Definition of Done |
+| `code-review-rules` | Reviewing a diff, self-reviewing before finishing a change, anti-patterns, refactoring, Definition of Done |
 | `output-conventions` | File naming, import order, comments, commit messages |
+| `git-workflow` | Any commit/push, pre-push audit, or git-safety decision |
+| `ai-efficiency` | Starting any task: how to minimize context/token usage, what to read, targeted test runs |
+| `debugging` | A bug report, an unexpected test failure, or behavior that doesn't match expectations |
+| `skill-maintenance` | Adding, editing, merging, or removing a skill; updating the AGENTS.md skill table |
 
 ## Current Status
 

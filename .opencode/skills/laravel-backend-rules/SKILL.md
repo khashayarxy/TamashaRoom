@@ -1,6 +1,6 @@
 ---
 name: laravel-backend-rules
-description: Laravel/PHP backend rules for TamashaRoom — controllers, routes, Eloquent, caching, mutations, scheduled tasks, and the polling-to-WebSocket migration pattern. Use when creating or editing anything under app/Http, app/Models, app/Events, app/Console, routes/, or database/migrations.
+description: Laravel/PHP backend rules for TamashaRoom — controllers own page data, the four endpoint categories, Form Requests vs inline validation, database-backed cache/queue/session, the polling-to-WebSocket pattern, and the single cPanel cron. Use when creating or editing anything under app/Http, app/Models, app/Events, app/Console, app/Actions, app/Services, routes/, or database/migrations.
 ---
 
 # Laravel Backend Rules
@@ -10,251 +10,125 @@ Full detail: `docs/SYSTEM.md`, Chapter 18 (PHP and Laravel Backend Rules).
 Every rule here exists because of one fact: **1 CPU core, 2GB RAM, shared
 cPanel hosting, no Redis, no persistent workers, no root access.**
 
-## Structure
+## The Hosting Constraint (read this first)
 
-- **Controllers own initial data. Pages are presentational for page data.** A
-  controller fetches everything a page needs for its first render and passes it
-  as Inertia props. React components do not fetch their own *initial page* data
-  with `useEffect` on mount — that adds a client-server round trip after an
-  already-empty first render.
-  **Exception (deliberate, not a violation):** live room data — playback state
-  (`usePlaybackSync`), presence (`usePresence`), chat messages (`RoomChat`) — is
-  polled on mount through the axios `api` client against JSON endpoints in
-  `routes/web.php`. That is the transport-agnostic design (Polling → WebSocket
-  pattern below). Build new live-room reads that way; never as a workaround for
-  a prop the controller could have passed.
-- **Route by who is calling — four endpoint categories:** TamashaRoom's own UI
-  uses `routes/web.php` exclusively:
-  1. **Inertia page routes** (`routes/web.php`): initial page props.
-  2. **JSON polling endpoints** (`routes/web.php`): `GET /playback/{room}/state`,
-     `GET /presence/{room}`, `GET /chat/{room}/messages` — session auth.
-  3. **JSON action/mutation endpoints** (`routes/web.php`): playback sync/set-video,
-     chat send/delete, room update/kick/transfer, subtitle CRUD, presence
-     heartbeat/leave — session auth, axios `api` client, validated.
-  4. **External API routes** (`routes/api.php`): Sanctum-token routes for mobile
-     clients / third parties. Currently only `GET /user` exists.
-- **Eager-load everything a page needs**, in the controller that renders it.
-  Never let a component trigger a lazy-loaded Eloquent query while rendering.
-  Enable `Model::preventLazyLoading(! app()->isProduction())` in
-  `AppServiceProvider::boot()` so N+1 queries throw locally instead of
-  silently running. On a single core with no Redis, an N+1 pattern is the
-  most common cause of a page timing out under load.
-- Group related routes with middleware; use a persistent Inertia layout so
-  shared UI (sidebar, header) isn't re-fetched or remounted on navigation.
-- Every route that can resolve to a missing/unauthorized resource calls
-  `abort(404)` — not 403. A 403 confirms the resource exists; 404 doesn't.
+- **No Redis**: cache (`CACHE_STORE=database`), queue (`QUEUE_CONNECTION=database`),
+  session (`SESSION_DRIVER=database`) are all database-backed. Never write code
+  that assumes Redis, memcached, or a persistent worker.
+- **No persistent queue worker**: all background work is synchronous (user is
+  waiting) or queued and drained by the scheduled cron tick.
+- **Exactly one cPanel cron entry**: `* * * * * php .../artisan schedule:run`.
+  Everything else lives in `routes/console.php` (currently: `rooms:prune-inactive
+  --days=7` daily, `queue:work --stop-when-empty --max-time=30` every minute,
+  `presence:timeout` every minute). Nothing assumes sub-minute background work —
+  if a feature seems to need it, redesign the feature.
 
-## Caching (no Redis available)
+## Structure: Who Fetches What
 
-- Cache expensive, slow-changing reads with `Cache::remember()` using the
-  **database** cache driver (`CACHE_STORE=database`).
-- Invalidate explicitly with `Cache::forget()` in the same controller action
-  that mutates the underlying data — don't rely on TTL alone for data the
-  user expects to see update immediately.
-- Run `config:cache`, `route:cache`, and `view:cache` on every production
-  deploy. Skipping this means every request re-parses every config file.
+- **Controllers own initial page data.** A controller fetches everything a page
+  needs for its first render and passes it as Inertia props. React components do
+  not fetch their own initial page data with `useEffect` on mount.
+- **Exception (deliberate, not a violation):** live room data — playback state
+  (`usePlaybackSync`), presence (`usePresence`), chat (`RoomChat`) — is polled on
+  mount through the axios `api` client against JSON endpoints in `routes/web.php`.
+  That is the transport-agnostic design (see the polling pattern below). Build
+  new live-room reads that way; never as a workaround for a prop the controller
+  could have passed.
+- **Eager-load everything a page needs** in the controller that renders it.
+  `Model::preventLazyLoading(! app()->isProduction())` is on in
+  `AppServiceProvider::boot()` so N+1 queries throw locally. On one core with no
+  Redis, an N+1 is the most common cause of a page timing out under load.
+- **Business logic lives in Actions/Services** (`app/Actions/`,
+  `app/Services/`), never inline in controllers. Shared cleanup (room deletion)
+  is one `DeleteRoomAction` used by both the owner-delete path and the pruner.
+
+## Four Endpoint Categories (route by who's calling)
+
+TamashaRoom's own UI uses `routes/web.php` exclusively:
+
+1. **Inertia page routes** — initial page props.
+2. **JSON polling endpoints** — `GET /playback/{room}/state`,
+   `GET /presence/{room}`, `GET /chat/{room}/messages` — session auth.
+3. **JSON action/mutation endpoints** — playback sync/set-video, chat
+   send/delete, room update/kick/transfer, subtitle CRUD, presence
+   heartbeat/leave — session auth, axios `api` client, validated.
+4. **External API routes** (`routes/api.php`) — Sanctum-token routes for
+   mobile/third parties. Currently only `GET /user`.
+
+Rules: every route resolving to a missing/unauthorized resource calls
+`abort(404)`, not 403 (403 confirms existence; 404 doesn't). Group related
+routes with middleware; use persistent Inertia layouts so shared UI isn't
+remounted on navigation.
 
 ## Mutations & Validation
 
-- Structured user input (a multi-field form) goes through a **Form Request**
-  with both `authorize()` and `rules()` defined. Simple action endpoints that
-  take a single field may use inline `$request->validate()` instead (e.g.
-  `ChatController::store` validates `body => required|string|max:500` inline).
-  Either way: only validated data reaches Eloquent. No `$request->all()` reaching
-  Eloquent unvalidated — that is an open boundary, not a shortcut.
-- Inertia-submitted forms (auth pages, Profile partials) use Inertia's `useForm`.
-  JSON action endpoints (room settings, chat send, playback sync) use the axios
-  `api` client with their own local pending/error state — do not shoehorn those
-  into `useForm`.
+- Structured multi-field input → **Form Request** with `authorize()` + `rules()`.
+- Simple single-field action endpoints → inline `$request->validate()` (e.g.
+  `ChatController::store` validates `body => required|string|max:500`).
+- Only validated data reaches Eloquent. **No `$request->all()` unvalidated.**
+- Inertia-submitted forms use Inertia's `useForm`. JSON action endpoints use the
+  axios `api` client with local pending/error state — don't shoehorn those into
+  `useForm`.
+
+## Caching (no Redis)
+
+- Cache expensive, slow-changing reads with `Cache::remember()` (database
+  driver). Invalidate explicitly with `Cache::forget()` in the same controller
+  action that mutates the underlying data — don't rely on TTL alone.
+- Run `config:cache`, `route:cache`, `view:cache` on every production deploy.
 
 ## The Polling → WebSocket Pattern (critical, TamashaRoom-specific)
 
-Room-wide state (playback sync, presence, any future live feed) is written as
-a **Laravel broadcastable Event**, never read via direct polling of a model.
-The write path and the event are transport-agnostic:
+Room-wide state (playback sync, presence, any future live feed) is written as a
+**Laravel broadcastable Event**, never read via direct polling of a model. The
+write path and the event are transport-agnostic:
 
 ```php
-// app/Events/PlaybackStateChanged.php
-class PlaybackStateChanged implements ShouldBroadcast
-{
-    public function __construct(
-        public string $roomId,
-        public bool $isPlaying,
-        public float $positionSeconds,
-    ) {}
-
-    public function broadcastOn(): Channel
-    {
-        return new PresenceChannel("room.{$this->roomId}");
-    }
-}
+// app/Events/PlaybackStateChanged.php — implements ShouldBroadcast, broadcasts
+// on PresenceChannel("room.{id}") with the current playback state in broadcastWith().
 ```
 
 ```php
 // app/Http/Controllers/PlaybackController.php
 public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse
 {
-    $room->update($request->validated());
-    broadcast(new PlaybackStateChanged(
-        $room->id, $room->is_playing, $room->position_seconds,
-    ));
-    return response()->json(['ok' => true]);
+    $this->authorize('update', $room);
+    $room->updatePlaybackState($request->validated() + ['last_activity_at' => now()]);
+    broadcast(new PlaybackStateChanged($room, $request->user()->id))->toOthers();
+    return response()->json([...]);
 }
 ```
 
 - **Now**: `BROADCAST_CONNECTION=log` — broadcasting is a no-op; the frontend
-polls the room's current state every 3 seconds instead (adjustable post-MVP). Expect ~3s sync
-   drift — acceptable for the test phase, not frame-accurate.
+  polls the room's current state every 3 seconds. Expect ~3s sync drift.
 - **Later** (on a VPS): `BROADCAST_CONNECTION=reverb` — the same
-  `broadcast(new PlaybackStateChanged(...))` call now pushes over a WebSocket.
-- On the frontend, hide the transport behind one hook
+  `broadcast(...)` call now pushes over a WebSocket.
+- The frontend hides the transport behind one hook
   (`resources/js/Hooks/use-playback-sync.ts`) so components never know which
-  transport is active. This is the one deliberate exception to keeping
-  architecture final — it exists specifically to make the future migration a
-  config change plus a hook rewrite, not a feature redesign.
+  transport is active. The future migration is a config change plus a hook
+  rewrite, not a feature redesign.
 
-## Middleware & Scheduled Tasks
+**Never build new room-state features against direct polling of a model —
+always go through the Event.**
+
+## Middleware & Metadata
 
 - Middleware is for cross-cutting concerns only (session checks, locale,
   throttling) — never page-specific data fetching or business logic.
-- There is **no persistent queue worker**. All background work either runs
-  synchronously in the request (if the user is waiting on it) or is queued to
-  the database driver and drained by a scheduled task. The only cPanel cron
-  entry is `* * * * * php artisan schedule:run`; everything else is
-  registered in `routes/console.php`.
-- Nothing assumes sub-minute background processing. If a feature seems to
-  need it, redesign the feature for this hosting profile.
-
-## Metadata & SEO
-
-- Every page sets its own `<Head>` title/description — no `metadata` export
-  exists on this stack. Shared defaults (viewport, theme-color, title
-  fallback) live once in `resources/views/app.blade.php`.
-- `robots.txt` is a plain static file in `public/`, edited directly. There is
-  no sitemap generation in TamashaRoom — no `sitemap:generate` command exists.
-
-## Room Cap Enforcement (required before launch)
-
-SYSTEM.md 21.10 requires this explicitly: room-based polling is a direct
-multiplier on the single-core budget (N rooms × M members × poll interval).
-Two caps are needed, not one:
-
-1. **Per-room member cap** — enforce at join time, not just at creation time
-   (a room's `max_members` field already exists per TASK.md, but must be
-   checked on every join attempt, including races):
-   ```php
-   // app/Http/Requests/JoinRoomRequest.php
-   public function rules(): array
-   {
-       return [
-           'invite_code' => ['required', 'string', 'exists:rooms,invite_code'],
-       ];
-   }
-
-   public function withValidator(Validator $validator): void
-   {
-       $validator->after(function (Validator $validator) {
-           $room = Room::where('invite_code', $this->invite_code)->first();
-           if ($room && $room->members()->count() >= $room->max_members) {
-               $validator->errors()->add('invite_code', __('This room is full.'));
-           }
-       });
-   }
-   ```
-   Run the member-count check inside a DB transaction with a row lock
-   (`Room::lockForUpdate()`) at the actual join point to close the race
-   where two people join the last slot simultaneously.
-
-2. **System-wide active room cap** — a ceiling on *total concurrent polling
-   rooms*, independent of any single room's size, since that's what
-   actually bounds requests/second against the one CPU core. Track this
-   with a simple cached counter (`Cache::remember('active-rooms-count', ...)`
-   invalidated on room create/prune) and reject new room creation past a
-   configured threshold (`config('tamasharoom.max_concurrent_rooms')`) with
-   a clear user-facing message, not a silent failure.
-
-## Data Cleanup on Room Pruning
-
-`rooms:prune-inactive` (docs/TASK.md) must not leave orphaned data behind —
-deleting the `rooms` row alone leaves chat messages and subtitle files on
-disk with no owner, silently consuming the 20GB storage cap over time.
-
-```php
-// app/Console/Commands/PruneInactiveRooms.php
-public function handle(): void
-{
-    Room::where('updated_at', '<', now()->subDays(7))
-        ->chunkById(50, function ($rooms) {
-            foreach ($rooms as $room) {
-                // Delete subtitle files from disk before the DB rows that
-                // reference them, so nothing orphaned survives the delete.
-                foreach ($room->subtitles as $subtitle) {
-                    Storage::delete($subtitle->file_path);
-                }
-                $room->subtitles()->delete();
-                $room->chatMessages()->delete();
-                $room->members()->delete();
-                $room->delete();
-            }
-        });
-}
-```
-
-Use `chunkById`, not `get()->each()`, so a large batch of stale rooms
-doesn't load everything into memory on a 2GB-RAM box at once. Confirm this
-same cleanup path also runs when a room is deleted directly by its owner
-(the "Delete room" feature in TASK.md) — both paths should call one shared
-`DeleteRoomAction`, not duplicate the cleanup logic.
-
-## Smart Video Proxy (Direct First, Proxy Fallback)
-
-The video proxy exists for SSRF-safe access to sources that block direct
-client-side playback (CORS restrictions, no `Range` support exposed to the
-browser) — it should not be the default path for every video, because
-proxying streams every viewer's playback through the single shared CPU
-core and its bandwidth cap.
-
-**Decision order, checked once when a video URL is set on a room:**
-1. Attempt a `HEAD` request (server-side, through the existing
-   `UrlSecurityService` SSRF checks) to see if the source exposes
-   permissive CORS headers and `Accept-Ranges: bytes`.
-2. If yes → store the URL for **direct client-side playback**; the
-   `<video>` element loads it straight from the source, and the server
-   proxy is never invoked for that room.
-3. If no (CORS-blocked, no Range support, or the HEAD check fails/times
-   out) → fall back to the existing proxy path.
-
-```php
-// app/Actions/DetermineVideoPlaybackModeAction.php
-public function execute(string $url): string
-{
-    $this->urlSecurity->assertSafe($url); // existing SSRF check, unchanged
-
-    $response = Http::withoutRedirecting()->timeout(3)->head($url);
-
-    $corsOk = str_contains($response->header('Access-Control-Allow-Origin') ?? '', '*')
-        || $response->header('Access-Control-Allow-Origin') === config('app.url');
-    $rangeOk = $response->header('Accept-Ranges') === 'bytes';
-
-    return $corsOk && $rangeOk ? 'direct' : 'proxy';
-}
-```
-
-Store the result (`playback_mode`) on the room alongside `video_url` so
-this check runs once at set-time, not on every playback request. The
-frontend's video player component reads `playback_mode` and either points
-`<video src>` directly at the external URL or at the existing
-`/rooms/{room}/video-proxy` route.
+- Every page sets its own `<Head>` title/description (no `metadata` export on
+  this stack). Shared defaults live once in `resources/views/app.blade.php`.
+- `robots.txt` is a static file in `public/`. There is no sitemap generation —
+  no `sitemap:generate` command exists.
 
 ## Checklist (from SYSTEM.md 18.11)
 
 - Controller (not page component) fetches initial page data; relationships eager-loaded.
-- Every route resolving to a missing/unauthorized resource returns 404.
+- Missing/unauthorized resources return 404, not 403.
 - Expensive reads cached (database driver) and invalidated on the write.
-- `config:cache` / `route:cache` / `view:cache` run on every deploy.
-- Structured input uses a Form Request with `authorize()` + `rules()`; simple action endpoints use inline `validate()`. Validated data only — never `$request->all()`.
-- Slow secondary data deferred with `Inertia::defer()`.
-- Anything "live" is polled (axios `api` client against JSON endpoints, or `router.reload()` partial reload), never assumed to push.
-- Room-wide state is written as a broadcastable Event, not polled directly from a model.
-- Nothing assumes sub-minute background processing.
+- `config:cache` / `route:cache` / `view:cache` on every deploy.
+- Structured input → Form Request; simple action endpoints → inline `validate()`. Never `$request->all()` unvalidated.
+- Business logic in Actions/Services, not controllers.
+- Anything "live" is polled (axios `api` client or `router.reload()` partial reload), never assumed to push.
+- Room-wide state written as a broadcastable Event, not polled directly from a model.
+- Nothing assumes sub-minute background processing; one cron entry only.
 - `APP_DEBUG=false` in production, without exception.
