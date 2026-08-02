@@ -376,6 +376,45 @@ class RateLimiterTest extends TestCase
         $this->assertNotRateLimited($response, 'IP B should not be blocked');
     }
 
+    // ─── Room create: 5/min per user ───────────────────────
+
+    #[Test]
+    public function room_create_limits_at_5_rooms_per_minute(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->actingAs($user)
+                ->post('/rooms', ['name' => "Room $i"]);
+            $this->assertNotRateLimited($response, "Room create $i");
+        }
+
+        $response = $this->actingAs($user)
+            ->post('/rooms', ['name' => 'One too many']);
+        $response->assertStatus(429);
+    }
+
+    #[Test]
+    public function room_create_limiter_is_scoped_per_user(): void
+    {
+        $user1 = User::factory()->create(['email_verified_at' => now()]);
+        $user2 = User::factory()->create(['email_verified_at' => now()]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $response = $this->actingAs($user1)
+                ->post('/rooms', ['name' => "Room $i"]);
+            $this->assertNotRateLimited($response, "User1 room create $i");
+        }
+
+        $response = $this->actingAs($user1)
+            ->post('/rooms', ['name' => 'Blocked']);
+        $response->assertStatus(429);
+
+        $response = $this->actingAs($user2)
+            ->post('/rooms', ['name' => 'User2 room']);
+        $this->assertNotRateLimited($response, 'User2 should not be blocked');
+    }
+
     #[Test]
     public function auth_abuse_limiters_are_attached_to_their_post_routes(): void
     {
@@ -383,6 +422,7 @@ class RateLimiterTest extends TestCase
         $this->assertPostRouteHasThrottle('forgot-password', 'throttle:forgot-password');
         $this->assertPostRouteHasThrottle('reset-password', 'throttle:reset-password');
         $this->assertPostRouteHasThrottle('login', 'throttle:login');
+        $this->assertPostRouteHasThrottle('rooms', 'throttle:room-create');
     }
 
     private function assertPostRouteHasThrottle(string $uri, string $middleware): void

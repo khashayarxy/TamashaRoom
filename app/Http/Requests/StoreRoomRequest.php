@@ -26,12 +26,7 @@ class StoreRoomRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $activeCount = Room::where('last_activity_at', '>', now()->subHours(2))
-                ->count();
-
-            $maxConcurrent = config('tamasharoom.max_concurrent_rooms', 50);
-
-            if ($activeCount >= $maxConcurrent) {
+            if (Room::isAtActiveRoomCapacity()) {
                 $validator->errors()->add('name', 'سرور در حال حاضر ظرفیت کامل دارد. لطفاً بعداً تلاش کنید.');
             }
         });

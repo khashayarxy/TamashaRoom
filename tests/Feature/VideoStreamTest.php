@@ -209,17 +209,17 @@ class VideoStreamTest extends TestCase
 
     public function test_video_proxy_returns_206_for_valid_range(): void
     {
-        $service = app(VideoProxyService::class);
-
-        $stream = new \ReflectionMethod($service, 'stream');
+        $service = $this->stubVideoProxy();
 
         $request = Request::create('/proxy/video/1', 'GET', [], [], [], [
             'HTTP_Range' => 'bytes=0-99',
         ]);
 
-        $response = $stream->invoke($service, $request, 'https://example.com/video.mp4');
+        $response = $service->stream($request, 'https://example.com/video.mp4');
 
-        $this->assertContains($response->getStatusCode(), [206, 502]);
+        $this->assertSame(206, $response->getStatusCode());
+        $this->assertSame('bytes 0-99/100', $response->headers->get('Content-Range'));
+        $this->assertSame('video/mp4', $response->headers->get('Content-Type'));
     }
 
     public function test_proxy_stream_context_enables_tls_verification(): void
@@ -320,6 +320,50 @@ class VideoStreamTest extends TestCase
     }
 
     // ─── Actual-bytes streaming cap (MAX_FILE_SIZE enforced on relayed bytes) ───
+
+    /**
+     * A VideoProxyService whose network layer is faked end-to-end: URL
+     * validation always passes, header probes return a fixed 200 response, and
+     * stream opens yield an in-memory body. Makes the former network I/O in
+     * `stream()` deterministic — no DNS lookups, no outbound HTTP.
+     */
+    private function stubVideoProxy(): VideoProxyService
+    {
+        $urlSecurity = new class extends UrlSecurityService
+        {
+            public function validateVideoUrl(string $url): ?string
+            {
+                return null;
+            }
+        };
+
+        return new class($urlSecurity) extends VideoProxyService
+        {
+            public function __construct(UrlSecurityService $urlSecurity)
+            {
+                parent::__construct($urlSecurity);
+            }
+
+            protected function httpGetHeaders(string $url, mixed $context): array|false
+            {
+                return [
+                    'HTTP/1.1 200 OK',
+                    'Content-Type' => 'video/mp4',
+                    'Content-Length' => '100',
+                    'Accept-Ranges' => 'bytes',
+                ];
+            }
+
+            protected function openRemoteStream(string $url, mixed $context)
+            {
+                $stream = fopen('php://temp', 'r+');
+                fwrite($stream, str_repeat('x', 100));
+                rewind($stream);
+
+                return $stream;
+            }
+        };
+    }
 
     private function proxyWithMaxRelayedBytes(int $maxBytes): VideoProxyService
     {

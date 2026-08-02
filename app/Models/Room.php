@@ -17,7 +17,6 @@ class Room extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
         'name',
         'invite_code',
         'video_url',
@@ -71,6 +70,22 @@ class Room extends Model
     public static function generateInviteCode(): string
     {
         return Str::random(12);
+    }
+
+    /**
+     * Whether the system-wide active-room cap has been reached.
+     *
+     * Single source of truth for the cap comparison. Both the create-request
+     * validator and CreateRoomAction (re-checked inside its lock) use this, so
+     * the count query and cap threshold live in exactly one place.
+     */
+    public static function isAtActiveRoomCapacity(): bool
+    {
+        $activeCount = static::query()
+            ->where('last_activity_at', '>', now()->subHours(2))
+            ->count();
+
+        return $activeCount >= (int) config('tamasharoom.max_concurrent_rooms', 50);
     }
 
     public function isFull(): bool

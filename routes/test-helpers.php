@@ -18,11 +18,12 @@ Route::middleware('web')->group(function () {
             'email_verified_at' => now(),
         ]);
 
-        $room = Room::create([
+        $room = new Room([
             'name' => 'Test Room',
-            'user_id' => $user->id,
             'invite_code' => Room::generateInviteCode(),
         ]);
+        $room->user_id = $user->id;
+        $room->save();
 
         RoomMember::create([
             'room_id' => $room->id,

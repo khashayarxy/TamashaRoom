@@ -7183,18 +7183,18 @@ return \[
 
    
 // app/Http/Controllers/RoomController.php  
-public function store(StoreRoomRequest $request): RedirectResponse  
+public function store(StoreRoomRequest $request, CreateRoomAction $createRoom): RedirectResponse  
 {  
 $this->authorize('create', Room::class);  
-$room = Room::create(\[  
-...$request->validated(),  
-'user_id' => $request->user()->id,  
-'invite_code' => Room::generateInviteCode(),  
-\]);  
+$room = $createRoom->execute(  
+$request->user(),  
+$request->validated()\['name'\],  
+$request->validated()\['max_members'\] ?? null,  
+);  
 return to_route('rooms.show', $room);  
 }  
 
-A request that never goes through validation has no enforced boundary between what the client sent and what the database will accept --- the same principle that governed Server Action validation, unchanged by the hosting environment. The Form Request (or inline `validate()` for single-field action endpoints) is that boundary: only validated data reaches Eloquent, never `$request->all()`. (See Chapter 19.04, Runtime Validation with Zod, for the equivalent discipline on the client.)
+A request that never goes through validation has no enforced boundary between what the client sent and what the database will accept --- the same principle that governed Server Action validation, unchanged by the hosting environment. The Form Request (or inline `validate()` for single-field action endpoints) is that boundary: only validated data reaches Eloquent, never `$request->all()`. Create logic that touches multiple tables or cross-process locks (e.g. the system-wide active-room cap in `app/Actions/CreateRoomAction`) lives in an Action, not the controller. (See Chapter 19.04, Runtime Validation with Zod, for the equivalent discipline on the client.)
 
 ### Rule 2: Inertia Forms Own Pending and Error State
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\CreateRoomAction;
 use App\Actions\DeleteRoomAction;
 use App\Http\Requests\JoinRoomRequest;
 use App\Http\Requests\StoreRoomRequest;
@@ -11,14 +12,10 @@ use App\Http\Requests\UpdateRoomRequest;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
-use Illuminate\Cache\ArrayStore;
-use Illuminate\Cache\NullStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,64 +36,17 @@ class RoomController extends Controller
         ]);
     }
 
-    public function store(StoreRoomRequest $request): RedirectResponse
+    public function store(StoreRoomRequest $request, CreateRoomAction $createRoom): RedirectResponse
     {
         $this->authorize('create', Room::class);
 
-        $cacheStore = Cache::getStore();
+        $room = $createRoom->execute(
+            $request->user(),
+            $request->validated()['name'],
+            $request->validated()['max_members'] ?? null,
+        );
 
-        if (app()->isProduction()
-            && ($cacheStore instanceof ArrayStore || $cacheStore instanceof NullStore)) {
-            Log::critical(
-                'Room cap lock is not cross-process safe with the configured cache store.',
-                ['store' => $cacheStore::class],
-            );
-
-            return back()
-                ->withInput()
-                ->withErrors(['name' => 'سرور مشغول است. لطفاً کمی بعد دوباره تلاش کنید.']);
-        }
-
-        $lock = Cache::lock('room-cap', 10);
-
-        if (! $lock->get()) {
-            return back()
-                ->withInput()
-                ->withErrors(['name' => 'سرور مشغول است. لطفاً کمی بعد دوباره تلاش کنید.']);
-        }
-
-        try {
-            $activeCount = Room::where('last_activity_at', '>', now()->subHours(2))
-                ->count();
-
-            $maxConcurrent = config('tamasharoom.max_concurrent_rooms', 50);
-
-            if ($activeCount >= $maxConcurrent) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['name' => 'سرور در حال حاضر ظرفیت کامل دارد. لطفاً بعداً تلاش کنید.']);
-            }
-
-            $room = Room::create([
-                'user_id' => $request->user()->id,
-                'name' => $request->name,
-                'invite_code' => Room::generateInviteCode(),
-                'max_members' => $request->max_members ?? 10,
-                'last_activity_at' => now(),
-            ]);
-
-            RoomMember::create([
-                'room_id' => $room->id,
-                'user_id' => $request->user()->id,
-                'last_seen_at' => now(),
-                'presence_status' => 'online',
-                'joined_at' => now(),
-            ]);
-
-            return to_route('rooms.show', $room);
-        } finally {
-            $lock->release();
-        }
+        return to_route('rooms.show', $room);
     }
 
     public function show(Request $request, Room $room): Response
@@ -197,7 +147,8 @@ class RoomController extends Controller
 
         $room->members()->where('user_id', $target->id)->firstOrFail();
 
-        $room->update(['user_id' => $target->id]);
+        $room->user_id = $target->id;
+        $room->save();
 
         return response()->json(['status' => 'ok']);
     }

@@ -24,7 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [RoomController::class, 'index'])->name('dashboard');
 
     Route::prefix('rooms')->name('rooms.')->group(function () {
-        Route::post('/', [RoomController::class, 'store'])->name('store');
+        Route::post('/', [RoomController::class, 'store'])->middleware('throttle:room-create')->name('store');
         Route::get('/join/{inviteCode}', [RoomController::class, 'join'])->middleware('throttle:join')->name('join');
         Route::get('/{room}', [RoomController::class, 'show'])->name('show');
         Route::get('/{room}/members', [RoomController::class, 'members'])->name('members');

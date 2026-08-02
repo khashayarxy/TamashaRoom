@@ -89,7 +89,7 @@ class VideoProxyService
                 'User-Agent: TamashaRoom/1.0',
             ], self::CONNECT_TIMEOUT);
 
-            $headers = @get_headers($current, true, $context);
+            $headers = $this->httpGetHeaders($current, $context);
 
             if ($headers === false) {
                 return null;
@@ -262,7 +262,7 @@ class VideoProxyService
             "Range: bytes={$start}-".($end !== null ? $end : ''),
         ]);
 
-        $stream = @fopen($url, 'r', false, $context);
+        $stream = $this->openRemoteStream($url, $context);
 
         if ($stream === false) {
             return $this->errorResponse('Failed to open video stream.', 502);
@@ -282,7 +282,7 @@ class VideoProxyService
         ]);
 
         if ($responseContentLength !== null) {
-            $response->header('Content-Length', (string) $responseContentLength);
+            $response->headers->set('Content-Length', (string) $responseContentLength);
         }
 
         return $response;
@@ -294,7 +294,7 @@ class VideoProxyService
             'User-Agent: TamashaRoom/1.0',
         ]);
 
-        $stream = @fopen($url, 'r', false, $context);
+        $stream = $this->openRemoteStream($url, $context);
 
         if ($stream === false) {
             return $this->errorResponse('Failed to open video stream.', 502);
@@ -348,6 +348,27 @@ class VideoProxyService
     protected function maxRelayedBytes(): int
     {
         return self::MAX_FILE_SIZE;
+    }
+
+    /**
+     * Overridable seam for tests: fetch response headers for a URL without
+     * following redirects. Defaults to PHP's get_headers over the provided
+     * stream context. Tests substitute a fake to avoid real network I/O.
+     *
+     * @return array<string|int, mixed>|false
+     */
+    protected function httpGetHeaders(string $url, mixed $context): array|false
+    {
+        return @get_headers($url, true, $context);
+    }
+
+    /**
+     * Overridable seam for the range/full stream open. Defaults to fopen with
+     * the provided stream context; tests substitute a memory stream.
+     */
+    protected function openRemoteStream(string $url, mixed $context)
+    {
+        return @fopen($url, 'r', false, $context);
     }
 
     private function errorResponse(string $message, int $statusCode): Response

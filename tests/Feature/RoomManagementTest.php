@@ -317,6 +317,58 @@ class RoomManagementTest extends TestCase
         }
     }
 
+    #[Test]
+    public function room_cap_counts_only_recently_active_rooms(): void
+    {
+        config(['tamasharoom.max_concurrent_rooms' => 3]);
+
+        $this->assertFalse(Room::isAtActiveRoomCapacity());
+
+        Room::factory()->create([
+            'user_id' => $this->owner->id,
+            'last_activity_at' => now()->subHours(3),
+        ]);
+        Room::factory()->create([
+            'user_id' => $this->owner->id,
+            'last_activity_at' => now()->subDays(1),
+        ]);
+
+        $this->assertFalse(Room::isAtActiveRoomCapacity());
+
+        Room::factory()->create([
+            'user_id' => $this->owner->id,
+            'last_activity_at' => now()->subMinutes(30),
+        ]);
+
+        $this->assertFalse(Room::isAtActiveRoomCapacity());
+
+        Room::factory()->create([
+            'user_id' => $this->owner->id,
+            'last_activity_at' => now()->subMinutes(1),
+        ]);
+
+        $this->assertTrue(Room::isAtActiveRoomCapacity());
+    }
+
+    #[Test]
+    public function store_creates_room_with_owner_as_online_member(): void
+    {
+        $response = $this->actingAs($this->owner)
+            ->post('/rooms', ['name' => 'Fresh Room']);
+
+        $response->assertRedirect(route('rooms.show', Room::where('name', 'Fresh Room')->firstOrFail()));
+
+        $room = Room::where('name', 'Fresh Room')->firstOrFail();
+
+        $this->assertSame($this->owner->id, $room->user_id);
+        $this->assertSame(10, $room->max_members);
+        $this->assertDatabaseHas('room_members', [
+            'room_id' => $room->id,
+            'user_id' => $this->owner->id,
+            'presence_status' => 'online',
+        ]);
+    }
+
     // ─── Activity Tracking ────────────────────────────────
 
     #[Test]
