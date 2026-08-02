@@ -262,4 +262,83 @@ describe("VideoPlayer", () => {
         const video = container.querySelector("video");
         expect(video!.muted).toBe(true);
     });
+
+    it("shows loading skeleton when fetching state with no video URL", () => {
+        const loadingState: PlaybackState = {
+            isPlaying: false,
+            positionSeconds: 0,
+            durationSeconds: 0,
+            playbackRate: 1,
+            videoUrl: null,
+            playbackMode: "direct" as PlaybackMode,
+            stateVersion: 1,
+            serverTimestamp: Date.now() / 1000,
+            updatedAt: new Date().toISOString(),
+        };
+        vi.mocked(usePlaybackSync).mockReturnValueOnce({
+            state: loadingState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: true,
+            error: null,
+        });
+
+        render(<VideoPlayer roomId={1} />);
+        expect(
+            screen.getByText("در حال بارگذاری ویدیو..."),
+        ).toBeInTheDocument();
+    });
+
+    it("shows error message when fetching fails and no video URL", () => {
+        vi.mocked(usePlaybackSync).mockReturnValueOnce({
+            state: {
+                isPlaying: false,
+                positionSeconds: 0,
+                durationSeconds: 0,
+                playbackRate: 1,
+                videoUrl: null,
+                playbackMode: "direct" as PlaybackMode,
+                stateVersion: 1,
+                serverTimestamp: Date.now() / 1000,
+                updatedAt: new Date().toISOString(),
+            } satisfies PlaybackState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: "Network Error",
+        });
+
+        render(<VideoPlayer roomId={1} />);
+        expect(
+            screen.getByText("خطا در دریافت اطلاعات ویدیو"),
+        ).toBeInTheDocument();
+    });
+
+    it("shows sync error banner above the video", () => {
+        vi.mocked(usePlaybackSync).mockReturnValueOnce({
+            state: {
+                isPlaying: false,
+                positionSeconds: 0,
+                durationSeconds: 300,
+                playbackRate: 1,
+                videoUrl: "https://example.com/video.mp4",
+                playbackMode: "direct" as PlaybackMode,
+                stateVersion: 1,
+                serverTimestamp: Date.now() / 1000,
+                updatedAt: new Date().toISOString(),
+            } satisfies PlaybackState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: "Network Error",
+        });
+
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+            />,
+        );
+        expect(screen.getByText(/خطا در همگام‌سازی/)).toBeInTheDocument();
+    });
 });

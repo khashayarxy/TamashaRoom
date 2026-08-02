@@ -4,6 +4,7 @@ import { usePage } from "@inertiajs/react";
 import { Send, Trash2, User } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
+import { toast } from "@/Hooks/use-toast";
 
 interface Message {
     id: number;
@@ -114,7 +115,7 @@ export function RoomChat({
             setBody("");
             setTimeout(scrollToBottom, 50);
         } catch {
-            // silently fail
+            toast.error("خطا در ارسال پیام");
         } finally {
             setSending(false);
         }
@@ -126,7 +127,7 @@ export function RoomChat({
             await api.delete(`/chat/${roomId}/messages/${messageId}`);
             setMessages((prev) => prev.filter((m) => m.id !== messageId));
         } catch {
-            // silently fail — the polling will correct the list
+            toast.error("خطا در حذف پیام");
         } finally {
             setDeleting(null);
             setConfirmDelete(null);

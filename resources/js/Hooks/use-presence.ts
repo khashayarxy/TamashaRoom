@@ -25,7 +25,7 @@ export function usePresence(roomId: number | null) {
         null,
     );
     const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const cancelledRef = useRef(false);
+    const generationRef = useRef(0);
     const roomIdRef = useRef(roomId);
     const documentHiddenRef = useRef(
         typeof document !== "undefined" && document.hidden,
@@ -36,19 +36,16 @@ export function usePresence(roomId: number | null) {
     }, [roomId]);
 
     const scheduleHeartbeat = useCallback((delay: number) => {
-        cancelledRef.current = false;
+        const gen = ++generationRef.current;
 
         clearTimeout(heartbeatTimerRef.current!);
         heartbeatTimerRef.current = setTimeout(tick, delay);
 
         async function tick() {
+            if (generationRef.current !== gen) return;
+
             if (documentHiddenRef.current) {
-                if (!cancelledRef.current) {
-                    heartbeatTimerRef.current = setTimeout(
-                        tick,
-                        retryRef.current,
-                    );
-                }
+                heartbeatTimerRef.current = setTimeout(tick, retryRef.current);
                 return;
             }
 
@@ -69,7 +66,7 @@ export function usePresence(roomId: number | null) {
                 setConnected(false);
             }
 
-            if (!cancelledRef.current) {
+            if (generationRef.current === gen) {
                 heartbeatTimerRef.current = setTimeout(tick, retryRef.current);
             }
         }
@@ -106,7 +103,8 @@ export function usePresence(roomId: number | null) {
         document.addEventListener("visibilitychange", handleVisibility);
 
         return () => {
-            cancelledRef.current = true;
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            ++generationRef.current;
             if (heartbeatTimerRef.current)
                 clearTimeout(heartbeatTimerRef.current);
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -130,7 +128,6 @@ export function usePresence(roomId: number | null) {
         members,
         connected,
         sendHeartbeat: () => {
-            cancelledRef.current = false;
             scheduleHeartbeat(0);
         },
     };

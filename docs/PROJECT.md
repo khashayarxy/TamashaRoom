@@ -171,8 +171,7 @@ resources/
 │   │       ├── dialog.tsx
 │   │       └── input.tsx
 │   ├── Hooks/                      # Custom React hooks
-│   │   ├── use-playback-sync.ts    # today: polling; later: Echo — same return shape (SYSTEM.md 18.05)
-│   │   ├── use-polling-reload.ts
+│   │   ├── use-playback-sync.ts    # today: polling; later: Echo ─ same return shape (SYSTEM.md 18.05)
 │   │   ├── use-presence.ts
 │   │   ├── use-room-ownership.ts
 │   │   └── use-toast.ts

@@ -100,8 +100,8 @@ class SubtitleController extends Controller
 
         abort_if($track->room_id !== $room->id, 404);
 
-        Storage::disk('public')->delete($track->file_path);
         $track->delete();
+        Storage::disk('public')->delete($track->file_path);
 
         return response()->json(['status' => 'deleted']);
     }

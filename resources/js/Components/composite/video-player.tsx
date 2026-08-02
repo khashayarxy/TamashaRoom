@@ -36,7 +36,7 @@ export function VideoPlayer({
     videoRef: externalRef,
     children,
 }: VideoPlayerProps) {
-    const { state, sync, syncImmediate } = usePlaybackSync({
+    const { state, sync, syncImmediate, loading, error } = usePlaybackSync({
         roomId,
         isHost: canControl,
     });
@@ -215,6 +215,23 @@ export function VideoPlayer({
     const effectiveUrl = state.videoUrl || initialVideoUrl;
 
     if (!effectiveUrl) {
+        if (loading) {
+            return (
+                <div
+                    className={cn(
+                        "flex items-center justify-center h-full bg-muted rounded-2xl",
+                        className,
+                    )}
+                >
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="h-12 w-12 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        <p className="text-muted-foreground">
+                            در حال بارگذاری ویدیو...
+                        </p>
+                    </div>
+                </div>
+            );
+        }
         return (
             <div
                 className={cn(
@@ -222,9 +239,18 @@ export function VideoPlayer({
                     className,
                 )}
             >
-                <p className="text-muted-foreground">
-                    هنوز ویدیویی تنظیم نشده است
-                </p>
+                {error ? (
+                    <div className="text-center">
+                        <p className="text-destructive mb-2">
+                            خطا در دریافت اطلاعات ویدیو
+                        </p>
+                        <p className="text-muted-foreground text-sm">{error}</p>
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground">
+                        هنوز ویدیویی تنظیم نشده است
+                    </p>
+                )}
             </div>
         );
     }
@@ -241,6 +267,11 @@ export function VideoPlayer({
                 className,
             )}
         >
+            {error && (
+                <div className="absolute top-0 left-0 right-0 z-10 bg-destructive/90 text-destructive-foreground text-xs text-center py-1.5 px-4">
+                    خطا در همگام‌سازی &mdash; در حال تلاش مجدد
+                </div>
+            )}
             <video
                 ref={videoRef}
                 key={sourceUrl}
