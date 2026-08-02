@@ -47,6 +47,9 @@ export function usePlaybackSync({
     const cancelledRef = useRef(false);
     const activeControllerRef = useRef<AbortController | null>(null);
     const requestIdRef = useRef(0);
+    const documentHiddenRef = useRef(
+        typeof document !== "undefined" && document.hidden,
+    );
 
     useEffect(() => {
         stateRef.current = state;
@@ -55,7 +58,7 @@ export function usePlaybackSync({
     const fetchStateRef = useRef<() => Promise<void>>(async () => {});
 
     const schedulePoll = useCallback(() => {
-        if (cancelledRef.current) {
+        if (cancelledRef.current || documentHiddenRef.current) {
             return;
         }
 
@@ -139,6 +142,18 @@ export function usePlaybackSync({
                 clearTimeout(debounceTimerRef.current);
         };
     }, [fetchState]);
+
+    useEffect(() => {
+        const handleVisibility = () => {
+            documentHiddenRef.current = document.hidden;
+            if (document.visibilityState === "visible") {
+                void fetchStateRef.current();
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () =>
+            document.removeEventListener("visibilitychange", handleVisibility);
+    }, []);
 
     const sync = useCallback(
         async (partial: Partial<PlaybackState>) => {

@@ -29,7 +29,7 @@ class RoomController extends Controller
         $rooms = Room::query()
             ->whereHas('members', fn ($q) => $q->where('user_id', $request->user()->id))
             ->orWhere('user_id', $request->user()->id)
-            ->with('owner')
+            ->with('owner:id,name')
             ->withCount('members')
             ->latest('last_activity_at')
             ->get();
@@ -103,7 +103,11 @@ class RoomController extends Controller
     {
         $this->authorize('view', $room);
 
-        $room->load(['owner', 'members.user', 'chatMessages.user']);
+        $room->load([
+            'owner:id,name',
+            'members.user:id,name',
+            'chatMessages.user:id,name',
+        ]);
 
         return Inertia::render('Rooms/Show', [
             'room' => $room,
@@ -137,7 +141,7 @@ class RoomController extends Controller
     {
         $this->authorize('memberAccess', $room);
 
-        $room->load('members.user');
+        $room->load('members.user:id,name');
 
         $room->members->each->setRelation('room', $room);
 
@@ -153,7 +157,7 @@ class RoomController extends Controller
 
         return response()->json([
             'status' => 'ok',
-            'room' => $room->fresh()->load('owner'),
+            'room' => $room->fresh()->load('owner:id,name'),
         ]);
     }
 

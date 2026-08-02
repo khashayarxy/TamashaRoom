@@ -461,4 +461,39 @@ class RoomManagementTest extends TestCase
         $this->assertDatabaseMissing('room_members', ['room_id' => $oldRoom->id]);
         $this->assertDatabaseMissing('chat_messages', ['room_id' => $oldRoom->id]);
     }
+
+    #[Test]
+    public function members_endpoint_does_not_expose_user_email(): void
+    {
+        $response = $this->actingAs($this->member)
+            ->getJson(route('rooms.members', $this->room));
+
+        $response->assertOk();
+
+        $members = $response->json();
+
+        $this->assertNotEmpty($members);
+
+        $this->assertArrayNotHasKey('email', $members[0]['user']);
+
+        $user = $members[0]['user'];
+        $this->assertArrayHasKey('id', $user);
+        $this->assertArrayHasKey('name', $user);
+        $this->assertArrayNotHasKey('created_at', $user);
+    }
+
+    #[Test]
+    public function room_show_props_do_not_expose_member_emails(): void
+    {
+        ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->member->id,
+            'body' => 'Hello',
+        ]);
+
+        $response = $this->actingAs($this->member)->get(route('rooms.show', $this->room));
+
+        $response->assertOk();
+        $response->assertDontSee($this->owner->email);
+    }
 }

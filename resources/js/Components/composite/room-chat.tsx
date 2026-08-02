@@ -64,7 +64,11 @@ export function RoomChat({
     }, [initialMessages]);
 
     useEffect(() => {
-        const interval = setInterval(fetchMessages, pollInterval);
+        const interval = setInterval(() => {
+            if (!document.hidden) {
+                void fetchMessages();
+            }
+        }, pollInterval);
         return () => clearInterval(interval);
     }, [fetchMessages, pollInterval]);
 

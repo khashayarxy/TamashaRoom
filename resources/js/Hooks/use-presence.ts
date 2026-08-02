@@ -27,6 +27,9 @@ export function usePresence(roomId: number | null) {
     const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const cancelledRef = useRef(false);
     const roomIdRef = useRef(roomId);
+    const documentHiddenRef = useRef(
+        typeof document !== "undefined" && document.hidden,
+    );
 
     useEffect(() => {
         roomIdRef.current = roomId;
@@ -39,6 +42,16 @@ export function usePresence(roomId: number | null) {
         heartbeatTimerRef.current = setTimeout(tick, delay);
 
         async function tick() {
+            if (documentHiddenRef.current) {
+                if (!cancelledRef.current) {
+                    heartbeatTimerRef.current = setTimeout(
+                        tick,
+                        retryRef.current,
+                    );
+                }
+                return;
+            }
+
             const rid = roomIdRef.current;
             if (!rid) return;
             try {
@@ -63,7 +76,7 @@ export function usePresence(roomId: number | null) {
     }, []);
 
     const fetchPresence = useCallback(async () => {
-        if (!roomId) return;
+        if (!roomId || documentHiddenRef.current) return;
         try {
             const { data } = await api.get<PresenceMember[]>(
                 `/presence/${roomId}`,
@@ -83,11 +96,21 @@ export function usePresence(roomId: number | null) {
 
         pollTimerRef.current = setInterval(fetchPresence, POLL_INTERVAL);
 
+        const handleVisibility = () => {
+            documentHiddenRef.current = document.hidden;
+            if (document.visibilityState === "visible") {
+                void fetchPresence();
+                scheduleHeartbeat(0);
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+
         return () => {
             cancelledRef.current = true;
             if (heartbeatTimerRef.current)
                 clearTimeout(heartbeatTimerRef.current);
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+            document.removeEventListener("visibilitychange", handleVisibility);
         };
     }, [roomId, scheduleHeartbeat, fetchPresence]);
 

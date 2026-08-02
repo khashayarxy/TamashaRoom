@@ -101,7 +101,6 @@ app/
 │   └── PlaybackStateChanged.php
 ├── Http/
 │   ├── Controllers/
-│   │   ├── AdminController.php
 │   │   ├── ChatController.php
 │   │   ├── PlaybackController.php
 │   │   ├── PresenceController.php

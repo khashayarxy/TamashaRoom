@@ -166,6 +166,84 @@ describe("usePlaybackSync", () => {
         }
     });
 
+    it("does not poll further while the document is hidden", async () => {
+        vi.useFakeTimers();
+
+        try {
+            Object.defineProperty(document, "hidden", {
+                configurable: true,
+                value: true,
+            });
+            Object.defineProperty(document, "visibilityState", {
+                configurable: true,
+                value: "hidden",
+            });
+
+            renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            expect(mockGet).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(30000);
+            });
+
+            expect(mockGet).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("resumes polling when the document becomes visible again", async () => {
+        vi.useFakeTimers();
+
+        try {
+            Object.defineProperty(document, "hidden", {
+                configurable: true,
+                value: true,
+            });
+            Object.defineProperty(document, "visibilityState", {
+                configurable: true,
+                value: "hidden",
+            });
+
+            renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            expect(mockGet).toHaveBeenCalledTimes(1);
+
+            Object.defineProperty(document, "hidden", {
+                configurable: true,
+                value: false,
+            });
+            Object.defineProperty(document, "visibilityState", {
+                configurable: true,
+                value: "visible",
+            });
+            document.dispatchEvent(new Event("visibilitychange"));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            expect(mockGet).toHaveBeenCalledTimes(2);
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10000);
+            });
+
+            expect(mockGet).toHaveBeenCalledTimes(3);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it("keeps polling after a fetch error", async () => {
         vi.useFakeTimers();
 
