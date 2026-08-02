@@ -38,9 +38,11 @@ and the repo was audited for exactly these failure modes before first push.
 3. `git diff --check` — must be clean (whitespace errors). Exception:
    known pre-existing markdown hard-break trailing whitespace in
    `docs/SYSTEM.md` is accepted and documented.
-4. Run the relevant checks for what changed: `php artisan test`, `npm run
-   test`, `npm run type-check`, `npm run lint`, `./vendor/bin/pint --test`,
-   `npm run format:check`. Don't commit code that fails its checks.
+4. Run the relevant checks for what changed — follow `testing-strategy`
+   "Verification Escalation" (Levels 1–4): start at the static/format/lint
+   checks for the edited files, escalate only as the change warrants.
+   Command names come from AGENTS.md Commands / `package.json`; don't invent
+   them. Don't commit code that fails its checks.
 5. Stage **only the intended files** with explicit paths
    (`git add app/... tests/...`). Use `git add -A` only after reviewing
    `git status` and confirming everything present is intended.
