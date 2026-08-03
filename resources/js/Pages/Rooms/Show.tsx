@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/Components/ui/card";
 import { Input } from "@/Components/ui/input";
 import { usePresence } from "@/Hooks/use-presence";
 import { useRoomOwnership } from "@/Hooks/use-room-ownership";
+import { useSuggestNext } from "@/Hooks/use-suggest-next";
 import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
 import { copyToClipboard } from "@/lib/utils";
@@ -108,7 +109,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { members: presenceMembers, connected } = usePresence(room.id);
+    const {
+        members: presenceMembers,
+        connected,
+        moments: presenceMoments,
+    } = usePresence(room.id);
     const { settings } = useSubtitleSettings();
     const { auth } = usePage().props;
     const { ownerId, isOwner, transferOwnership } = useRoomOwnership({
@@ -116,6 +121,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         currentUserId: auth.user.id,
         presenceMembers,
     });
+    const { suggestNext } = useSuggestNext(room.id);
 
     useEffect(() => {
         setRoomName(room.name);
@@ -328,6 +334,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         initialVideoUrl={room.video_url}
                         className="h-full"
                         videoRef={videoRef}
+                        onSuggestNext={suggestNext}
                     >
                         <SubtitleOverlay
                             videoRef={videoRef}
@@ -576,6 +583,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             roomId={room.id}
                             initialMessages={room.chat_messages}
                             onUnreadCountChange={setChatUnread}
+                            presenceMoments={presenceMoments}
                         />
                     ) : (
                         <CardContent className="p-4">

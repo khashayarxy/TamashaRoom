@@ -1,10 +1,11 @@
 import api from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
-import { Send, Trash2, User } from "lucide-react";
+import { Send, Trash2, User, UserMinus, UserPlus } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { toast } from "@/Hooks/use-toast";
+import type { PresenceMoment } from "@/lib/presence-moments";
 
 interface Message {
     id: number;
@@ -19,6 +20,7 @@ interface RoomChatProps {
     initialMessages: Message[];
     pollInterval?: number;
     onUnreadCountChange?: (count: number) => void;
+    presenceMoments?: PresenceMoment[];
 }
 
 export function RoomChat({
@@ -26,6 +28,7 @@ export function RoomChat({
     initialMessages,
     pollInterval = 3000,
     onUnreadCountChange,
+    presenceMoments = [],
 }: RoomChatProps) {
     const { auth } = usePage().props;
     const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -136,46 +139,78 @@ export function RoomChat({
 
     const isOwn = (userId: number) => userId === auth.user.id;
 
+    const feed = [
+        ...messages.map((msg) => ({
+            kind: "message" as const,
+            key: `m-${msg.id}`,
+            at: new Date(msg.created_at).getTime(),
+            msg,
+        })),
+        ...presenceMoments.map((moment) => ({
+            kind: "moment" as const,
+            key: moment.id,
+            at: moment.at,
+            moment,
+        })),
+    ].sort((a, b) => a.at - b.at);
+
     return (
         <div className="flex flex-col h-full">
             <div ref={listRef} className="flex-1 overflow-y-auto space-y-3 p-4">
-                {messages.map((msg) => (
-                    <div
-                        key={msg.id}
-                        className={`flex gap-2 group ${isOwn(msg.user_id) ? "flex-row-reverse" : ""}`}
-                    >
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-4 w-4 text-primary" />
+                {feed.map((item) =>
+                    item.kind === "moment" ? (
+                        <div key={item.key} className="flex justify-center">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                {item.moment.type === "join" ? (
+                                    <UserPlus className="h-3.5 w-3.5" />
+                                ) : (
+                                    <UserMinus className="h-3.5 w-3.5" />
+                                )}
+                                {item.moment.type === "join"
+                                    ? `${item.moment.name} به اتاق پیوست`
+                                    : `${item.moment.name} از اتاق خارج شد`}
+                            </span>
                         </div>
+                    ) : (
                         <div
-                            className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm relative ${
-                                isOwn(msg.user_id)
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-secondary text-secondary-foreground"
-                            }`}
+                            key={item.key}
+                            className={`flex gap-2 group ${isOwn(item.msg.user_id) ? "flex-row-reverse" : ""}`}
                         >
-                            <div className="font-medium text-xs mb-0.5">
-                                {msg.user.name}
+                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-4 w-4 text-primary" />
                             </div>
-                            <div>{msg.body}</div>
                             <div
-                                className={`text-[10px] mt-1 ${isOwn(msg.user_id) ? "text-primary-foreground" : "text-muted-foreground"}`}
+                                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm relative ${
+                                    isOwn(item.msg.user_id)
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-secondary text-secondary-foreground"
+                                }`}
                             >
-                                {timeAgo(msg.created_at)}
-                            </div>
-                            {isOwn(msg.user_id) && (
-                                <button
-                                    onClick={() => setConfirmDelete(msg.id)}
-                                    disabled={deleting === msg.id}
-                                    className="absolute -top-1.5 -end-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
-                                    aria-label="حذف پیام"
+                                <div className="font-medium text-xs mb-0.5">
+                                    {item.msg.user.name}
+                                </div>
+                                <div>{item.msg.body}</div>
+                                <div
+                                    className={`text-[10px] mt-1 ${isOwn(item.msg.user_id) ? "text-primary-foreground" : "text-muted-foreground"}`}
                                 >
-                                    <Trash2 className="h-3 w-3" />
-                                </button>
-                            )}
+                                    {timeAgo(item.msg.created_at)}
+                                </div>
+                                {isOwn(item.msg.user_id) && (
+                                    <button
+                                        onClick={() =>
+                                            setConfirmDelete(item.msg.id)
+                                        }
+                                        disabled={deleting === item.msg.id}
+                                        className="absolute -top-1.5 -end-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                        aria-label="حذف پیام"
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ),
+                )}
             </div>
 
             <form

@@ -12,8 +12,13 @@ vi.mock("@inertiajs/react", () => ({
         delete: vi.fn(),
         visit: vi.fn(),
     },
-    Link: ({ href, children }: { href: string; children?: unknown }) =>
-        `[Link:${href}:${String(children ?? "")}]`,
+    Link: ({
+        href,
+        children,
+    }: {
+        href: string;
+        children?: React.ReactNode;
+    }) => <a href={href}>{children}</a>,
 }));
 
 const usePageMock = vi.mocked(usePage);
@@ -82,5 +87,43 @@ describe("Dashboard", () => {
         fireEvent.change(input, { target: { value: "ABC123" } });
         fireEvent.submit(input.closest("form")!);
         expect(router.get).toHaveBeenCalledWith("/__route/rooms.join/ABC123");
+    });
+
+    it("shows the re-watch affordance only for rooms with a video", () => {
+        const rooms = [
+            {
+                id: 1,
+                name: "با ویدیو",
+                invite_code: "AAA",
+                owner: { id: 1, name: "Test" },
+                members_count: 1,
+                max_members: 10,
+                is_playing: false,
+                video_url: "https://example.com/video.mp4",
+                last_activity_at: null,
+                user_id: 1,
+            },
+            {
+                id: 2,
+                name: "بدون ویدیو",
+                invite_code: "BBB",
+                owner: { id: 1, name: "Test" },
+                members_count: 1,
+                max_members: 10,
+                is_playing: false,
+                video_url: null,
+                last_activity_at: null,
+                user_id: 1,
+            },
+        ];
+
+        render(<Dashboard rooms={rooms} />);
+        expect(screen.getByText("دوباره ببینیم")).toBeInTheDocument();
+        expect(screen.getAllByText("دوباره ببینیم")).toHaveLength(1);
+    });
+
+    it("shows no re-watch affordance when no room has a video", () => {
+        render(<Dashboard rooms={[]} />);
+        expect(screen.queryByText("دوباره ببینیم")).not.toBeInTheDocument();
     });
 });

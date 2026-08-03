@@ -341,4 +341,132 @@ describe("VideoPlayer", () => {
         );
         expect(screen.getByText(/خطا در همگام‌سازی/)).toBeInTheDocument();
     });
+
+    it("shows the end-of-video card when the video ends", () => {
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+                onSuggestNext={vi.fn()}
+            />,
+        );
+        const video = container.querySelector("video")!;
+        fireEvent.ended(video);
+        expect(screen.getByText("ویدیو به پایان رسید")).toBeInTheDocument();
+        expect(screen.getByText("دوباره ببینیم")).toBeInTheDocument();
+        expect(screen.getByText("پیشنهاد بعدی")).toBeInTheDocument();
+    });
+
+    it("does not show the end card before the video ends", () => {
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+            />,
+        );
+        expect(
+            screen.queryByText("ویدیو به پایان رسید"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("replays through the authoritative playback path for the host", () => {
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+        const video = container.querySelector("video")!;
+        fireEvent.ended(video);
+
+        fireEvent.click(screen.getByText("دوباره ببینیم"));
+
+        expect(mockSyncImmediate).toHaveBeenCalledWith({
+            isPlaying: true,
+            positionSeconds: 0,
+        });
+        expect(
+            screen.queryByText("ویدیو به پایان رسید"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("hides the replay button for guests but keeps the suggest action", () => {
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl={false}
+                onSuggestNext={vi.fn()}
+            />,
+        );
+        const video = container.querySelector("video")!;
+        fireEvent.ended(video);
+
+        expect(screen.queryByText("دوباره ببینیم")).not.toBeInTheDocument();
+        expect(screen.getByText("پیشنهاد بعدی")).toBeInTheDocument();
+    });
+
+    it("does not allow a guest to trigger playback control on replay", () => {
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl={false}
+            />,
+        );
+        const video = container.querySelector("video")!;
+        fireEvent.ended(video);
+
+        expect(mockSyncImmediate).not.toHaveBeenCalled();
+    });
+
+    it("calls onSuggestNext when the suggest-next button is clicked", () => {
+        const onSuggestNext = vi.fn();
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                onSuggestNext={onSuggestNext}
+            />,
+        );
+        const video = container.querySelector("video")!;
+        fireEvent.ended(video);
+
+        fireEvent.click(screen.getByText("پیشنهاد بعدی"));
+        expect(onSuggestNext).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not duplicate the end UI on repeated ended events", () => {
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+            />,
+        );
+        const video = container.querySelector("video")!;
+        fireEvent.ended(video);
+        fireEvent.ended(video);
+        fireEvent.ended(video);
+
+        expect(screen.getAllByText("ویدیو به پایان رسید")).toHaveLength(1);
+    });
+
+    it("clears the end state when playback resumes", () => {
+        const { container } = render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+            />,
+        );
+        const video = container.querySelector("video")!;
+        fireEvent.ended(video);
+        expect(screen.getByText("ویدیو به پایان رسید")).toBeInTheDocument();
+
+        fireEvent.play(video);
+        expect(
+            screen.queryByText("ویدیو به پایان رسید"),
+        ).not.toBeInTheDocument();
+    });
 });

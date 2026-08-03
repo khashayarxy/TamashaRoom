@@ -37,17 +37,19 @@ AGENTS.md (invariants, skill table) → docs/MAP.md (this file) →
 - Tests: `tests/Feature/RoomManagementTest.php`, `tests/e2e/room.spec.ts`,
   `tests/e2e/lock-kick-transfer.spec.ts`.
 
-### Playback Sync (host authority, versioning, drift, direct/proxy mode)
+### Playback Sync (host authority, versioning, drift, direct/proxy mode, end-of-video moment)
 - Skill: `laravel-backend-rules` (polling → WebSocket pattern), `react-rules`.
 - Backend: `app/Http/Controllers/PlaybackController.php`,
   `app/Events/PlaybackStateChanged.php`, `app/Enums/PlaybackMode.php`,
   `app/Actions/DetermineVideoPlaybackModeAction.php`,
   `app/Http/Requests/UpdatePlaybackRequest.php`, `app/Services/VideoProxyService.php`
   (range/proxy streaming).
-- Frontend: `Hooks/use-playback-sync.ts`, `Components/composite/video-player.tsx`,
-  `lib/types/playback.ts`, `lib/api.ts`.
+- Frontend: `Hooks/use-playback-sync.ts`, `Hooks/use-suggest-next.ts`,
+  `Components/composite/video-player.tsx` (host-only replay + suggest-next at
+  video end), `lib/types/playback.ts`, `lib/api.ts`.
 - Tests: `tests/Feature/PlaybackSyncTest.php`, `tests/Feature/VideoStreamTest.php`,
-  frontend hook tests for `use-playback-sync`.
+  frontend hook tests for `use-playback-sync`, `video-player.test.tsx`,
+  `use-suggest-next.test.ts`.
 
 ### Chat (polled send/list/delete)
 - Skill: `laravel-backend-rules`, `security-rules` (validation/inline `$request->validate()`).
@@ -69,13 +71,17 @@ AGENTS.md (invariants, skill table) → docs/MAP.md (this file) →
 - Tests: `tests/Feature/SubtitleTest.php`, `tests/Unit/SubtitleConverterTest.php`,
   `tests/e2e/subtitle.spec.ts`.
 
-### Presence & Heartbeat (online/offline, timeout, reconnect)
+### Presence & Heartbeat (online/offline, timeout, reconnect, join/leave moments)
 - Skill: `laravel-backend-rules` (presence event), `debugging` (timing constants).
 - Backend: `app/Http/Controllers/PresenceController.php`,
   `app/Services/PresenceService.php`, `app/Events/MemberPresenceChanged.php`,
   `app/Console/Commands/MarkStaleMembersOffline.php`.
-- Frontend: `Hooks/use-presence.ts`, `Components/composite/member-list.tsx`.
-- Tests: `tests/Feature/PresenceTest.php`, `tests/Unit/PresenceServiceTest.php`.
+- Frontend: `Hooks/use-presence.ts`, `lib/presence-moments.ts` (client-side
+  join/leave moment derivation), `Components/composite/member-list.tsx`,
+  `Components/composite/room-chat.tsx` (renders moments as system rows).
+- Tests: `tests/Feature/PresenceTest.php`, `tests/Unit/PresenceServiceTest.php`,
+  `tests/e2e/presence-moments.spec.ts`, `resources/js/__tests__/presence-moments.test.ts`,
+  `resources/js/__tests__/use-presence.test.tsx`.
 
 ### Room Lifecycle & Scheduled Tasks (prune inactive)
 - Backend: `app/Console/Commands/PruneInactiveRooms.php`, `app/Actions/DeleteRoomAction.php`

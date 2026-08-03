@@ -714,6 +714,26 @@ interface PresenceMember {
 **Leave on unload:** `POST /presence/{room}/leave` is sent via `navigator.sendBeacon`
 in the `beforeunload` event handler.
 
+**Join/leave moments (client-side only, O4):** `usePresence` also returns a
+`moments: PresenceMoment[]` array derived entirely client-side by diffing
+consecutive `GET /presence/{room}` snapshots (`lib/presence-moments.ts`).
+The first snapshot in a room is the baseline and emits nothing; subsequent
+snapshots emit one `join` for `offline→online` / absent→online and one `leave`
+for `online→offline` / vanished-online. `online↔away` never emits. A failed
+poll leaves the baseline untouched, so retries/visibility refetches can't
+duplicate. `RoomChat` renders them as centered, muted system rows (no avatar,
+bubble, or delete button) and they never affect unread counts.
+
+```typescript
+interface PresenceMoment {
+    id: string;                     // stable per-hook counter id
+    type: 'join' | 'leave';
+    name: string;
+    user_id: number;
+    at: number;                     // epoch ms
+}
+```
+
 **Broadcast event (future-use, not consumed by current frontend):**
 
 ```typescript
@@ -723,6 +743,23 @@ interface MemberPresenceChangedPayload {
     members: PresenceMember[];
 }
 ```
+
+### 5.3.1 Video end / watch-again moment (O6)
+
+`VideoPlayer` (`resources/js/Components/composite/video-player.tsx`) sets a
+local `ended` flag from the DOM `onEnded` event (fires once per playback run;
+polling re-renders can't re-trigger it) and shows a centered card when the
+video reaches its end:
+
+- `دوباره ببینیم` — rendered **only** when `canControl` (host). On click it
+  calls `syncImmediate({ isPlaying: true, positionSeconds: 0 })`, i.e. the
+  existing authoritative `PATCH /playback/{room}` path (host-only + versioned),
+  and clears `ended`. Guests never see the button and the underlying `sync`
+  already no-ops for non-hosts.
+- `پیشنهاد بعدی` — rendered when the `onSuggestNext` prop is provided; Show.tsx
+  wires it to `Hooks/use-suggest-next.ts`, which posts a suggestion message
+  through the existing `POST /chat/{room}/messages` endpoint (toast on failure).
+- The end UI clears on `onPlay` (playback resumed) and on replay.
 
 ### 5.4 General Inertia Reload (utility hook)
 

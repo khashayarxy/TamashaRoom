@@ -173,8 +173,9 @@ resources/
 │   │       └── input.tsx
 │   ├── Hooks/                      # Custom React hooks
 │   │   ├── use-playback-sync.ts    # today: polling; later: Echo ─ same return shape (SYSTEM.md 18.05)
-│   │   ├── use-presence.ts
+│   │   ├── use-presence.ts         # presence poll/heartbeat + client-side join/leave moments (O4)
 │   │   ├── use-room-ownership.ts
+│   │   ├── use-suggest-next.ts     # next-video suggestion via the chat mechanism (O6)
 │   │   └── use-toast.ts
 │   ├── Layouts/
 │   │   ├── AppLayout.tsx           # Persistent Inertia layout

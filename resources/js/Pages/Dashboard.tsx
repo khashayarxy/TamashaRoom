@@ -9,7 +9,7 @@ import {
     timeAgo,
 } from "@/lib/utils";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Copy, Link2, Plus, Trash2, Tv, Users } from "lucide-react";
+import { Copy, Link2, Plus, RotateCcw, Trash2, Tv, Users } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
 interface Room {
@@ -20,6 +20,7 @@ interface Room {
     members_count: number;
     max_members: number;
     is_playing: boolean;
+    video_url: string | null;
     last_activity_at: string | null;
     user_id: number;
 }
@@ -201,6 +202,12 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                                     ? "در حال پخش"
                                                     : "متوقف"}
                                             </span>
+                                            {room.video_url && (
+                                                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                                    <RotateCcw className="h-3 w-3" />
+                                                    دوباره ببینیم
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 

@@ -1,11 +1,14 @@
 import { usePlaybackSync } from "@/Hooks/use-playback-sync";
 import { computeExpectedPosition } from "@/lib/types/playback";
 import { cn, formatDuration } from "@/lib/utils";
+import { Button } from "@/Components/ui/button";
 import {
     Maximize,
     Minimize,
     Pause,
     Play,
+    RotateCcw,
+    Send,
     SkipBack,
     SkipForward,
     Volume2,
@@ -22,6 +25,7 @@ interface VideoPlayerProps {
     className?: string;
     videoRef?: RefObject<HTMLVideoElement | null>;
     children?: React.ReactNode;
+    onSuggestNext?: () => void;
 }
 
 function proxyUrl(roomId: number): string {
@@ -35,6 +39,7 @@ export function VideoPlayer({
     className,
     videoRef: externalRef,
     children,
+    onSuggestNext,
 }: VideoPlayerProps) {
     const { state, sync, syncImmediate, loading, error } = usePlaybackSync({
         roomId,
@@ -43,7 +48,9 @@ export function VideoPlayer({
     const internalRef = useRef<HTMLVideoElement>(null);
     const videoRef = externalRef || internalRef;
     const lastTimeupdateSync = useRef(0);
+    const endedAtRef = useRef(0);
     const [isSeeking, setIsSeeking] = useState(false);
+    const [ended, setEnded] = useState(false);
     const [displayTime, setDisplayTime] = useState(0);
     const [proxyFailed, setProxyFailed] = useState(false);
     const [muted, setMuted] = useState(false);
@@ -142,12 +149,21 @@ export function VideoPlayer({
         if (!video || !sourceUrl) return;
 
         if (state.isPlaying) {
+            if (
+                ended &&
+                state.positionSeconds >= endedAtRef.current - DRIFT_THRESHOLD
+            ) {
+                return;
+            }
             const expected = computeExpectedPosition(state, Date.now() / 1000);
             const diff = Math.abs(video.currentTime - expected);
             if (diff > DRIFT_THRESHOLD) {
                 video.currentTime = expected;
             }
             video.play().catch(() => {});
+            if (ended) {
+                setEnded(false);
+            }
         } else {
             const targetTime = state.positionSeconds;
             const diff = Math.abs(video.currentTime - targetTime);
@@ -156,7 +172,23 @@ export function VideoPlayer({
             }
             video.pause();
         }
-    }, [state, sourceUrl, videoRef, isSeeking]);
+    }, [state, sourceUrl, videoRef, isSeeking, ended]);
+
+    const handleEnded = useCallback(() => {
+        const video = videoRef.current;
+        endedAtRef.current = video ? video.currentTime : state.positionSeconds;
+        setEnded(true);
+    }, [state.positionSeconds, videoRef]);
+
+    const handlePlay = useCallback(() => {
+        setEnded(false);
+    }, []);
+
+    const handleReplay = useCallback(() => {
+        if (!canControl) return;
+        setEnded(false);
+        syncImmediate({ isPlaying: true, positionSeconds: 0 });
+    }, [canControl, syncImmediate]);
 
     const handlePlayPause = useCallback(() => {
         if (!canControl) return;
@@ -280,10 +312,40 @@ export function VideoPlayer({
                 onTimeUpdate={handleTimeUpdate}
                 onClick={handlePlayPause}
                 onError={handleVideoError}
+                onEnded={handleEnded}
+                onPlay={handlePlay}
                 playsInline
                 preload="metadata"
                 crossOrigin="anonymous"
             />
+
+            {ended && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
+                    <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-card/90 backdrop-blur-sm">
+                        <p className="text-sm font-medium">
+                            ویدیو به پایان رسید
+                        </p>
+                        <div className="flex gap-2">
+                            {canControl && (
+                                <Button size="sm" onClick={handleReplay}>
+                                    <RotateCcw className="h-4 w-4" />
+                                    دوباره ببینیم
+                                </Button>
+                            )}
+                            {onSuggestNext && (
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={onSuggestNext}
+                                >
+                                    <Send className="h-4 w-4" />
+                                    پیشنهاد بعدی
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12 transition-opacity group-focus-within:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100">
                 <div

@@ -1,4 +1,10 @@
 import api from "@/lib/api";
+import {
+    buildPresenceBaseline,
+    derivePresenceMoments,
+    type PresenceBaseline,
+    type PresenceMoment,
+} from "@/lib/presence-moments";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface PresenceMember {
@@ -19,6 +25,9 @@ const MAX_RETRY_DELAY = 300000;
 export function usePresence(roomId: number | null) {
     const [members, setMembers] = useState<PresenceMember[]>([]);
     const [connected, setConnected] = useState(false);
+    const [moments, setMoments] = useState<PresenceMoment[]>([]);
+    const baselineRef = useRef<PresenceBaseline | null>(null);
+    const momentIdRef = useRef(0);
     const versionRef = useRef(0);
     const retryRef = useRef(HEARTBEAT_INTERVAL);
     const heartbeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -30,6 +39,11 @@ export function usePresence(roomId: number | null) {
     const documentHiddenRef = useRef(
         typeof document !== "undefined" && document.hidden,
     );
+
+    useEffect(() => {
+        baselineRef.current = null;
+        setMoments([]);
+    }, [roomId]);
 
     useEffect(() => {
         roomIdRef.current = roomId;
@@ -78,6 +92,23 @@ export function usePresence(roomId: number | null) {
             const { data } = await api.get<PresenceMember[]>(
                 `/presence/${roomId}`,
             );
+
+            const derived = derivePresenceMoments(
+                baselineRef.current,
+                data,
+                Date.now(),
+            );
+            if (derived.length > 0) {
+                setMoments((prev) => [
+                    ...prev,
+                    ...derived.map((moment) => ({
+                        ...moment,
+                        id: `moment-${++momentIdRef.current}`,
+                    })),
+                ]);
+            }
+
+            baselineRef.current = buildPresenceBaseline(data);
             setMembers(data);
             setConnected(true);
         } catch {
@@ -127,6 +158,7 @@ export function usePresence(roomId: number | null) {
     return {
         members,
         connected,
+        moments,
         sendHeartbeat: () => {
             scheduleHeartbeat(0);
         },

@@ -193,4 +193,99 @@ describe("RoomChat", () => {
             { timeout: 3000 },
         );
     });
+
+    it("renders presence join moments as distinct system rows", () => {
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[]}
+                presenceMoments={[
+                    {
+                        id: "m1",
+                        type: "join",
+                        name: "سارا",
+                        user_id: 2,
+                        at: Date.now(),
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByText("سارا به اتاق پیوست")).toBeInTheDocument();
+    });
+
+    it("renders presence leave moments as distinct system rows", () => {
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[]}
+                presenceMoments={[
+                    {
+                        id: "m2",
+                        type: "leave",
+                        name: "علی",
+                        user_id: 3,
+                        at: Date.now(),
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByText("علی از اتاق خارج شد")).toBeInTheDocument();
+    });
+
+    it("does not render a delete button for presence moments", () => {
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[]}
+                presenceMoments={[
+                    {
+                        id: "m1",
+                        type: "join",
+                        name: "سارا",
+                        user_id: 2,
+                        at: Date.now(),
+                    },
+                ]}
+            />,
+        );
+        expect(
+            screen.queryByRole("button", { name: "حذف پیام" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("interleaves moments with messages by timestamp", () => {
+        const now = Date.now();
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({
+                        id: 1,
+                        body: "Older message",
+                        created_at: new Date(now).toISOString(),
+                    }),
+                ]}
+                presenceMoments={[
+                    {
+                        id: "m1",
+                        type: "join",
+                        name: "سارا",
+                        user_id: 2,
+                        at: now + 5000,
+                    },
+                ]}
+            />,
+        );
+        const olderText = screen.getByText("Older message");
+        const momentText = screen.getByText("سارا به اتاق پیوست");
+
+        const list = olderText.closest(".flex-1") as HTMLElement;
+        const targets = new Set<Element>([olderText, momentText]);
+        const nodes = Array.from(list.querySelectorAll("*")).filter((n) =>
+            targets.has(n),
+        );
+        expect(nodes.indexOf(momentText)).toBeGreaterThan(
+            nodes.indexOf(olderText),
+        );
+    });
 });
