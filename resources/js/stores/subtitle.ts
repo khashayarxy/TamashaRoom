@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: SubtitleSettings = {
     enabled: true,
     bgOpacity: 40,
     position: "bottom",
+    offset: 0,
 };
 
 function loadSettings(): SubtitleSettings {

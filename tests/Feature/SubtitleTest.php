@@ -312,6 +312,174 @@ class SubtitleTest extends TestCase
     }
 
     #[Test]
+    public function owner_can_set_room_default_subtitle(): void
+    {
+        $track = SubtitleTrack::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'label' => 'Default track',
+            'language' => 'fa',
+            'file_path' => 'subtitles/1/default.vtt',
+            'original_extension' => 'vtt',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson("/subtitles/{$this->room->id}/default", [
+                'track_id' => $track->id,
+            ]);
+
+        $response->assertOk()
+            ->assertJson(['default_track_id' => $track->id]);
+
+        $this->assertDatabaseHas('rooms', [
+            'id' => $this->room->id,
+            'active_subtitle_track_id' => $track->id,
+        ]);
+    }
+
+    #[Test]
+    public function owner_can_clear_room_default_subtitle(): void
+    {
+        $track = SubtitleTrack::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'label' => 'Default track',
+            'language' => 'fa',
+            'file_path' => 'subtitles/1/default.vtt',
+            'original_extension' => 'vtt',
+        ]);
+
+        $this->room->update(['active_subtitle_track_id' => $track->id]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson("/subtitles/{$this->room->id}/default", [
+                'track_id' => null,
+            ]);
+
+        $response->assertOk()
+            ->assertJson(['default_track_id' => null]);
+
+        $this->assertDatabaseHas('rooms', [
+            'id' => $this->room->id,
+            'active_subtitle_track_id' => null,
+        ]);
+    }
+
+    #[Test]
+    public function member_cannot_set_room_default_subtitle(): void
+    {
+        $track = SubtitleTrack::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'label' => 'Default track',
+            'language' => 'fa',
+            'file_path' => 'subtitles/1/default.vtt',
+            'original_extension' => 'vtt',
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson("/subtitles/{$this->room->id}/default", [
+                'track_id' => $track->id,
+            ]);
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function stranger_cannot_set_room_default_subtitle(): void
+    {
+        $track = SubtitleTrack::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'label' => 'Default track',
+            'language' => 'fa',
+            'file_path' => 'subtitles/1/default.vtt',
+            'original_extension' => 'vtt',
+        ]);
+
+        $response = $this->actingAs($this->stranger)
+            ->postJson("/subtitles/{$this->room->id}/default", [
+                'track_id' => $track->id,
+            ]);
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function setting_default_to_track_from_another_room_returns_404(): void
+    {
+        $otherRoom = Room::factory()->create(['user_id' => $this->owner->id]);
+        $track = SubtitleTrack::create([
+            'room_id' => $otherRoom->id,
+            'user_id' => $this->owner->id,
+            'label' => 'Other room',
+            'language' => 'fa',
+            'file_path' => 'subtitles/2/track.vtt',
+            'original_extension' => 'vtt',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson("/subtitles/{$this->room->id}/default", [
+                'track_id' => $track->id,
+            ]);
+
+        $response->assertNotFound();
+    }
+
+    #[Test]
+    public function member_can_read_room_default_subtitle(): void
+    {
+        $track = SubtitleTrack::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'label' => 'Default track',
+            'language' => 'fa',
+            'file_path' => 'subtitles/1/default.vtt',
+            'original_extension' => 'vtt',
+        ]);
+        $this->room->update(['active_subtitle_track_id' => $track->id]);
+
+        $response = $this->actingAs($this->member)
+            ->getJson("/subtitles/{$this->room->id}/default");
+
+        $response->assertOk()
+            ->assertJson(['default_track_id' => $track->id]);
+    }
+
+    #[Test]
+    public function stranger_cannot_read_room_default_subtitle(): void
+    {
+        $response = $this->actingAs($this->stranger)
+            ->getJson("/subtitles/{$this->room->id}/default");
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function deleting_default_track_clears_room_default(): void
+    {
+        $track = SubtitleTrack::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'label' => 'Default track',
+            'language' => 'fa',
+            'file_path' => 'subtitles/1/default.vtt',
+            'original_extension' => 'vtt',
+        ]);
+        $this->room->update(['active_subtitle_track_id' => $track->id]);
+
+        $response = $this->actingAs($this->owner)
+            ->deleteJson("/subtitles/{$this->room->id}/{$track->id}");
+
+        $response->assertOk();
+        $this->assertDatabaseMissing('subtitle_tracks', ['id' => $track->id]);
+        $this->assertDatabaseHas('rooms', [
+            'id' => $this->room->id,
+            'active_subtitle_track_id' => null,
+        ]);
+    }
+
+    #[Test]
     public function stored_vtt_is_served_with_text_vtt_content_type_not_html(): void
     {
         $vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n<img src=x onerror=\"alert(1)\"> payload";

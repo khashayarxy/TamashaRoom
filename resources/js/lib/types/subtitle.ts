@@ -20,4 +20,5 @@ export interface SubtitleSettings {
     enabled: boolean;
     bgOpacity: number;
     position: SubtitlePosition;
+    offset: number;
 }

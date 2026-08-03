@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: SubtitleSettings = {
     enabled: true,
     bgOpacity: 40,
     position: "bottom",
+    offset: 0,
 };
 
 function createMockVideo(currentTime = 0): HTMLVideoElement {
@@ -112,6 +113,48 @@ describe("SubtitleOverlay", () => {
                 videoRef={ref}
                 cues={cues}
                 settings={DEFAULT_SETTINGS}
+            />,
+        );
+
+        act(() => {
+            vi.advanceTimersByTime(100);
+        });
+
+        expect(container.innerHTML).toBe("");
+    });
+
+    it("applies positive offset so an upcoming cue shows earlier", () => {
+        const ref = { current: createMockVideo(1.5) };
+        const cues: SubtitleCue[] = [
+            { start: 2000, end: 4000, text: "Offset cue" },
+        ];
+
+        render(
+            <SubtitleOverlay
+                videoRef={ref}
+                cues={cues}
+                settings={{ ...DEFAULT_SETTINGS, offset: 500 }}
+            />,
+        );
+
+        act(() => {
+            vi.advanceTimersByTime(100);
+        });
+
+        expect(screen.getByText("Offset cue")).toBeInTheDocument();
+    });
+
+    it("applies negative offset so a cue hides until later", () => {
+        const ref = { current: createMockVideo(3) };
+        const cues: SubtitleCue[] = [
+            { start: 2000, end: 4000, text: "Delayed cue" },
+        ];
+
+        const { container } = render(
+            <SubtitleOverlay
+                videoRef={ref}
+                cues={cues}
+                settings={{ ...DEFAULT_SETTINGS, offset: -1500 }}
             />,
         );
 

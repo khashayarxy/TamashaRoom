@@ -9,6 +9,7 @@ const defaults = {
     enabled: true,
     bgOpacity: 40,
     position: "bottom" as const,
+    offset: 0,
 };
 
 describe("useSubtitleStore", () => {
@@ -64,5 +65,16 @@ describe("useSubtitleStore", () => {
         expect(Object.keys(state.settings).sort()).toEqual(
             Object.keys(defaults).sort(),
         );
+    });
+
+    it("initializes offset to 0", () => {
+        expect(useSubtitleStore.getState().settings.offset).toBe(0);
+    });
+
+    it("update changes the offset and persists it", () => {
+        useSubtitleStore.getState().update({ offset: 1250 });
+        expect(useSubtitleStore.getState().settings.offset).toBe(1250);
+        const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY)!);
+        expect(stored.offset).toBe(1250);
     });
 });

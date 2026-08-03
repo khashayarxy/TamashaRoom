@@ -10,6 +10,7 @@ const defaultSettings = {
     enabled: true,
     bgOpacity: 40,
     position: "bottom" as const,
+    offset: 0,
 };
 
 vi.mock("@/stores/subtitle", () => ({
@@ -18,12 +19,15 @@ vi.mock("@/stores/subtitle", () => ({
             settings: typeof defaultSettings;
             update: typeof mockUpdate;
         }) => unknown,
-    ) => selector({ settings: defaultSettings, update: mockUpdate }),
+    ) => selector({ settings: currentSettings, update: mockUpdate }),
 }));
+
+let currentSettings = defaultSettings;
 
 describe("SubtitleSettingsDialog", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        currentSettings = { ...defaultSettings };
     });
 
     it("renders default settings when open", () => {
@@ -54,6 +58,29 @@ describe("SubtitleSettingsDialog", () => {
         const opacitySlider = sliders[1];
         fireEvent.change(opacitySlider, { target: { value: "60" } });
         expect(mockUpdate).toHaveBeenCalledWith({ bgOpacity: 60 });
+    });
+
+    it("shows no delay label when offset is zero", () => {
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        expect(screen.getByText("بدون تأخیر")).toBeInTheDocument();
+        expect(screen.queryByText("بازنشانی")).not.toBeInTheDocument();
+    });
+
+    it("updates offset when slider changes", () => {
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const sliders = screen.getAllByRole("slider");
+        const offsetSlider = sliders[2];
+        fireEvent.change(offsetSlider, { target: { value: "1500" } });
+        expect(mockUpdate).toHaveBeenCalledWith({ offset: 1500 });
+    });
+
+    it("shows formatted offset and reset button when offset is non-zero", () => {
+        currentSettings = { ...defaultSettings, offset: 1500 };
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        expect(screen.getByText("+1.5 ثانیه")).toBeInTheDocument();
+        const reset = screen.getByText("بازنشانی");
+        fireEvent.click(reset);
+        expect(mockUpdate).toHaveBeenCalledWith({ offset: 0 });
     });
 
     it("selects a color when clicked", () => {

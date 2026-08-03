@@ -56,14 +56,16 @@ AGENTS.md (invariants, skill table) → docs/MAP.md (this file) →
 - Frontend: `Components/composite/room-chat.tsx`, `stores/room-ui.ts`.
 - Tests: `tests/Feature/ChatTest.php`, `tests/e2e/chat.spec.ts`.
 
-### Subtitles (upload SRT/VTT, conversion, overlay, settings)
+### Subtitles (upload SRT/VTT, conversion, overlay, settings, room-default track)
 - Skill: `typescript-tailwind-rules`, `rtl-and-design-system`, `security-rules`
   (upload hardening).
-- Backend: `app/Http/Controllers/SubtitleController.php`,
+- Backend: `app/Http/Controllers/SubtitleController.php` (includes
+  `default`/`setDefault` room-default endpoints),
+  `app/Events/SubtitleDefaultChanged.php`,
   `app/Services/SubtitleConverterService.php`,
   `app/Http/Requests/UploadSubtitleRequest.php`.
 - Frontend: `Components/composite/subtitle-overlay.tsx` `subtitle-settings.tsx`,
-  `stores/subtitle.ts`, `lib/types/subtitle.ts`.
+  `stores/subtitle.ts`, `lib/types/subtitle.ts`, `lib/subtitle-selection.ts`.
 - Tests: `tests/Feature/SubtitleTest.php`, `tests/Unit/SubtitleConverterTest.php`,
   `tests/e2e/subtitle.spec.ts`.
 

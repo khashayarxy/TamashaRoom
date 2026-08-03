@@ -106,6 +106,52 @@ export function SubtitleSettingsDialog({
 
                     <div>
                         <label className="block text-sm font-medium mb-2">
+                            هم‌زمانی زیرنویس
+                        </label>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">
+                                دیرتر
+                            </span>
+                            <input
+                                type="range"
+                                min={-5000}
+                                max={5000}
+                                step={250}
+                                value={settings.offset}
+                                onChange={(e) =>
+                                    update({
+                                        offset: parseInt(e.target.value),
+                                    })
+                                }
+                                className="flex-1 h-2 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
+                                style={{ direction: "ltr" }}
+                            />
+                            <span className="text-xs text-muted-foreground">
+                                زودتر
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 mt-1">
+                            <span className="text-sm text-muted-foreground">
+                                {settings.offset === 0
+                                    ? "بدون تأخیر"
+                                    : `${settings.offset > 0 ? "+" : "−"}${(
+                                          Math.abs(settings.offset) / 1000
+                                      ).toFixed(1)} ثانیه`}
+                            </span>
+                            {settings.offset !== 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => update({ offset: 0 })}
+                                    className="text-xs text-primary underline underline-offset-2"
+                                >
+                                    بازنشانی
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-2">
                             رنگ متن
                         </label>
                         <div className="flex gap-2 flex-wrap">

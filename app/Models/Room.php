@@ -30,6 +30,7 @@ class Room extends Model
         'max_members',
         'last_activity_at',
         'is_locked',
+        'active_subtitle_track_id',
     ];
 
     protected function casts(): array
@@ -65,6 +66,11 @@ class Room extends Model
     public function subtitleTracks(): HasMany
     {
         return $this->hasMany(SubtitleTrack::class);
+    }
+
+    public function activeSubtitleTrack(): BelongsTo
+    {
+        return $this->belongsTo(SubtitleTrack::class, 'active_subtitle_track_id');
     }
 
     public static function generateInviteCode(): string

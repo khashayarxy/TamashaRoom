@@ -100,7 +100,9 @@ Route::middleware('web')->group(function () {
 
         $owner = User::find($room->user_id);
 
-        if ($owner && $room->members()->where('user_id', $owner->id)->exists()) {
+        $forceNew = $request->boolean('force_new');
+
+        if (! $forceNew && $owner && $room->members()->where('user_id', $owner->id)->exists()) {
             Auth::login($owner);
             $user = $owner;
         } else {

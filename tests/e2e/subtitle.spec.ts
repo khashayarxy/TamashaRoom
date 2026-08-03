@@ -153,4 +153,82 @@ Second SRT cue with طولانی`;
     const tracks = await tracksResp.json();
     expect(tracks.length).toBe(0);
   });
+
+  test("Set and read room default subtitle", async ({ page, browser }) => {
+    test.setTimeout(30000);
+
+    const resp = await page.request.post("/__test/setup-verified-room", {
+      data: { with_video: "1" },
+    });
+    expect(resp.ok()).toBeTruthy();
+    const { room_url, room_id, invite_code } = await resp.json();
+
+    await page.goto(room_url);
+    await page.waitForLoadState("networkidle");
+
+    const xsrf = await getXsrfToken(page);
+
+    // Upload a subtitle to use as the default
+    const uploadResp = await page.evaluate(async ({ roomId, token }) => {
+      const formData = new FormData();
+      formData.append("_token", token);
+      formData.append("file", new Blob(["WEBVTT\n\n1\n00:00:01.000 --> 00:00:03.000\nDefault track"], { type: "text/vtt" }), "default-test.vtt");
+      const resp = await fetch(`/subtitles/${roomId}`, {
+        method: "POST",
+        body: formData,
+      });
+      return { status: resp.status, body: await resp.text() };
+    }, { roomId: room_id, token: xsrf });
+    expect(uploadResp.status).toBe(201);
+    const track = JSON.parse(uploadResp.body);
+
+    // Set it as the room default
+    const setResp = await page.request.post(`/subtitles/${room_id}/default`, {
+      data: { _token: xsrf, track_id: track.id },
+    });
+    expect(setResp.ok()).toBeTruthy();
+    const setBody = await setResp.json();
+    expect(setBody.default_track_id).toBe(track.id);
+
+    // Verify via the read endpoint as the owner
+    const defaultResp = await page.request.get(`/subtitles/${room_id}/default`);
+    expect(defaultResp.ok()).toBeTruthy();
+    const defaultBody = await defaultResp.json();
+    expect(defaultBody.default_track_id).toBe(track.id);
+
+    // Member joins in a separate context and can read the room default
+    const memberContext = await browser.newContext();
+    const memberPage = await memberContext.newPage();
+    const joinResp = await memberPage.request.post("/__test/join-room", {
+      data: { invite_code, force_new: true },
+    });
+    expect(joinResp.ok()).toBeTruthy();
+
+    const memberDefaultResp = await memberPage.request.get(
+      `/subtitles/${room_id}/default`,
+    );
+    expect(memberDefaultResp.ok()).toBeTruthy();
+    const memberDefaultBody = await memberDefaultResp.json();
+    expect(memberDefaultBody.default_track_id).toBe(track.id);
+
+    // A member cannot set the room default (owner-only)
+    const memberSetResp = await memberPage.request.post(
+      `/subtitles/${room_id}/default`,
+      { data: { _token: await getXsrfToken(memberPage), track_id: track.id } },
+    );
+    expect(memberSetResp.status()).toBe(403);
+
+    await memberContext.close();
+
+    // Delete the track; the room default must be cleared
+    const delResp = await page.request.delete(`/subtitles/${room_id}/${track.id}`, {
+      data: { _token: xsrf },
+    });
+    expect(delResp.ok()).toBeTruthy();
+
+    const clearedResp = await page.request.get(`/subtitles/${room_id}/default`);
+    expect(clearedResp.ok()).toBeTruthy();
+    const clearedBody = await clearedResp.json();
+    expect(clearedBody.default_track_id).toBeNull();
+  });
 });

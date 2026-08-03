@@ -46,6 +46,9 @@
 - [x] Subtitle overlay with cue rendering
 - [x] Subtitle settings (bg opacity, position, RTL support)
 - [x] Error and loading states
+- [x] Guest browse/select of tracks without owner authority
+- [x] Room-default subtitle track (owner-set, inherited by members)
+- [x] Per-user local override of the inherited default + local time offset — Phase 13 (2026-08-03)
 
 ### Presence & Heartbeat
 - [x] Online/offline detection via heartbeat (30s interval)
@@ -63,9 +66,9 @@
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **221** PHPUnit tests across all modules (**180 Feature + 41 Unit**) — verified by runtime run on 2026-08-02: 221 passed by `php artisan test` (752 assertions). No data providers — static count equals runtime count. (This is the **canonical count**; skills reference `docs/TASK.md` rather than hardcoding it. Incremented from 220 by 1 new test added in the Phase 11 onboarding batch.)
-- [x] **144** Frontend Vitest tests (**121 component/hook/logic + 23 Zustand store tests**: theme 5, room-ui 11, subtitle 7) — verified by runtime run on 2026-08-02: 144 passed by `npm run test`. No parameterized (`it.each`/`test.each`) tests — static count equals runtime count. (Incremented from 134 by 10 new tests added in the Phase 11 onboarding batch.)
-- [x] **12** Playwright E2E tests passing (chat 2, lock-kick-transfer 4, room 3, subtitle 3) — verified 2026-08-02 (Batch G8)
+- [x] **229** PHPUnit tests across all modules (**188 Feature + 41 Unit**) — verified by runtime run on 2026-08-03: 229 passed by `php artisan test` (767 assertions). No data providers — static count equals runtime count. (This is the **canonical count**; skills reference `docs/TASK.md` rather than hardcoding it. Incremented from 221 by 8 new tests added in the Phase 13 subtitle-differentiation batch.)
+- [x] **156** Frontend Vitest tests (**131 component/hook/logic + 25 Zustand store tests**: theme 5, room-ui 11, subtitle 9) — verified by runtime run on 2026-08-03: 156 passed by `npm run test`. No parameterized (`it.each`/`test.each`) tests — static count equals runtime count. (Incremented from 144 by 12 new tests added in the Phase 13 subtitle-differentiation batch.)
+- [x] **13** Playwright E2E tests passing (chat 2, lock-kick-transfer 4, room 3, subtitle 4) — verified 2026-08-03 with `APP_ENV=local`; subtitle gained the room-default flow (owner sets, member reads, member-set 403, delete clears default). (Incremented from 12 by 1 new test added in the Phase 13 subtitle-differentiation batch.)
 - [x] **11** axe accessibility tests passing — verified 2026-08-02 (Batch G8)
 - [x] Build verification (tsc + vite)
 
@@ -320,6 +323,14 @@
 - [x] **First-room onboarding moment** — new `RoomOnboarding` component shown to the owner of a new/empty room (no video set, ≤1 member): three setup steps (add video → share invite → watch together) with "افزودن ویدیو" and "کپی لینک دعوت" actions and a dismiss control. Re-shown per room.
 - [x] **Tests** — backend +1 (`RegistrationTest::test_registration_preserves_intended_invite_url`) → **221**; frontend +10 (4 `utils.test.ts` extractInviteCode, 2 `dashboard.test.tsx` join URL/bare code, 4 `room-onboarding.test.tsx`) → **144**. **Results:** `php artisan test` **221/221**; `npm run test` **144/144**; E2E **12/12**; a11y **11/11**; lint 0 errors / 1 warning (pre-existing use-presence hook disable); `tsc` clean; Prettier clean; Pint clean.
 - [x] **Deferred scope** — YouTube iframe playback, public rooms, WebSockets, i18n, and admin tooling remain deferred per Phase 10; no scope was added beyond the four Phase 11 priorities.
+
+### Phase 13 — Subtitle Differentiation (2026-08-03)
+- [x] **Room-default subtitle track** — nullable `active_subtitle_track_id` FK on `rooms` → `subtitle_tracks` (`nullOnDelete`). Owner-only `POST /subtitles/{room}/default` (`track_id` int|nullable, 404 if track not in this room) and member-visible `GET /subtitles/{room}/default` (`{ default_track_id }`). New `SubtitleDefaultChanged` broadcast event (`subtitle.default.changed` on the room presence channel) mirrors the `PlaybackStateChanged` pattern; both default routes declared before `/{track}` in `routes/web.php`.
+- [x] **Guests can browse and select subtitle tracks** — the subtitle manager panel is now shared by all room members (previously owner-only): any member lists tracks and selects one or "بدون زیرنویس". Host-only controls inside the manager: upload file, per-track delete, and a star button that sets/clears the room default with a `(پیشفرض)` label. Video set/change controls remain `isOwner`-gated.
+- [x] **Default inheritance + per-user override** — `lib/subtitle-selection.ts` persists the per-user choice in `localStorage` (`tamasharoom-active-track-{roomId}`). No stored choice → inherit the room default (`room.active_subtitle_track_id` shipped via Inertia); stored `number`/`null` → explicit override. A "پیشفرض اتاق" action clears the stored choice to resume inheriting. Deleting the default track clears it server-side.
+- [x] **Local time-offset control** — `SubtitleSettings.offset` (ms, −5000..5000, step 250, default 0) added to the store/type; overlay cue timing is now `video.currentTime * 1000 + offset`; settings dialog gained a همزمانی زیرنویس slider with `بدون تأخیر`/`±X.X ثانیه` display and a reset button.
+- [x] **Tests** — backend +8 (`SubtitleTest`: owner set/clear default, member/stranger forbidden, cross-room track 404, member read, stranger read forbidden, delete-default clears) → **229**; frontend +12 (2 `subtitle.test.ts` offset, 2 `subtitle-overlay.test.tsx` offset application, 3 `subtitle-settings.test.tsx` offset slider/display/reset, 5 new `subtitle-selection.test.ts`) → **156**. E2E `subtitle.spec.ts` gained a set/read/clear-default flow covering the owner set, member read (distinct forced-new member), member-set 403, and delete-clears-default → **13** total. `routes/test-helpers.php` `join-room` gained a backward-compatible `force_new` flag so E2E can authenticate a genuinely distinct member. **Results:** `php artisan test` **229/229**; `npm run test` **156/156**; E2E **13/13** (verified 2026-08-03 with `APP_ENV=local`); lint 0 errors / 1 warning (pre-existing use-presence hook disable); `tsc` clean; Prettier clean; Pint clean.
+- [x] **Deferred scope** — real-time live update of default/selection changes stays on the polling/broadcast path (no live transport yet); per-language track auto-detection and re-encoding remain out of scope.
 
 #### Deployment Readiness
 - [ ] **Migrations on production** — not executed (all 13 migrations have run only on local SQLite)

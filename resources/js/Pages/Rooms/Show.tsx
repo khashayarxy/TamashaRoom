@@ -17,12 +17,18 @@ import { useRoomOwnership } from "@/Hooks/use-room-ownership";
 import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
 import { copyToClipboard } from "@/lib/utils";
+import {
+    clearActiveTrackChoice,
+    loadActiveTrackId,
+    saveActiveTrackId,
+} from "@/lib/subtitle-selection";
 import api from "@/lib/api";
 import { useRoomUiStore } from "@/stores/room-ui";
 import type { SubtitleTrack, SubtitleCue } from "@/lib/types/subtitle";
 import {
     Copy,
     MessageSquare,
+    Star,
     Subtitles,
     Trash2,
     Tv,
@@ -56,6 +62,7 @@ interface Room {
     user_id: number;
     max_members: number;
     is_locked: boolean;
+    active_subtitle_track_id: number | null;
     owner: { id: number; name: string };
     members: Member[];
     chat_messages: ChatMessage[];
@@ -63,25 +70,6 @@ interface Room {
 
 interface ShowRoomProps {
     room: Room;
-}
-
-const ACTIVE_TRACK_KEY = "tamasharoom-active-track";
-
-function loadActiveTrackId(roomId: number): number | null {
-    try {
-        const raw = localStorage.getItem(`${ACTIVE_TRACK_KEY}-${roomId}`);
-        if (raw) return JSON.parse(raw);
-    } catch {
-        /* ignore */
-    }
-    return null;
-}
-
-function saveActiveTrackId(roomId: number, trackId: number | null) {
-    localStorage.setItem(
-        `${ACTIVE_TRACK_KEY}-${roomId}`,
-        JSON.stringify(trackId),
-    );
 }
 
 export default function ShowRoom({ room }: ShowRoomProps) {
@@ -105,8 +93,12 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
     const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
     const [tracks, setTracks] = useState<SubtitleTrack[]>([]);
-    const [activeTrackId, setActiveTrackId] = useState<number | null>(() =>
-        loadActiveTrackId(room.id),
+    const [activeTrackId, setActiveTrackId] = useState<number | null>(() => {
+        const stored = loadActiveTrackId(room.id);
+        return stored === undefined ? room.active_subtitle_track_id : stored;
+    });
+    const [roomDefaultId, setRoomDefaultId] = useState<number | null>(
+        room.active_subtitle_track_id,
     );
     const [cues, setCues] = useState<SubtitleCue[]>([]);
     const [subLoading, setSubLoading] = useState(false);
@@ -169,9 +161,26 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         };
     }, [room.id]);
 
-    useEffect(() => {
-        saveActiveTrackId(room.id, activeTrackId);
-    }, [room.id, activeTrackId]);
+    const selectTrack = (trackId: number | null) => {
+        setActiveTrackId(trackId);
+        saveActiveTrackId(room.id, trackId);
+    };
+
+    const followRoomDefault = () => {
+        clearActiveTrackChoice(room.id);
+        setActiveTrackId(roomDefaultId);
+    };
+
+    const setRoomDefault = async (trackId: number | null) => {
+        try {
+            await api.post(`/subtitles/${room.id}/default`, {
+                track_id: trackId,
+            });
+            setRoomDefaultId(trackId);
+        } catch {
+            setSubError("خطا در تنظیم زیرنویس پیش‌فرض");
+        }
+    };
 
     useEffect(() => {
         if (!activeTrackId) {
@@ -214,7 +223,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             setTracks((prev) => [res.data, ...prev]);
-            setActiveTrackId(res.data.id);
+            selectTrack(res.data.id);
         } catch {
             setSubError("خطا در آپلود فایل");
         }
@@ -227,8 +236,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             await api.delete(`/subtitles/${room.id}/${trackId}`);
             setTracks((prev) => prev.filter((t) => t.id !== trackId));
             if (activeTrackId === trackId) {
-                setActiveTrackId(null);
+                selectTrack(null);
                 setCues([]);
+            }
+            if (roomDefaultId === trackId) {
+                setRoomDefaultId(null);
             }
         } catch {
             setSubError("خطا در حذف زیرنویس");
@@ -327,168 +339,201 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     </VideoPlayer>
                 </div>
 
-                {isOwner && (
-                    <div className="flex flex-wrap gap-2">
-                        {showSetVideo ? (
-                            <div className="flex gap-2 flex-1 min-w-0">
-                                <div className="flex-1">
-                                    <Input
-                                        placeholder="آدرس مستقیم ویدیو (MP4, WebM, ...)"
-                                        value={videoUrl}
-                                        onChange={(e) =>
-                                            setVideoUrl(e.target.value)
-                                        }
-                                        dir="ltr"
-                                    />
-                                </div>
-                                <Button onClick={setVideo} size="sm">
-                                    تنظیم
-                                </Button>
+                <div className="flex flex-wrap gap-2">
+                    {isOwner && showSetVideo && (
+                        <div className="flex gap-2 flex-1 min-w-0">
+                            <div className="flex-1">
+                                <Input
+                                    placeholder="آدرس مستقیم ویدیو (MP4, WebM, ...)"
+                                    value={videoUrl}
+                                    onChange={(e) =>
+                                        setVideoUrl(e.target.value)
+                                    }
+                                    dir="ltr"
+                                />
+                            </div>
+                            <Button onClick={setVideo} size="sm">
+                                تنظیم
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowSetVideo(false)}
+                            >
+                                انصراف
+                            </Button>
+                        </div>
+                    )}
+
+                    {isOwner && !showSetVideo && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowSetVideo(true)}
+                        >
+                            <Tv className="h-4 w-4" />
+                            ویدیو
+                        </Button>
+                    )}
+
+                    {showSubManager ? (
+                        <div className="flex flex-wrap gap-2 flex-1 min-w-0 p-2 bg-secondary/50 rounded-xl">
+                            <div className="flex gap-2 items-center w-full">
+                                {isOwner && (
+                                    <>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".srt,.vtt"
+                                            onChange={handleUpload}
+                                            className="hidden"
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                fileInputRef.current?.click()
+                                            }
+                                        >
+                                            <Upload className="h-4 w-4" />
+                                            آپلود فایل
+                                        </Button>
+                                    </>
+                                )}
+                                <div className="flex-1" />
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => setShowSetVideo(false)}
+                                    onClick={() => setShowSubManager(false)}
                                 >
-                                    انصراف
+                                    <X className="h-4 w-4" />
                                 </Button>
                             </div>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowSetVideo(true)}
-                            >
-                                <Tv className="h-4 w-4" />
-                                ویدیو
-                            </Button>
-                        )}
-
-                        {showSubManager ? (
-                            <div className="flex flex-wrap gap-2 flex-1 min-w-0 p-2 bg-secondary/50 rounded-xl">
-                                <div className="flex gap-2 items-center w-full">
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".srt,.vtt"
-                                        onChange={handleUpload}
-                                        className="hidden"
-                                    />
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            fileInputRef.current?.click()
-                                        }
+                            {tracks.length > 0 && (
+                                <div className="w-full space-y-1">
+                                    <button
+                                        onClick={() => selectTrack(null)}
+                                        className={`w-full text-end px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                                            activeTrackId === null
+                                                ? "bg-primary/20 text-primary"
+                                                : "text-muted-foreground hover:bg-secondary"
+                                        }`}
                                     >
-                                        <Upload className="h-4 w-4" />
-                                        آپلود فایل
-                                    </Button>
-                                    <div className="flex-1" />
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setShowSubManager(false)}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                {tracks.length > 0 && (
-                                    <div className="w-full space-y-1">
-                                        <button
-                                            onClick={() =>
-                                                setActiveTrackId(null)
-                                            }
-                                            className={`w-full text-end px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                                                activeTrackId === null
-                                                    ? "bg-primary/20 text-primary"
-                                                    : "text-muted-foreground hover:bg-secondary"
-                                            }`}
-                                        >
-                                            بدون زیرنویس
-                                        </button>
-                                        {tracks.map((track) => (
-                                            <div
-                                                key={track.id}
-                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                                                    activeTrackId === track.id
+                                        بدون زیرنویس
+                                    </button>
+                                    {roomDefaultId !== null &&
+                                        activeTrackId !== roomDefaultId && (
+                                            <button
+                                                onClick={followRoomDefault}
+                                                className={`w-full text-end px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                                                    activeTrackId ===
+                                                    roomDefaultId
                                                         ? "bg-primary/20 text-primary"
                                                         : "text-muted-foreground hover:bg-secondary"
                                                 }`}
                                             >
-                                                <button
-                                                    onClick={() =>
-                                                        setActiveTrackId(
-                                                            track.id,
-                                                        )
-                                                    }
-                                                    className="flex-1 text-end truncate"
-                                                >
-                                                    {track.label}
-                                                    <span className="text-xs me-2">
-                                                        .
-                                                        {
-                                                            track.original_extension
-                                                        }
+                                                پیش‌فرض اتاق
+                                            </button>
+                                        )}
+                                    {tracks.map((track) => (
+                                        <div
+                                            key={track.id}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                                                activeTrackId === track.id
+                                                    ? "bg-primary/20 text-primary"
+                                                    : "text-muted-foreground hover:bg-secondary"
+                                            }`}
+                                        >
+                                            <button
+                                                onClick={() =>
+                                                    selectTrack(track.id)
+                                                }
+                                                className="flex-1 text-end truncate"
+                                            >
+                                                {track.label}
+                                                <span className="text-xs me-2">
+                                                    .{track.original_extension}
+                                                </span>
+                                                {roomDefaultId === track.id && (
+                                                    <span className="text-xs text-primary ms-1">
+                                                        (پیش‌فرض)
                                                     </span>
-                                                </button>
-                                                <button
-                                                    onClick={() =>
-                                                        handleDeleteTrack(
-                                                            track.id,
-                                                        )
-                                                    }
-                                                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                                                    title="حذف"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                {tracks.length === 0 && (
-                                    <p className="text-xs text-muted-foreground w-full px-1">
-                                        هنوز زیرنویسی آپلود نشده است
-                                    </p>
-                                )}
-                            </div>
-                        ) : (
-                            <>
+                                                )}
+                                            </button>
+                                            {isOwner && (
+                                                <>
+                                                    <button
+                                                        onClick={() =>
+                                                            setRoomDefault(
+                                                                roomDefaultId ===
+                                                                    track.id
+                                                                    ? null
+                                                                    : track.id,
+                                                            )
+                                                        }
+                                                        className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+                                                        title={
+                                                            roomDefaultId ===
+                                                            track.id
+                                                                ? "حذف پیش‌فرض"
+                                                                : "تنظیم به‌عنوان پیش‌فرض"
+                                                        }
+                                                    >
+                                                        <Star
+                                                            className={`h-3.5 w-3.5 ${
+                                                                roomDefaultId ===
+                                                                track.id
+                                                                    ? "fill-current text-primary"
+                                                                    : ""
+                                                            }`}
+                                                        />
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            handleDeleteTrack(
+                                                                track.id,
+                                                            )
+                                                        }
+                                                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                                        title="حذف"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {tracks.length === 0 && (
+                                <p className="text-xs text-muted-foreground w-full px-1">
+                                    هنوز زیرنویسی آپلود نشده است
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowSubManager(true)}
+                            >
+                                <Subtitles className="h-4 w-4" />
+                                زیرنویس
+                            </Button>
+                            {activeTrack && (
                                 <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     size="sm"
-                                    onClick={() => setShowSubManager(true)}
+                                    onClick={() => setShowSubSettings(true)}
                                 >
                                     <Subtitles className="h-4 w-4" />
-                                    زیرنویس
+                                    تنظیمات
                                 </Button>
-                                {activeTrack && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setShowSubSettings(true)}
-                                    >
-                                        <Subtitles className="h-4 w-4" />
-                                        تنظیمات
-                                    </Button>
-                                )}
-                            </>
-                        )}
-                    </div>
-                )}
-
-                {!isOwner && activeTrack && (
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowSubSettings(true)}
-                        >
-                            <Subtitles className="h-4 w-4" />
-                            تنظیمات زیرنویس
-                        </Button>
-                    </div>
-                )}
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
 
             <div className="lg:w-80 flex flex-col">

@@ -40,7 +40,7 @@ cp .env.example .env
 php artisan migrate --force
 ```
 
-This runs all 13 migrations: 3 framework base files (users + password_reset_tokens + sessions, cache + cache_locks, jobs + job_batches + failed_jobs) plus 10 application migrations (rooms, room_members, chat_messages, playback state version, subtitle_tracks, presence fields, is_locked, playback_mode, last_activity_at index, personal_access_tokens).
+This runs all 14 migrations: 3 framework base files (users + password_reset_tokens + sessions, cache + cache_locks, jobs + job_batches + failed_jobs) plus 11 application migrations (rooms, room_members, chat_messages, playback state version, subtitle_tracks, presence fields, is_locked, playback_mode, last_activity_at index, active_subtitle_track_id on rooms, personal_access_tokens).
 
 **Expected output:** `Migration table created successfully.` then all migrations marked as `[OK]`.
 

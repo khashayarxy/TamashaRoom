@@ -26,6 +26,7 @@ A user creates a private room and provides a video source (an external link — 
 - Room member list (who is currently present)
 - Simple in-room chat
 - Soft subtitle support, with adjustable size and color
+- Subtitle differentiation — per-track selection by guests, a host-set room-default track inherited by members, and a per-user local time offset (Phase 13)
 - External video links only — no video files stored on the server
 
 ## Real-Time Architecture
@@ -69,7 +70,7 @@ Playback sync is the product's core mechanic, and it is normally built on WebSoc
 **Zustand stores** (all in `resources/js/stores/`; local UI state only — server data is not stored in Zustand):
 - `theme` — dark/light mode toggle, persisted to `localStorage`.
 - `room-ui` — Room-page UI state (active tab, modal/dialog visibilities, video URL, room name, invite code, locked flag, reactive `ownerId`). The one documented exception where selected server data (`video_url`, `room_name`, `invite_code`, `is_locked`, plus `ownerId` for ownership) is copied into the store to avoid prop drilling; see SYSTEM.md 16.03.
-- `subtitle` — subtitle settings (size, color, enabled, bg opacity, position), persisted to `localStorage`.
+- `subtitle` — subtitle settings (size, color, enabled, bg opacity, position, offset), persisted to `localStorage`.
 
 ## Architecture Principles
 

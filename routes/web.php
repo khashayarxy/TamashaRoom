@@ -53,6 +53,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('subtitles/{room}')->name('subtitles.')->group(function () {
         Route::get('/', [SubtitleController::class, 'index'])->name('index');
         Route::post('/', [SubtitleController::class, 'store'])->name('store');
+        Route::get('/default', [SubtitleController::class, 'default'])->name('default');
+        Route::post('/default', [SubtitleController::class, 'setDefault'])->name('set-default');
         Route::get('/{track}', [SubtitleController::class, 'show'])->name('show');
         Route::get('/{track}/cues', [SubtitleController::class, 'cues'])->name('cues');
         Route::delete('/{track}', [SubtitleController::class, 'destroy'])->name('destroy');

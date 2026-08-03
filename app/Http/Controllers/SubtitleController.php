@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Events\SubtitleDefaultChanged;
 use App\Http\Requests\UploadSubtitleRequest;
 use App\Models\Room;
 use App\Models\SubtitleTrack;
@@ -28,6 +29,44 @@ class SubtitleController extends Controller
             ->get(['id', 'label', 'language', 'original_extension', 'created_at']);
 
         return response()->json($tracks);
+    }
+
+    public function default(Request $request, Room $room): JsonResponse
+    {
+        $this->authorize('memberAccess', $room);
+
+        return response()->json([
+            'default_track_id' => $room->active_subtitle_track_id,
+        ]);
+    }
+
+    public function setDefault(Request $request, Room $room): JsonResponse
+    {
+        $this->authorize('update', $room);
+
+        $validated = $request->validate([
+            'track_id' => 'nullable|integer',
+        ]);
+
+        $trackId = $validated['track_id'];
+
+        if ($trackId !== null) {
+            $trackExists = $room->subtitleTracks()->whereKey($trackId)->exists();
+
+            if (! $trackExists) {
+                return response()->json([
+                    'message' => 'Subtitle track not found in this room.',
+                ], 404);
+            }
+        }
+
+        $room->update(['active_subtitle_track_id' => $trackId]);
+
+        broadcast(new SubtitleDefaultChanged($room, $trackId, $request->user()->id));
+
+        return response()->json([
+            'default_track_id' => $trackId,
+        ]);
     }
 
     public function store(UploadSubtitleRequest $request, Room $room): JsonResponse
@@ -99,6 +138,11 @@ class SubtitleController extends Controller
         $this->authorize('update', $room);
 
         abort_if($track->room_id !== $room->id, 404);
+
+        if ($room->active_subtitle_track_id === $track->id) {
+            $room->update(['active_subtitle_track_id' => null]);
+            broadcast(new SubtitleDefaultChanged($room, null, $request->user()->id));
+        }
 
         $track->delete();
         Storage::disk('public')->delete($track->file_path);

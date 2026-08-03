@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS: SubtitleSettings = {
     enabled: true,
     bgOpacity: 40,
     position: "bottom",
+    offset: 0,
 };
 
 export function parseVtt(text: string): SubtitleCue[] {
@@ -151,7 +152,7 @@ export function SubtitleOverlay({
         if (!video || cues.length === 0) return;
 
         const tick = () => {
-            const timeMs = video.currentTime * 1000;
+            const timeMs = video.currentTime * 1000 + settings.offset;
             const active = cues.find(
                 (c) => timeMs >= c.start && timeMs < c.end,
             );
@@ -160,7 +161,7 @@ export function SubtitleOverlay({
         };
         rafRef.current = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(rafRef.current);
-    }, [cues, videoRef]);
+    }, [cues, videoRef, settings.offset]);
 
     if (error) {
         return (

@@ -95,9 +95,11 @@ All Inertia page routes. Every page receives `auth.user` via the shared middlewa
 |---|---|---|---|---|
 | `GET /subtitles/{room}` | GET | `subtitles.index` | *(none)* | `auth`, `verified` |
 | `POST /subtitles/{room}` | POST | `subtitles.store` | Multipart: `file: File` (required, mimes:srt,vtt,txt, max:2048KB), `label: string` (optional, max:255), `language: string` (optional, max:10, default `"fa"`) | `auth`, `verified` |
+| `GET /subtitles/{room}/default` | GET | `subtitles.default` | *(none)* — returns `{ default_track_id }` | `auth`, `verified`, `memberAccess` |
+| `POST /subtitles/{room}/default` | POST | `subtitles.set-default` | `{ track_id: int \| null }` — owner-only; returns `{ default_track_id }` | `auth`, `verified` |
 | `GET /subtitles/{room}/{track}` | GET | `subtitles.show` | *(none)* — returns raw VTT content | `auth`, `verified` |
 | `GET /subtitles/{room}/{track}/cues` | GET | `subtitles.cues` | *(none)* | `auth`, `verified` |
-| `DELETE /subtitles/{room}/{track}` | DELETE | `subtitles.destroy` | *(none)* | `auth`, `verified` |
+| `DELETE /subtitles/{room}/{track}` | DELETE | `subtitles.destroy` | *(none)* — owner-only; clears the room default if the deleted track was default | `auth`, `verified` |
 
 **Subtitle filename extensions:** supported filename extensions are **only `.srt` and `.vtt`**. The `txt` value in the `mimes:` rule exists **only** as a MIME-detection fallback — Symfony's `guessExtension()` detects SRT *content* as `txt`. A `.txt` **filename** itself is NOT accepted: the `after()` hook compares the detected format against the uploaded file's client extension, so a file named `foo.txt` (regardless of content) fails validation. See §7.6.
 
@@ -251,6 +253,7 @@ interface Room {
     max_members: number;                // default 10
     last_activity_at: string | null;    // ISO 8601 datetime
     is_locked: boolean;                 // default false
+    active_subtitle_track_id: number | null; // room-default subtitle track, owner-set; null when none
     created_at: string;                 // ISO 8601
     updated_at: string;                 // ISO 8601
 }
@@ -370,10 +373,17 @@ interface SubtitleSettings {
     enabled: boolean;                   // default true
     bgOpacity: number;                  // 0-100, default 40
     position: 'bottom' | 'top';        // default 'bottom'
+    offset: number;                     // ms, -5000..5000 step 250, default 0; positive = show cues earlier (relative to cue timing)
 }
 ```
 
 **Frontend-only** — stored in Zustand (`subtitle` store), not persisted to backend.
+
+**Active track selection** — per-user, per-room, persisted in `localStorage` under `tamasharoom-active-track-{roomId}` (see `lib/subtitle-selection.ts`). Semantics:
+- No stored choice → **inherit the room default** (`room.active_subtitle_track_id`).
+- Stored `number` → explicit track override.
+- Stored `null` → explicit "no subtitles" override.
+- "پیشفرض اتاق" action clears the stored choice to resume inheriting the host's default.
 
 ---
 
