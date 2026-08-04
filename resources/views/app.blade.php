@@ -10,7 +10,7 @@
 
         <link rel="preload" as="font" type="font/woff2" href="/fonts/vazirmatn-var.woff2" crossorigin="anonymous">
 
-        @routes
+        @routes(nonce: $cspNonce ?? null)
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx'])
         @inertiaHead

@@ -61,6 +61,46 @@ class SecurityTest extends TestCase
     }
 
     #[Test]
+    public function ziggy_routes_script_uses_the_csp_nonce_in_strict_mode(): void
+    {
+        // Under the strict nonce-only CSP (non-local env), Ziggy's inline
+        // @routes script must carry the same nonce the middleware applies to
+        // Vite assets, otherwise window.Ziggy is blocked by the CSP.
+        $response = $this->actingAs($this->owner)->get('/dashboard');
+
+        $response->assertOk();
+
+        $csp = $response->headers->get('Content-Security-Policy');
+        $this->assertIsString($csp);
+        $this->assertStringContainsString("script-src 'self' 'nonce-", $csp);
+
+        // The strict nonce-only policy must NOT fall back to 'unsafe-inline':
+        // the middleware only emits it under the local (Vite dev) branch, so
+        // this assertion proves the check runs against the production branch.
+        preg_match('/script-src\s+([^;]+)/', $csp, $scriptMatches);
+        $this->assertNotEmpty($scriptMatches);
+        $this->assertStringNotContainsString(
+            'unsafe-inline',
+            $scriptMatches[1],
+        );
+
+        preg_match("/'nonce-([^']+)'/", $csp, $matches);
+        $this->assertNotEmpty($matches);
+        $nonce = $matches[1];
+
+        $html = $response->getContent();
+        $this->assertIsString($html);
+        $this->assertStringContainsString('Ziggy', $html);
+
+        // The nonce is base64 (may contain +, /, =) — escape it for regex.
+        $escaped = preg_quote($nonce, '/');
+        $this->assertMatchesRegularExpression(
+            '/<script[^>]*nonce="'.$escaped.'"[^>]*>[\s\S]*Ziggy/',
+            $html,
+        );
+    }
+
+    #[Test]
     public function login_page_has_security_headers(): void
     {
         $response = $this->get('/login');

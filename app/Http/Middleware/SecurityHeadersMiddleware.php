@@ -13,6 +13,16 @@ class SecurityHeadersMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // The CSP nonce must be generated and shared BEFORE the view renders,
+        // so inline scripts emitted during rendering (Ziggy's @routes, Vite)
+        // can carry the same nonce. Vite's assets are the app entry point.
+        $nonce = app()->environment('local') ? null : base64_encode(random_bytes(16));
+
+        if ($nonce !== null) {
+            view()->share('cspNonce', $nonce);
+            Vite::useCspNonce($nonce);
+        }
+
         $response = $next($request);
 
         $response->headers->set('X-Frame-Options', 'DENY', true);
@@ -21,7 +31,7 @@ class SecurityHeadersMiddleware
 
         $permissions = implode(', ', [
             'accelerometer=()',
-            'autoplay=()',
+            'autoplay=(self)',
             'camera=()',
             'display-capture=()',
             'encrypted-media=()',
@@ -58,11 +68,6 @@ class SecurityHeadersMiddleware
                 ."base-uri 'self'; "
                 ."form-action 'self'";
         } else {
-            $nonce = base64_encode(random_bytes(16));
-
-            view()->share('cspNonce', $nonce);
-            Vite::useCspNonce($nonce);
-
             $csp = "default-src 'self'; "
                 ."script-src 'self' 'nonce-{$nonce}'; "
                 ."style-src 'self' 'unsafe-inline'; "
