@@ -26,13 +26,20 @@ test.describe("Room lock, kick, and ownership transfer", () => {
     const lockResult = await lockResp.json();
     expect(lockResult.is_locked).toBe(true);
 
-    // Guest tries to join via the join route — should be rejected (room locked)
+    // Guest (authenticated stranger) tries to join a locked room via the POST
+    // join action — should be rejected with a redirect back (302) and NOT
+    // become a member.
     const guestCtx = await page.context().browser()!.newContext();
     const guestPage = await guestCtx.newPage();
-    const joinRouteResp = await guestPage.request.get(`/rooms/join/${invite_code}`, {
-      maxRedirects: 0,
-    });
-    expect(joinRouteResp.status() === 302 || joinRouteResp.status() === 403).toBe(true);
+    const guestSetup = await guestPage.request.post("/__test/setup-verified-room");
+    expect(guestSetup.ok()).toBeTruthy();
+    const guestXsrf = await getXsrfToken(guestPage);
+    const joinRouteResp = await guestPage.request.post(
+      `/rooms/join/${invite_code}`,
+      { data: { _token: guestXsrf }, maxRedirects: 0 },
+    );
+    // Locked room: rejected (302 redirect back), not a successful join (2xx).
+    expect(joinRouteResp.status()).toBe(302);
 
     await guestCtx.close();
   });

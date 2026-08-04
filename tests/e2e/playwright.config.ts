@@ -18,7 +18,13 @@ export default defineConfig({
     },
   },
   webServer: {
+    // php artisan serve is single-threaded by default; give it a few workers
+    // so multiple browser contexts polling concurrently don't serialize on one
+    // process (a common source of E2E flake).
     command: "php artisan serve --port=8000",
+    env: {
+      PHP_CLI_SERVER_WORKERS: "4",
+    },
     cwd: path.resolve(configDir, "../.."),
     url: "http://127.0.0.1:8000",
     reuseExistingServer: true,

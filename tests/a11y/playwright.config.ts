@@ -18,7 +18,12 @@ export default defineConfig({
     },
   },
   webServer: {
+    // php artisan serve is single-threaded by default; give it a few workers
+    // so the browser context and polling don't serialize on one process.
     command: "php artisan serve --port=8000",
+    env: {
+      PHP_CLI_SERVER_WORKERS: "4",
+    },
     cwd: path.resolve(configDir, "../.."),
     url: "http://127.0.0.1:8000",
     reuseExistingServer: true,

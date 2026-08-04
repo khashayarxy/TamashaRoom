@@ -97,4 +97,33 @@ test.describe("Chat flow", () => {
     const messagesAfter = await msgsAfterResp.json();
     expect(messagesAfter.some((m: { id: number }) => m.id === sentMsg.id)).toBe(false);
   });
+
+  test("Chat messages persist across the Chat/Members tab switch", async ({ page }) => {
+    test.setTimeout(20000);
+
+    const resp = await page.request.post("/__test/setup-verified-room");
+    expect(resp.ok()).toBeTruthy();
+    const { room_url } = await resp.json();
+
+    await page.goto(room_url);
+    await page.waitForLoadState("networkidle");
+
+    // Send a message through the UI so it lives in the chat component's local state.
+    const input = page.getByPlaceholder("پیام خود را بنویسید...");
+    await input.fill("پیام تابستانی");
+    await input.press("Enter");
+    await expect(page.getByText("پیام تابستانی")).toBeVisible();
+
+    // Switch to Members and back to Chat.
+    await page.getByRole("button", { name: "اعضا" }).click();
+    await expect(page.getByText("پیام تابستانی")).toBeHidden();
+
+    await page.getByRole("button", { name: "چت" }).click();
+
+    // The message must be visible immediately — long before the next poll could
+    // refill it (pollInterval is 3000ms). A sub-poll timeout proves the list
+    // survived the tab switch instead of being remounted from a stale snapshot.
+    await expect(page.getByText("پیام تابستانی")).toBeVisible({ timeout: 1500 });
+    await expect(page.getByText("پیام تابستانی")).toHaveCount(1);
+  });
 });

@@ -107,7 +107,7 @@ class VideoStreamTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->get("/proxy/video/{$this->room->id}");
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     public function test_unauthenticated_user_cannot_access_proxy(): void
@@ -222,6 +222,96 @@ class VideoStreamTest extends TestCase
         $this->assertSame('video/mp4', $response->headers->get('Content-Type'));
     }
 
+    public function test_video_proxy_suffix_range_means_last_n_bytes(): void
+    {
+        $service = $this->stubVideoProxy();
+
+        $request = Request::create('/proxy/video/1', 'GET', [], [], [], [
+            'HTTP_Range' => 'bytes=-25',
+        ]);
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        // Content-Length is 100; `bytes=-25` must mean "the last 25 bytes"
+        // (75-99), not "start at 0, end at 25".
+        $this->assertSame(206, $response->getStatusCode());
+        $this->assertSame('bytes 75-99/100', $response->headers->get('Content-Range'));
+        $this->assertSame('25', $response->headers->get('Content-Length'));
+    }
+
+    public function test_video_proxy_rejects_inverted_range(): void
+    {
+        $service = $this->stubVideoProxy();
+
+        $request = Request::create('/proxy/video/1', 'GET', [], [], [], [
+            'HTTP_Range' => 'bytes=50-10',
+        ]);
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        $this->assertSame(416, $response->getStatusCode());
+    }
+
+    public function test_video_proxy_falls_back_to_full_stream_when_origin_ignores_range(): void
+    {
+        $service = $this->stubVideoProxyWithUpstreamStatus(200);
+
+        $request = Request::create('/proxy/video/1', 'GET', [], [], [], [
+            'HTTP_Range' => 'bytes=0-99',
+        ]);
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        // The origin ignored the Range header and returned 200 with the full
+        // body, so we must NOT synthesize an incorrect 206/Content-Range.
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertNull($response->headers->get('Content-Range'));
+    }
+
+    public function test_video_proxy_full_stream_omits_accept_ranges_when_origin_lacks_it(): void
+    {
+        $urlSecurity = new class extends UrlSecurityService
+        {
+            public function validateVideoUrl(string $url): ?string
+            {
+                return null;
+            }
+        };
+
+        $service = new class($urlSecurity) extends VideoProxyService
+        {
+            public function __construct(UrlSecurityService $urlSecurity)
+            {
+                parent::__construct($urlSecurity);
+            }
+
+            protected function httpGetHeaders(string $url, mixed $context): array|false
+            {
+                return [
+                    'HTTP/1.1 200 OK',
+                    'Content-Type' => 'video/mp4',
+                    'Content-Length' => '100',
+                ];
+            }
+
+            protected function openRemoteStream(string $url, mixed $context)
+            {
+                $stream = fopen('php://temp', 'r+');
+                fwrite($stream, str_repeat('x', 100));
+                rewind($stream);
+
+                return $stream;
+            }
+        };
+
+        $request = Request::create('/proxy/video/1', 'GET');
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertNull($response->headers->get('Accept-Ranges'));
+    }
+
     public function test_proxy_stream_context_enables_tls_verification(): void
     {
         $service = app(VideoProxyService::class);
@@ -329,6 +419,16 @@ class VideoStreamTest extends TestCase
      */
     private function stubVideoProxy(): VideoProxyService
     {
+        return $this->stubVideoProxyWithUpstreamStatus(206);
+    }
+
+    /**
+     * Like stubVideoProxy but lets a test control the upstream status reported
+     * after a stream open (used to simulate an origin that ignores Range and
+     * returns the full body with a 200 status).
+     */
+    private function stubVideoProxyWithUpstreamStatus(int $status): VideoProxyService
+    {
         $urlSecurity = new class extends UrlSecurityService
         {
             public function validateVideoUrl(string $url): ?string
@@ -337,10 +437,12 @@ class VideoStreamTest extends TestCase
             }
         };
 
-        return new class($urlSecurity) extends VideoProxyService
+        return new class($urlSecurity, $status) extends VideoProxyService
         {
-            public function __construct(UrlSecurityService $urlSecurity)
-            {
+            public function __construct(
+                UrlSecurityService $urlSecurity,
+                private readonly int $upstreamStatus,
+            ) {
                 parent::__construct($urlSecurity);
             }
 
@@ -359,6 +461,8 @@ class VideoStreamTest extends TestCase
                 $stream = fopen('php://temp', 'r+');
                 fwrite($stream, str_repeat('x', 100));
                 rewind($stream);
+
+                $this->lastStreamStatus = $this->upstreamStatus;
 
                 return $stream;
             }
@@ -452,5 +556,26 @@ class VideoStreamTest extends TestCase
         $max = new \ReflectionMethod($service, 'maxRelayedBytes');
 
         $this->assertSame(4 * 1024 * 1024 * 1024, $max->invoke($service));
+    }
+
+    public function test_time_limit_is_reset_on_every_relayed_chunk(): void
+    {
+        $service = new class(app(UrlSecurityService::class)) extends VideoProxyService
+        {
+            public int $resets = 0;
+
+            protected function resetTimeLimit(): void
+            {
+                $this->resets++;
+            }
+        };
+
+        // 3 chunks worth of content -> the loop iterates multiple times and
+        // must reset the execution budget on each iteration (not once before
+        // the loop) so a long stream is not truncated by max_execution_time
+        // mid-relay. The loop performs one extra iteration to detect EOF.
+        $this->captureStreamChunks($service, str_repeat('f', 8192 * 3));
+
+        $this->assertGreaterThanOrEqual(3, $service->resets);
     }
 }
