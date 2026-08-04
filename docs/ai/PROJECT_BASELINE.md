@@ -1,10 +1,22 @@
 # PROJECT_BASELINE.md
 
-> Current project baseline, compiled from the repository documentation and the
-> supplied audit/verification materials. Every statement is marked with a
-> confidence level so AI agents never mistake an assumption for a fact.
+> **⚠️ HISTORICAL VERIFICATION EVIDENCE — MAY BE STALE.**
 >
-> Confidence levels:
+> This file was compiled as verification evidence (level 4 of the source-of-truth
+> hierarchy) and is **not** a live reference. Its test counts, feature lists, and
+> confidence markers were verified as of **2026-08-02** and have since drifted:
+> - Test counts in §Testing (202/122/12) predate Phase 13/14 and the 2026-08-04
+>   audit-fix batches. The **canonical current counts live in `docs/TASK.md`**
+>   (backend 240, frontend 203, E2E 14, a11y 11 as of 2026-08-04).
+> - Features added in Phase 13 (room-default subtitles) and Phase 14 (presence
+>   moments, watch-again/replay) are not listed here.
+>
+> Do not treat stale figures as current facts. For the current state, read the
+> canonical docs instead: `docs/TASK.md`, `docs/PROJECT.md`,
+> `docs/deployment-checklist.md`, `docs/SYSTEM.md`.
+>
+> Confidence levels (used in this historical file):
+
 > - **Confirmed** — directly supported by the repository source or a documented,
 >   verified test result.
 > - **Partially confirmed** — supported by documentation but not fully re-verified
@@ -113,11 +125,12 @@ docs/SYSTEM.md ch. 18.00]
 ## Database
 
 - MySQL/MariaDB in production; SQLite for local dev and tests. [Confirmed]
-- 13 migration files total (3 framework base + 10 application), including:
+- 14 migration files total (3 framework base + 11 application), including:
   users, rooms, room_members, chat_messages, subtitle_tracks,
   personal_access_tokens, cache, jobs, plus application migrations for
-  playback_state_version, presence fields, is_locked, playback_mode, and a
-  last_activity_at index. [Confirmed — database/migrations listing]
+  playback_state_version, presence fields, is_locked, playback_mode, a
+  last_activity_at index, and active_subtitle_track_id on rooms.
+  [Confirmed — database/migrations listing]
 - Key tables and relationships:
   - `users` ← owner of `rooms` (user_id), author of `chat_messages`, member via `room_members`
   - `rooms` — has many `room_members`, `chat_messages`, `subtitle_tracks`

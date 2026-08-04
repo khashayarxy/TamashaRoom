@@ -1,4 +1,4 @@
-# SYSTEM.mdTamashaRoom AI Frontend Operating SystemVersion: MVPLast Updated: 2026-07-17
+# SYSTEM.md — TamashaRoom AI Frontend Operating System — Version: MVP — Last Updated: 2026-08-04
 
 ## Chapter Index (read by line range; never read this file end-to-end)
 
@@ -7278,7 +7278,7 @@ return () => clearInterval(id);
 }, \[intervalMs\]);  
 }  
 
-`router.reload()` is Inertia's partial reload --- it re-requests the current page's props from the controller without a full navigation, which keeps a polling loop cheap. Note: production live-room polling does **not** use this hook --- it uses the axios `api` client against JSON endpoints (`usePlaybackSync` → `GET /playback/{room}/state`, `usePresence` → `GET /presence/{room}`, `RoomChat` → `GET /chat/{room}/messages`), because those endpoints return typed JSON, not page props. `usePollingReload` exists as a utility but is used by no production feature. Reserve polling for the few surfaces that genuinely benefit from it (room state, presence, chat); do not apply it by default.
+`router.reload()` is Inertia's partial reload --- it re-requests the current page's props from the controller without a full navigation, which keeps a polling loop cheap. Note: production live-room polling does **not** use this pattern --- it uses the axios `api` client against JSON endpoints (`usePlaybackSync` → `GET /playback/{room}/state`, `usePresence` → `GET /presence/{room}`, `RoomChat` → `GET /chat/{room}/messages`), because those endpoints return typed JSON, not page props. The illustrative `usePollingReload` hook above no longer exists in the codebase (removed); it is shown only to contrast the anti-pattern with the typed-JSON polling hooks. Reserve polling for the few surfaces that genuinely benefit from it (room state, presence, chat); do not apply it by default.
 
 ### Rule 3: Design the Sync Transport to Be Swappable, Not the Feature
 

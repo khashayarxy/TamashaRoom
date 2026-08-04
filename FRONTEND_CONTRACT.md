@@ -63,8 +63,9 @@ All Inertia page routes. Every page receives `auth.user` via the shared middlewa
 
 | URL | Method | Route Name | Body / Params | Auth |
 |---|---|---|---|---|
-| `/rooms` | POST | `rooms.store` | `name: string` (required, max:255), `max_members: int` (optional, min:2, max:50) | `auth`, `verified` |
-| `/rooms/join/{inviteCode}` | GET | `rooms.join` | URL param `inviteCode: string` (12-char alphanumeric) | `auth`, `verified`, throttle:join (10/min) |
+| `/rooms` | POST | `rooms.store` | `name: string` (required, max:255), `max_members: int` (optional, min:2, max:50) | `auth`, `verified`, throttle:room-create (5/min) |
+| `/rooms/join/{inviteCode}` | GET | `rooms.join` | URL param `inviteCode: string` (12-char alphanumeric) | `auth`, `verified`, throttle:join (10/min) — shows a confirmation page, does NOT create membership |
+| `/rooms/join/{inviteCode}` | POST | `rooms.join.submit` | URL param `inviteCode: string` (12-char alphanumeric) | `auth`, `verified`, throttle:join (10/min) — creates membership (confirmed-only action) |
 | `/rooms/{room}` | PATCH | `rooms.update` | `name: string` (optional, max:255), `max_members: int` (optional, min:2, max:50) | `auth`, `verified` (owner only) |
 | `/rooms/{room}` | DELETE | `rooms.destroy` | *(none)* | `auth`, `verified` (owner only) |
 | `/rooms/{room}/kick/{target}` | POST | `rooms.kick` | URL param `target: User.id` | `auth`, `verified` (owner only, cannot kick self) |
@@ -77,7 +78,7 @@ All Inertia page routes. Every page receives `auth.user` via the shared middlewa
 
 | URL | Method | Route Name | Body | Auth |
 |---|---|---|---|---|
-| `PATCH /playback/{room}` | PATCH | `playback.update` | `is_playing: bool`, `position_seconds: numeric (min:0)`, `duration_seconds: numeric (min:0)`, `playback_rate: numeric` (optional, min:0.25, max:4), `video_url: string\|null` (optional), `client_timestamp: numeric` (optional) | `auth`, `verified`, throttle:playback (60/min) |
+| `PATCH /playback/{room}` | PATCH | `playback.update` | `is_playing: bool`, `position_seconds: numeric (min:0, max:86400)`, `duration_seconds: numeric (min:0, max:86400)`, `playback_rate: numeric` (optional, min:0.25, max:4), `video_url: string\|null` (optional), `client_timestamp: numeric` (optional) | `auth`, `verified`, throttle:playback (60/min) |
 | `POST /playback/{room}/set-video` | POST | `playback.set-video` | `video_url: string\|url` (required) | `auth`, `verified`, throttle:playback (60/min) |
 | `GET /playback/{room}/state` | GET | `playback.state` | *(none)* — response shape in §5 | `auth`, `verified` |
 
@@ -763,8 +764,9 @@ video reaches its end:
 
 ### 5.4 General Inertia Reload (utility hook)
 
-A helper `usePollingReload(intervalMs)` exists for simple full-page Inertia refreshes
-at a fixed interval. Not used for any production feature.
+The `usePollingReload` utility was removed; no such hook exists in the codebase.
+Live room data uses the dedicated polling hooks described above (`usePlaybackSync`,
+`usePresence`, `RoomChat`), which poll the JSON endpoints with the axios `api` client.
 
 ---
 
@@ -873,7 +875,11 @@ type PresenceStatus = 'online' | 'offline';
 | `proxy` | 30 per minute | `user_id` or IP |
 | `presence` | 60 per minute | `user_id` or IP |
 | `login` | 5 per minute | `email\|ip` |
+| `register` | 5 per minute | `ip` |
+| `forgot-password` | 5 per minute | `email\|ip` |
+| `reset-password` | 5 per minute | `ip` |
 | `join` | 10 per minute | `user_id` or IP |
+| `room-create` | 5 per minute | `user_id` or IP |
 
 ### 7.6 Subtitle File Constraints
 
@@ -922,6 +928,7 @@ type PresenceStatus = 'online' | 'offline';
 | `PlaybackStateChanged` | `playback.state.changed` |
 | `NewChatMessage` | `chat.message.new` |
 | `MemberPresenceChanged` | `member.presence.changed` |
+| `SubtitleDefaultChanged` | `subtitle.default.changed` |
 
 ### 7.12 Proxy Video MIME Types
 

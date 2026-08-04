@@ -29,6 +29,8 @@ cp .env.example .env
 | `SESSION_DRIVER` | `database` | DB-backed sessions — required on a single server |
 | `QUEUE_CONNECTION` | `database` | Queue drained by the scheduler; no persistent worker |
 | `CACHE_STORE` | `database` | DB cache store — required (Laravel 13 uses `CACHE_STORE`, not `CACHE_DRIVER`) |
+| `BROADCAST_CONNECTION` | `null` | Nothing consumes broadcast events yet (frontend polls); `null` avoids writing every event to the log. Switch to `reverb` only after migrating to a VPS |
+| `LOG_CHANNEL` | `daily` | Rotated logs with 14-day retention — recommended for production instead of `stack`/`single` so long-running uploads/proxy streams don't bloat one file |
 | `DB_*` | Your production DB credentials | — |
 | `SENTRY_DSN` | (optional) | For error monitoring |
 
@@ -76,6 +78,22 @@ supervisor, or wrapper script is needed.**
 | `rooms:prune-inactive` | Daily | Same `schedule:run` cron |
 
 **Verify:** `php artisan schedule:list` confirms all three are registered.
+
+### Video proxy execution-time budget
+
+The video proxy relay (`VideoProxyService::streamChunks`) resets PHP's execution
+time budget (`set_time_limit(0)`) on every relayed chunk so long streams aren't
+truncated mid-relay. **However, some shared cPanel hosts disable `set_time_limit`
+via `disable_functions`**, in which case the call is a no-op and PHP's
+`max_execution_time` ini default (often 30s) applies — a long video would then be
+cut off mid-stream.
+
+**Verify on the target host:** check `php -i | grep max_execution_time` and that
+`set_time_limit` is not in `disable_functions`. If it is disabled, raise
+`max_execution_time` (e.g. 0/unlimited or 300s) in the host's PHP configuration
+for the account so proxied streams are not truncated. Also confirm the upstream
+read timeout (`READ_TIMEOUT`, currently 30s) is adequate for the slowest
+expected source.
 
 ## 5. Scheduled Tasks (cron)
 

@@ -156,11 +156,13 @@ resources/
 ├── js/
 │   ├── __tests__/                  # Component and unit tests (Vitest)
 │   ├── app.tsx                     # Inertia entry point
+│   ├── bootstrap.ts                # axios defaults (X-Requested-With) loaded by app entry
 │   ├── Components/
 │   │   ├── composite/              # Domain-specific composites
 │   │   │   ├── confirm-dialog.tsx
 │   │   │   ├── member-list.tsx
 │   │   │   ├── room-chat.tsx
+│   │   │   ├── room-onboarding.tsx
 │   │   │   ├── room-settings.tsx
 │   │   │   ├── subtitle-overlay.tsx
 │   │   │   ├── subtitle-settings.tsx
@@ -170,11 +172,13 @@ resources/
 │   │       ├── button.tsx
 │   │       ├── card.tsx
 │   │       ├── dialog.tsx
+│   │       ├── error-boundary.tsx
 │   │       └── input.tsx
 │   ├── Hooks/                      # Custom React hooks
 │   │   ├── use-playback-sync.ts    # today: polling; later: Echo ─ same return shape (SYSTEM.md 18.05)
 │   │   ├── use-presence.ts         # presence poll/heartbeat + client-side join/leave moments (O4)
 │   │   ├── use-room-ownership.ts
+│   │   ├── use-subtitles.ts        # subtitle fetch/upload/delete/default/select orchestration
 │   │   ├── use-suggest-next.ts     # next-video suggestion via the chat mechanism (O6)
 │   │   └── use-toast.ts
 │   ├── Layouts/
@@ -183,8 +187,10 @@ resources/
 │   │   └── GuestLayout.tsx
 │   ├── lib/
 │   │   ├── api.ts                  # axios instance for JSON endpoints (web.php)
+│   │   ├── presence-moments.ts     # pure derivePresenceMoments(prev, next) diff (O4)
+│   │   ├── subtitle-selection.ts   # per-room active-track persistence in localStorage
 │   │   ├── types/                  # Shared TypeScript types — playback.ts, subtitle.ts
-│   │   ├── utils.ts                # cn(), toPersianDigits, formatDuration, timeAgo, copyToClipboard, sanitizeText
+│   │   ├── utils.ts                # cn(), toPersianDigits, formatDuration, timeAgo, safeCopyToClipboard, sanitizeText
 │   │   └── (SRT/VTT parsing lives in Components/composite/subtitle-overlay.tsx — parseVtt/parseSrt/parseSubtitle)
 │   ├── Pages/                      # One Inertia page component per route
 │   │   ├── Auth/                   # Login, register, password reset, verification
@@ -240,15 +246,17 @@ SESSION_DRIVER=database
 SESSION_SECURE_COOKIE=true
 QUEUE_CONNECTION=database
 
-# Broadcasting — no WebSocket server on this host, so events are written
-# but not pushed; the frontend polls instead (SYSTEM.md 18.05, Rule 2 & 3).
-# Change to BROADCAST_CONNECTION=reverb only after migrating to a VPS.
-BROADCAST_CONNECTION=log
+# Broadcasting — no WebSocket server on this host, and nothing currently
+# consumes the broadcast events (the frontend polls instead), so this is `null`
+# to avoid writing every event to the log. Change to
+# BROADCAST_CONNECTION=reverb only after migrating to a VPS.
+BROADCAST_CONNECTION=null
 
 # Capacity ceiling — system-wide active-room cap (config/tamasharoom.php)
 TAMASHAROOM_MAX_CONCURRENT_ROOMS=50
 
-# Logging
+# Logging — production uses `daily` (rotated, 14-day retention); the local
+# development template in .env.example ships `stack`/`single`.
 LOG_CHANNEL=daily
 
 # Error monitoring — leave empty to disable (config/sentry.php)

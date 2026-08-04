@@ -68,7 +68,8 @@ app/
 ├── Events/                       # broadcastable events (polled today, pushed later)
 │   ├── PlaybackStateChanged.php  # PresenceChannel room.{id} — playback.state.changed
 │   ├── NewChatMessage.php        # PresenceChannel room.{id} — chat.message.new
-│   └── MemberPresenceChanged.php # PresenceChannel room.{id} — member.presence.changed
+│   ├── MemberPresenceChanged.php # PresenceChannel room.{id} — member.presence.changed
+│   └── SubtitleDefaultChanged.php # PresenceChannel room.{id} — subtitle.default.changed
 ├── Http/
 │   ├── Controllers/
 │   │   ├── Auth/                 # login, register, password reset, verification
@@ -123,7 +124,7 @@ resources/js/
 │   └── ui/                      # primitives: button, input, card, dialog
 │   (plus legacy Breeze components: PrimaryButton, TextInput, Modal, Dropdown…)
 ├── Hooks/                       # use-playback-sync, use-presence, use-toast,
-│                                # use-polling-reload, use-room-ownership
+│                                # use-room-ownership, use-suggest-next, use-subtitles
 ├── Layouts/                     # AppLayout, AuthenticatedLayout, GuestLayout
 ├── stores/                      # Zustand (UI state only): theme, room-ui, subtitle
 ├── lib/                         # utils, api, types/
@@ -154,8 +155,8 @@ partially confirmed by quality-report.md §5]
   ch. 18.02]
 - Shared props (`auth.user`, `errors`, `flash`) are injected by
   `HandleInertiaRequests` middleware. [Confirmed — FRONTEND_CONTRACT.md §6]
-- Slow secondary data can be deferred via `Inertia::defer()`; full-page refreshes
-  via `router.reload()` (`usePollingReload` utility, unused by production features).
+- Slow secondary data can be deferred via `Inertia::defer()`; the `usePollingReload`
+  utility no longer exists and there is no full-page Inertia refresh polling.
   Live room data is polled through the axios `api` client against JSON endpoints
   (see §6), not through `router.reload()`. [Confirmed — source + docs/SYSTEM.md ch. 18.05]
 
@@ -447,7 +448,7 @@ ch. 18.08/18.09]
 | CSRF | Laravel CSRF token via Inertia; `_token` form field; XSRF-TOKEN cookie plaintext for E2E | Confirmed |
 | Security headers | `SecurityHeadersMiddleware`: CSP (nonce-based in production), X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, HSTS (prod only) | Confirmed — docs/TASK.md |
 | Info leakage | Production exception handler returns generic message; `APP_DEBUG=false` required | Confirmed |
-| Rate limiting | Named limiters on all auth + room endpoints: login, register, forgot-password, reset-password (5/min each), chat (30/min), playback (60/min), proxy (30/min), presence (60/min), join (10/min), email verification (6/min) | Confirmed |
+| Rate limiting | Named limiters on all auth + room endpoints: login, register, forgot-password, reset-password (5/min each), chat (30/min), playback (60/min), proxy (30/min), presence (60/min), join (10/min), room-create (5/min), email verification (6/min) | Confirmed |
 | Test helpers | `routes/test-helpers.php` — loaded only in `local`/`testing`; double-gated | Confirmed |
 | Error monitoring | Sentry, disabled when SENTRY_DSN empty | Confirmed |
 

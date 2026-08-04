@@ -40,9 +40,9 @@ and any webhook or external-facing route).
 **Current state (baseline):**
 The existing named limiters (login 5/min, register 5/min, forgot-password
 5/min, reset-password 5/min, chat 30/min, playback 60/min, proxy 30/min,
-presence 60/min, join 10/min) cover every auth and room mutation endpoint,
-plus inline `throttle:6,1` on email verification. This guardrail governs
-**new** endpoints going forward.
+presence 60/min, join 10/min, room-create 5/min) cover every auth and room
+mutation endpoint, plus inline `throttle:6,1` on email verification. This
+guardrail governs **new** endpoints going forward.
 
 **Reference:**
 `docs/SYSTEM.md` ch. 18.08 Rule 5 (rate limit public endpoints);
