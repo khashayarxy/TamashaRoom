@@ -102,23 +102,10 @@ variant to its cn() config — don't let a consumer override it from outside.
 ## Variants with `cn()`
 
 Use the `cn()` utility (clsx + tailwind-merge) for conditional classes —
-it's at `@/lib/utils`. Variant names are semantic (`variant: 'error'`),
-never visual (`variant: 'red'`).
-
-```ts
-import { cn } from '@/lib/utils';
-
-const inputClasses = cn(
-  'flex w-full rounded-md border bg-transparent px-3 py-2 text-sm',
-  variant === 'error' && 'border-error',
-  size === 'sm' && 'h-8',
-  size === 'md' && 'h-10',
-  size === 'lg' && 'h-12',
-);
-```
-
+it's at `@/lib/utils` (full pattern in `typescript-tailwind-rules`). Variant
+names are semantic (`variant: 'error'`), never visual (`variant: 'red'`).
 Never manual string concatenation with a `className` prop — that doesn't
-resolve conflicting Tailwind classes (see `typescript-tailwind-rules`).
+resolve conflicting Tailwind classes.
 
 ## Performance Rules (React Compiler is enabled)
 
@@ -134,7 +121,7 @@ The React Compiler is on (wired through the Vite plugin,
    cannot reach**: plain utility modules outside component/hook files, or a
    stability contract an external non-React library's identity check depends
    on. Adding them out of habit inside a component the Compiler already covers
-   is **redundant memoization** — noise, not protection, and a wrong manual
+   is redundant memoization — noise, not protection, and a wrong manual
    dependency array can reintroduce the exact bug memoization was meant to
    prevent.
 4. **Keys are identity, not a perf knob.** Use stable, unique IDs, never
@@ -151,12 +138,11 @@ The React Compiler is on (wired through the Vite plugin,
 
 ## Checklist
 
-- Pure function, no side effects during render; props treated as immutable.
+- Pure function, no side effects during render; props immutable.
 - State at the lowest necessary level; composition over config props.
-- Hooks called only at the top level; `useEffect` used only for external
-  system synchronization (never data transformation — see `code-review-rules`).
-- `useMemo`/`useCallback` used only where the Compiler doesn't reach.
-- State is minimal; computed values derived, not stored.
-- Functional updater used when state depends on previous state.
-- List items use stable, unique keys.
+- Hooks at top level only; `useEffect` only for external system sync (never
+  data transformation — see `code-review-rules`).
+- `useMemo`/`useCallback` only where the Compiler doesn't reach.
+- Derived values computed at render, not stored in state; functional
+  updaters used; stable unique list keys.
 - Component categorized correctly; `cn()` variants, not `className` overrides.

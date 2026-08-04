@@ -66,9 +66,9 @@ Before adding or editing a skill:
 2. **References resolve**: every backticked skill reference must be an
    existing skill directory. After a merge/removal, grep all skills +
    AGENTS.md + `docs/ai/**` for the deleted name.
-3. **No stale claims**: grep for stale test counts (compare with a fresh
-   `#[Test]`/`test_*` count) and removed APIs. Test counts live in
-   `testing-strategy`; refresh them when suites change.
+3. **No stale claims**: grep for stale test counts (canonical counts live in
+   `docs/TASK.md` — never hardcode them in skills) and removed APIs. Refresh
+   `docs/TASK.md` when suites change.
 4. **No duplicate instructions**: re-grep the concept you touched (see
    Detecting Overlap).
 5. **No secrets**: no credentials, keys, tokens, or real `.env` values.

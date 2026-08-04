@@ -21,7 +21,8 @@ visitor. This is the most important constraint in the whole project.
 - Treat a slow query as a shared-resource problem: one unindexed query
   holding a MySQL connection blocks every other request waiting on that table.
 - **Room-based polling is a direct multiplier on this budget.** A watch-party
-  room polling every 1-2s per member is N rooms × M members requests every
+  room polling on the tiered cadence (3s active while playing, 10s idle while
+  paused — see `use-playback-sync.ts`) is N rooms × M members requests every
   interval, sustained for as long as the room is open — not a brief spike.
   Keep the polling interval conservative and cap members per room. Migrating
   to Reverb is the real fix once usage numbers justify it — not a premature one.
@@ -36,8 +37,9 @@ visitor. This is the most important constraint in the whole project.
 - Fonts are self-hosted WOFF2 with `font-display: swap`.
 - The React Compiler is enabled; manual memoization only where it doesn't
   reach (see `react-rules`). Component splitting is preferred over memoization.
-- Lists with **>50 items** are virtualized (e.g. `react-window`) — render
-  only what's visible.
+- Lists that can grow unbounded are virtualized; current bounded lists (chat
+  capped at 50 messages, member lists capped by `max_members`) render in full
+  without a virtualization library.
 - Measure with **INP** (Interaction to Next Paint), not the deprecated FID.
   Target Lighthouse score > 90 on all metrics.
 
@@ -60,7 +62,7 @@ visitor. This is the most important constraint in the whole project.
 - Bundle size audited; heavy components lazy-loaded.
 - Images pre-optimized with explicit dimensions; fonts self-hosted WOFF2.
 - React Compiler enabled; manual memoization only where it doesn't reach.
-- Long lists (>50 items) virtualized.
+- Long lists virtualized only when they can grow unbounded (current lists are bounded).
 - Controllers eager-load and select only needed columns.
 - Expensive reads cached and invalidated on write.
 - No request does expensive synchronous work that could be queued.

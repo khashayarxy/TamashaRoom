@@ -44,8 +44,8 @@ import type { Room } from './types';
 
 ```ts
 // ✅ Good
-// We poll every 1-2s here, not push, because this hosting has no WebSocket
-// server (docs/SYSTEM.md 18.05, Rule 2).
+// We poll on a tiered cadence here (3s active, 10s idle), not push, because
+// this hosting has no WebSocket server (docs/SYSTEM.md 18.05, Rule 2).
 const { state } = usePlaybackSync(roomId);
 
 // ❌ Bad

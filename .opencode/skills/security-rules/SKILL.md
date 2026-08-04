@@ -27,9 +27,9 @@ Don't re-solve these — extend the existing services/middleware instead:
 - **Rate limiting**: named limiters in `AppServiceProvider` — login (5/min
   per email+IP), register (5/min per IP), forgot-password (5/min per email+IP),
   reset-password (5/min per IP), chat (30/min), playback (60/min), video proxy
-  (30/min), presence (60/min), join (10/min); email-verification routes use
-  inline `throttle:6,1`. Every auth POST route is throttled (Authentication
-  Rate-Limit Hardening batch, 2026-08-02).
+  (30/min), presence (60/min), join (10/min), room-create (5/min);
+  email-verification routes use inline `throttle:6,1`. Every auth POST route
+  is throttled (Authentication Rate-Limit Hardening batch, 2026-08-02).
 - **Info leakage**: production error handler returns a generic message for
   non-HTTP exceptions; debug info hidden when `APP_DEBUG=false`.
 
@@ -71,7 +71,8 @@ you didn't write will eventually call it.
    established session (login, registration, password reset, webhooks) —
    using `throttle` middleware backed by the database cache driver. Current
    state: login, register, forgot-password, reset-password, email
-   verification, chat, playback, proxy, presence, and join are all throttled.
+   verification, chat, playback, proxy, presence, join, and room-create are
+   all throttled.
 6. **Never expose internal errors.** `APP_DEBUG=false` in production without
    exception; the exception handler returns a generic message while logging
    the real error server-side. This is the single most consequential setting

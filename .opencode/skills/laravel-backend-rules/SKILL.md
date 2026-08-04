@@ -102,8 +102,10 @@ public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse
 }
 ```
 
-- **Now**: `BROADCAST_CONNECTION=log` — broadcasting is a no-op; the frontend
-  polls the room's current state every 3 seconds. Expect ~3s sync drift.
+- **Now**: `BROADCAST_CONNECTION=null` — broadcasting is a no-op; the frontend
+  polls the room's current state on a tiered cadence — 3 seconds while playing,
+  10 seconds while paused/idle (see `use-playback-sync.ts`). Expect ~3s sync
+  drift while actively playing.
 - **Later** (on a VPS): `BROADCAST_CONNECTION=reverb` — the same
   `broadcast(...)` call now pushes over a WebSocket.
 - The frontend hides the transport behind one hook
@@ -131,7 +133,7 @@ always go through the Event.**
 - `config:cache` / `route:cache` / `view:cache` on every deploy.
 - Structured input → Form Request; simple action endpoints → inline `validate()`. Never `$request->all()` unvalidated.
 - Business logic in Actions/Services, not controllers.
-- Anything "live" is polled (axios `api` client or `router.reload()` partial reload), never assumed to push.
+- Anything "live" is polled (axios `api` client against JSON endpoints), never assumed to push.
 - Room-wide state written as a broadcastable Event, not polled directly from a model.
 - Nothing assumes sub-minute background processing; one cron entry only.
 - `APP_DEBUG=false` in production, without exception.

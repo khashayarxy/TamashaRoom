@@ -32,7 +32,8 @@ background workers, no root access.**
 
 Playback sync (the product's core mechanic) would normally use WebSockets.
 Instead: state changes are written as a Laravel broadcastable Event, and the
-frontend polls for it every 3 seconds (adjustable post-MVP). This is deliberate and transport-agnostic
+frontend polls for it on a tiered cadence — 3 seconds while playing, 10 seconds
+while paused/idle (adjustable post-MVP). This is deliberate and transport-agnostic
 — moving to real-time later means installing Laravel Reverb on a VPS and
 flipping `BROADCAST_CONNECTION`, not rewriting the feature. **Never build new
 room-state features against direct polling of a model — always go through the
@@ -133,7 +134,8 @@ reference them by name — just describe the task.
 
 See `docs/TASK.md` for the itemized list and **canonical test counts** (do not
 hardcode counts in AGENTS.md or skills). Core infrastructure, rooms, playback
-sync, chat, subtitles, presence/heartbeat, scheduled tasks, and security
-hardening are complete with backend, frontend, E2E, and a11y test coverage;
-room-ownership-transfer UX polish is done (Batch 2C, TAM-005). Pending:
-production deployment steps and the eventual WebSocket migration.
+sync, chat, subtitles, presence/heartbeat, scheduled tasks, security
+hardening, room-ownership-transfer UX polish (Batch 2C, TAM-005), and the
+2026-08-04 audit-fix pass (Phases 0–7) are complete with backend, frontend,
+E2E, and a11y coverage. Pending: production deployment steps and the eventual
+WebSocket migration.
