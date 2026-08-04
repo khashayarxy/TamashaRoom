@@ -23,3 +23,10 @@ export const useThemeStore = create<ThemeState>((set) => ({
             return { dark: next };
         }),
 }));
+
+if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle(
+        "dark",
+        useThemeStore.getState().dark,
+    );
+}
