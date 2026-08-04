@@ -57,11 +57,39 @@ class RoomController extends Controller
         $room->load([
             'owner:id,name',
             'members.user:id,name',
-            'chatMessages.user:id,name',
+            'chatMessages' => fn ($q) => $q->with('user:id,name')->latest()->limit(50),
         ]);
+
+        // Keep chronological (oldest-first) order, matching ChatController::index.
+        $room->setRelation('chatMessages', $room->chatMessages->reverse()->values());
+
+        // The `is_owner` accessor on RoomMember reads `$this->room`; set the
+        // relation explicitly so Inertia serialization never lazy-loads it
+        // (mirrors RoomController::members).
+        $room->members->each->setRelation('room', $room);
 
         return Inertia::render('Rooms/Show', [
             'room' => $room,
+        ]);
+    }
+
+    /**
+     * Show a confirmation page for an invite-code join. GET never creates
+     * membership — the actual join is a POST (see RoomController::join) so a
+     * bare invite link or image tag cannot force a join (CSRF-style).
+     */
+    public function joinConfirm(Request $request, string $inviteCode): Response
+    {
+        $room = Room::query()
+            ->where('invite_code', $inviteCode)
+            ->firstOrFail();
+
+        return Inertia::render('Rooms/Join', [
+            'room' => [
+                'id' => $room->id,
+                'name' => $room->name,
+                'invite_code' => $room->invite_code,
+            ],
         ]);
     }
 

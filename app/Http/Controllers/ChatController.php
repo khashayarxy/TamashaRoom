@@ -52,7 +52,11 @@ class ChatController extends Controller
 
     public function destroy(Request $request, Room $room, ChatMessage $message): JsonResponse
     {
-        $this->authorize('delete', $message);
+        // Scope the delete to the {room} route parameter so a message id from
+        // another room can never be targeted here (matches SubtitleController).
+        $message = $room->chatMessages()->whereKey($message->id)->firstOrFail();
+
+        $this->authorize('delete', [$message, $room]);
 
         $message->delete();
 

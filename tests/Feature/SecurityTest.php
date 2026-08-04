@@ -195,15 +195,17 @@ class SecurityTest extends TestCase
             'post' => ["/chat/{$this->room->id}/messages"],
         ];
 
+        // Unauthorized room access must look identical to "not found" so the
+        // room's existence is not disclosed (404, never 403).
         foreach ($endpoints['get'] as $uri) {
             $response = $this->actingAs($this->stranger)->getJson($uri);
-            $response->assertForbidden();
+            $response->assertNotFound();
         }
 
         foreach ($endpoints['post'] as $uri) {
             $response = $this->actingAs($this->stranger)
                 ->postJson($uri, ['body' => 'test']);
-            $response->assertForbidden();
+            $response->assertNotFound();
         }
     }
 

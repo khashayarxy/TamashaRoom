@@ -288,4 +288,194 @@ describe("RoomChat", () => {
             nodes.indexOf(olderText),
         );
     });
+
+    it("counts only new messages as unread when hidden, tracking by id", async () => {
+        const onUnreadCountChange = vi.fn();
+        mockGet.mockResolvedValue({
+            data: [makeMessage({ id: 1, body: "initial" })],
+        });
+
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 1, body: "initial" })]}
+                pollInterval={100}
+                onUnreadCountChange={onUnreadCountChange}
+            />,
+        );
+
+        // Hide the document: the visibility handler marks the tab not visible.
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: true,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "hidden",
+        });
+        document.dispatchEvent(new Event("visibilitychange"));
+
+        // New message arrives. Make the document visible again WITHOUT firing
+        // the visible handler (so the chat tab is still considered inactive),
+        // then let the poll run — it should count only the new id as unread.
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+
+        mockGet.mockResolvedValue({
+            data: [
+                makeMessage({ id: 1, body: "initial" }),
+                makeMessage({ id: 2, body: "new" }),
+            ],
+        });
+
+        await waitFor(
+            () => {
+                expect(onUnreadCountChange).toHaveBeenCalledWith(1);
+            },
+            { timeout: 3000 },
+        );
+
+        // Restore the real properties.
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+    });
+
+    it("does not inflate unread on a same-size change with no newer messages", async () => {
+        const onUnreadCountChange = vi.fn();
+        mockGet.mockResolvedValue({
+            data: [makeMessage({ id: 5, body: "initial" })],
+        });
+
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 5, body: "initial" })]}
+                pollInterval={100}
+                onUnreadCountChange={onUnreadCountChange}
+            />,
+        );
+
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: true,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "hidden",
+        });
+        document.dispatchEvent(new Event("visibilitychange"));
+
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+
+        // Same size but with a lower (reshuffled) message id: the length-delta
+        // approach would have inflated unread; id-tracking must not.
+        mockGet.mockResolvedValue({
+            data: [makeMessage({ id: 4, body: "reshuffled" })],
+        });
+
+        await waitFor(
+            () => {
+                expect(mockGet).toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
+
+        const seenValues = onUnreadCountChange.mock.calls.map((c) => c[0]);
+        expect(seenValues.every((v) => v === 0)).toBe(true);
+
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+    });
+
+    it("shows a reconnecting indicator when polling fails", async () => {
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+
+        mockGet.mockRejectedValue(new Error("network"));
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 1 })]}
+                pollInterval={100}
+            />,
+        );
+
+        await waitFor(
+            () => {
+                const indicator = screen.getByText(/در حال اتصال مجدد/);
+                expect(indicator.closest('[role="status"]')).not.toBeNull();
+            },
+            { timeout: 3000 },
+        );
+    });
+
+    it("clears the reconnecting indicator once polling recovers", async () => {
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+
+        mockGet.mockRejectedValueOnce(new Error("network"));
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 1 })]}
+                pollInterval={100}
+            />,
+        );
+
+        await waitFor(
+            () => {
+                expect(
+                    screen.getByText(/در حال اتصال مجدد/),
+                ).toBeInTheDocument();
+            },
+            { timeout: 3000 },
+        );
+
+        mockGet.mockResolvedValue({ data: [] });
+        await waitFor(
+            () => {
+                expect(
+                    screen.queryByText(/در حال اتصال مجدد/),
+                ).not.toBeInTheDocument();
+            },
+            { timeout: 3000 },
+        );
+    });
 });

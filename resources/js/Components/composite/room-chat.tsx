@@ -1,7 +1,8 @@
 import api from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
+import { chatMessagesSchema } from "@/lib/validation";
 import { usePage } from "@inertiajs/react";
-import { Send, Trash2, User, UserMinus, UserPlus } from "lucide-react";
+import { Send, Trash2, User, UserMinus, UserPlus, WifiOff } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { toast } from "@/Hooks/use-toast";
@@ -37,9 +38,18 @@ export function RoomChat({
     const [deleting, setDeleting] = useState<number | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [pollError, setPollError] = useState(false);
     const listRef = useRef<HTMLDivElement>(null);
-    const prevCountRef = useRef(initialMessages.length);
     const isTabVisibleRef = useRef(!document.hidden);
+    const lastSeenIdRef = useRef<number | null>(
+        initialMessages.reduce((max, m) => Math.max(max, m.id), 0) || null,
+    );
+
+    const markAllSeen = useCallback(() => {
+        lastSeenIdRef.current =
+            messages.reduce((max, m) => Math.max(max, m.id), 0) || null;
+        setUnreadCount(0);
+    }, [messages]);
 
     const scrollToBottom = () => {
         if (listRef.current) {
@@ -50,15 +60,29 @@ export function RoomChat({
     const fetchMessages = useCallback(async () => {
         try {
             const { data } = await api.get(`/chat/${roomId}/messages`);
+            const incoming = chatMessagesSchema.parse(data);
+            setPollError(false);
             setMessages((prev) => {
-                const incoming = data as Message[];
-                if (!isTabVisibleRef.current && incoming.length > prev.length) {
-                    setUnreadCount((c) => c + incoming.length - prev.length);
+                if (!isTabVisibleRef.current) {
+                    // Count only messages newer than the last one the user saw,
+                    // so deletions or same-size updates can't skew the count.
+                    const lastSeenId =
+                        lastSeenIdRef.current ??
+                        prev.reduce(
+                            (max, m) => Math.max(max, m.id),
+                            incoming.reduce((max, m) => Math.max(max, m.id), 0),
+                        );
+                    const unseen = incoming.filter(
+                        (m) => m.id > lastSeenId,
+                    ).length;
+                    if (unseen > 0) {
+                        setUnreadCount((c) => c + unseen);
+                    }
                 }
                 return incoming;
             });
         } catch {
-            // silently fail
+            setPollError(true);
         }
     }, [roomId]);
 
@@ -80,18 +104,14 @@ export function RoomChat({
         const handleVisibility = () => {
             isTabVisibleRef.current = !document.hidden;
             if (document.visibilityState === "visible") {
-                setUnreadCount(0);
+                markAllSeen();
                 fetchMessages();
             }
         };
         document.addEventListener("visibilitychange", handleVisibility);
         return () =>
             document.removeEventListener("visibilitychange", handleVisibility);
-    }, [fetchMessages]);
-
-    useEffect(() => {
-        prevCountRef.current = messages.length;
-    }, [messages]);
+    }, [fetchMessages, markAllSeen]);
 
     useEffect(() => {
         onUnreadCountChange?.(unreadCount);
@@ -115,6 +135,12 @@ export function RoomChat({
                 body,
             });
             setMessages((prev) => [...prev, data]);
+            if (
+                lastSeenIdRef.current === null ||
+                data.id > lastSeenIdRef.current
+            ) {
+                lastSeenIdRef.current = data.id;
+            }
             setBody("");
             setTimeout(scrollToBottom, 50);
         } catch {
@@ -157,6 +183,14 @@ export function RoomChat({
     return (
         <div className="flex flex-col h-full">
             <div ref={listRef} className="flex-1 overflow-y-auto space-y-3 p-4">
+                {pollError && (
+                    <div role="status" className="flex justify-center py-1">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-destructive">
+                            <WifiOff className="h-3.5 w-3.5" />
+                            در حال اتصال مجدد...
+                        </span>
+                    </div>
+                )}
                 {feed.map((item) =>
                     item.kind === "moment" ? (
                         <div key={item.key} className="flex justify-center">
@@ -201,10 +235,10 @@ export function RoomChat({
                                             setConfirmDelete(item.msg.id)
                                         }
                                         disabled={deleting === item.msg.id}
-                                        className="absolute -top-1.5 -end-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                        className="absolute -top-1.5 -end-1.5 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center transition-opacity disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         aria-label="حذف پیام"
                                     >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                             </div>

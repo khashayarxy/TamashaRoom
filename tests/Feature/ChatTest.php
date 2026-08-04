@@ -82,7 +82,7 @@ class ChatTest extends TestCase
                 'body' => 'Hello from stranger',
             ]);
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
@@ -118,7 +118,7 @@ class ChatTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->getJson(route('chat.index', $this->room));
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
@@ -166,7 +166,7 @@ class ChatTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->deleteJson(route('chat.destroy', ['room' => $this->room, 'message' => $message]));
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
@@ -184,5 +184,26 @@ class ChatTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['body']);
+    }
+
+    #[Test]
+    public function cannot_delete_a_message_from_another_room(): void
+    {
+        $otherRoom = Room::factory()->create(['user_id' => $this->owner->id]);
+        $otherMessage = ChatMessage::create([
+            'room_id' => $otherRoom->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Other room message',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->deleteJson(route('chat.destroy', [
+                'room' => $this->room,
+                'message' => $otherMessage,
+            ]));
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseHas('chat_messages', ['id' => $otherMessage->id]);
     }
 }
