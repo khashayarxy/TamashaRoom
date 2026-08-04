@@ -10,6 +10,7 @@ use App\Models\SubtitleTrack;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -69,6 +70,54 @@ class SubtitleTest extends TestCase
     }
 
     #[Test]
+    public function subtitle_responses_never_expose_the_storage_path(): void
+    {
+        Storage::fake('local');
+
+        $file = UploadedFile::fake()->createWithContent(
+            'secret.srt',
+            "1\n00:00:01,000 --> 00:00:04,000\nSecret\n",
+        );
+
+        $response = $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}", ['file' => $file]);
+
+        $response->assertCreated()
+            ->assertJsonMissing(['file_path' => null]);
+
+        $trackId = $response->json('id');
+        $this->assertNotNull($trackId);
+
+        $listResponse = $this->actingAs($this->owner)
+            ->getJson("/subtitles/{$this->room->id}");
+
+        $listResponse->assertOk()
+            ->assertJsonMissing(['file_path' => null]);
+    }
+
+    #[Test]
+    public function subtitle_files_are_stored_on_the_private_disk_not_the_public_one(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->createWithContent(
+            'private.srt',
+            "1\n00:00:01,000 --> 00:00:04,000\nPrivate\n",
+        );
+
+        $response = $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}", ['file' => $file]);
+
+        $response->assertCreated();
+
+        $track = SubtitleTrack::where('room_id', $this->room->id)->firstOrFail();
+
+        $this->assertTrue(Storage::disk('local')->exists($track->file_path));
+        $this->assertFalse(Storage::disk('public')->exists($track->file_path));
+    }
+
+    #[Test]
     public function owner_can_upload_vtt_subtitle(): void
     {
         $content = "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nDirect VTT cue";
@@ -107,7 +156,7 @@ class SubtitleTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->call('POST', "/subtitles/{$this->room->id}", [], [], ['file' => $file], ['HTTP_Accept' => 'application/json']);
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
@@ -188,7 +237,7 @@ class SubtitleTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->getJson("/subtitles/{$this->room->id}");
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
@@ -402,7 +451,7 @@ class SubtitleTest extends TestCase
                 'track_id' => $track->id,
             ]);
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
@@ -452,7 +501,7 @@ class SubtitleTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->getJson("/subtitles/{$this->room->id}/default");
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]

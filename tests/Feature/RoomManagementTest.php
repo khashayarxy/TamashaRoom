@@ -148,7 +148,7 @@ class RoomManagementTest extends TestCase
 
         $response = $this->actingAs($this->stranger)
             ->from(route('dashboard'))
-            ->get("/rooms/join/{$this->room->invite_code}");
+            ->post("/rooms/join/{$this->room->invite_code}");
 
         $response->assertRedirect(route('dashboard'));
         $response->assertSessionHasErrors('invite_code');
@@ -252,7 +252,7 @@ class RoomManagementTest extends TestCase
 
         $response = $this->actingAs($this->stranger)
             ->from(route('dashboard'))
-            ->get("/rooms/join/{$fullRoom->invite_code}");
+            ->post("/rooms/join/{$fullRoom->invite_code}");
 
         $response->assertRedirect(route('dashboard'));
         $response->assertSessionHasErrors('invite_code');
@@ -385,7 +385,7 @@ class RoomManagementTest extends TestCase
         $joiner = User::factory()->create(['email_verified_at' => now()]);
 
         $this->actingAs($joiner)
-            ->get("/rooms/join/{$this->room->invite_code}");
+            ->post("/rooms/join/{$this->room->invite_code}");
 
         $this->room->refresh();
 
@@ -483,7 +483,7 @@ class RoomManagementTest extends TestCase
 
         $response = $this->actingAs($secondJoiner)
             ->from(route('dashboard'))
-            ->get("/rooms/join/{$tightRoom->invite_code}");
+            ->post("/rooms/join/{$tightRoom->invite_code}");
 
         $response->assertRedirect(route('dashboard'));
         $response->assertSessionHasErrors('invite_code');
@@ -553,5 +553,85 @@ class RoomManagementTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee($this->owner->email);
+    }
+
+    #[Test]
+    public function get_join_shows_confirmation_without_creating_membership(): void
+    {
+        $joiner = User::factory()->create(['email_verified_at' => now()]);
+
+        $response = $this->actingAs($joiner)
+            ->get("/rooms/join/{$this->room->invite_code}");
+
+        $response->assertOk();
+        $response->assertSee($this->room->name);
+
+        $this->assertDatabaseMissing('room_members', [
+            'room_id' => $this->room->id,
+            'user_id' => $joiner->id,
+        ]);
+    }
+
+    #[Test]
+    public function post_join_creates_membership(): void
+    {
+        $joiner = User::factory()->create(['email_verified_at' => now()]);
+
+        $response = $this->actingAs($joiner)
+            ->post("/rooms/join/{$this->room->invite_code}");
+
+        $response->assertRedirect(route('rooms.show', $this->room));
+
+        $this->assertDatabaseHas('room_members', [
+            'room_id' => $this->room->id,
+            'user_id' => $joiner->id,
+        ]);
+    }
+
+    #[Test]
+    public function initial_room_load_returns_only_the_latest_fifty_chat_messages(): void
+    {
+        for ($i = 1; $i <= 60; $i++) {
+            $message = ChatMessage::create([
+                'room_id' => $this->room->id,
+                'user_id' => $this->owner->id,
+                'body' => "message {$i}",
+            ]);
+            $message->created_at = now()->addSeconds($i);
+            $message->save();
+        }
+
+        $response = $this->actingAs($this->member)
+            ->get("/rooms/{$this->room->id}");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Rooms/Show')
+            ->has('room.chat_messages', 50)
+            ->where('room.chat_messages.0.body', 'message 11')
+            ->where('room.chat_messages.49.body', 'message 60'));
+    }
+
+    #[Test]
+    public function initial_room_load_keeps_chat_messages_in_chronological_order(): void
+    {
+        for ($i = 1; $i <= 55; $i++) {
+            $message = ChatMessage::create([
+                'room_id' => $this->room->id,
+                'user_id' => $this->owner->id,
+                'body' => "message {$i}",
+            ]);
+            $message->created_at = now()->addSeconds($i);
+            $message->save();
+        }
+
+        $response = $this->actingAs($this->member)
+            ->get("/rooms/{$this->room->id}");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Rooms/Show')
+            ->has('room.chat_messages', 50)
+            ->where('room.chat_messages.0.body', 'message 6')
+            ->where('room.chat_messages.49.body', 'message 55'));
     }
 }

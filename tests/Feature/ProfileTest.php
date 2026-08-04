@@ -104,7 +104,7 @@ class ProfileTest extends TestCase
 
     public function test_deleting_account_removes_subtitle_files_of_owned_rooms(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $user = User::factory()->create();
 
@@ -124,9 +124,9 @@ class ProfileTest extends TestCase
             'original_extension' => 'vtt',
         ]);
 
-        Storage::disk('public')->put($track->file_path, 'WEBVTT');
+        Storage::disk('local')->put($track->file_path, 'WEBVTT');
 
-        $this->assertTrue(Storage::disk('public')->exists($track->file_path));
+        $this->assertTrue(Storage::disk('local')->exists($track->file_path));
 
         $this
             ->actingAs($user)
@@ -137,12 +137,12 @@ class ProfileTest extends TestCase
         $this->assertGuest();
         $this->assertNull($user->fresh());
         $this->assertDatabaseMissing('rooms', ['id' => $room->id]);
-        $this->assertFalse(Storage::disk('public')->exists($track->file_path));
+        $this->assertFalse(Storage::disk('local')->exists($track->file_path));
     }
 
     public function test_deleting_account_removes_subtitle_files_from_all_owned_rooms(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $user = User::factory()->create();
 
@@ -165,7 +165,7 @@ class ProfileTest extends TestCase
                 'original_extension' => 'vtt',
             ]);
 
-            Storage::disk('public')->put($track->file_path, 'WEBVTT');
+            Storage::disk('local')->put($track->file_path, 'WEBVTT');
             $paths[] = $track->file_path;
         }
 
@@ -176,13 +176,13 @@ class ProfileTest extends TestCase
         $this->assertNull($user->fresh());
 
         foreach ($paths as $path) {
-            $this->assertFalse(Storage::disk('public')->exists($path));
+            $this->assertFalse(Storage::disk('local')->exists($path));
         }
     }
 
     public function test_deleting_account_does_not_remove_other_users_room_files(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $user = User::factory()->create();
         $otherUser = User::factory()->create();
@@ -203,7 +203,7 @@ class ProfileTest extends TestCase
             'original_extension' => 'vtt',
         ]);
 
-        Storage::disk('public')->put($otherTrack->file_path, 'WEBVTT');
+        Storage::disk('local')->put($otherTrack->file_path, 'WEBVTT');
 
         $this->actingAs($user)
             ->delete('/profile', ['password' => 'password']);
@@ -211,12 +211,12 @@ class ProfileTest extends TestCase
         $this->assertGuest();
         $this->assertNull($user->fresh());
         $this->assertDatabaseHas('rooms', ['id' => $otherRoom->id]);
-        $this->assertTrue(Storage::disk('public')->exists($otherTrack->file_path));
+        $this->assertTrue(Storage::disk('local')->exists($otherTrack->file_path));
     }
 
     public function test_deleting_account_tolerates_missing_subtitle_files(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $user = User::factory()->create();
 
@@ -269,7 +269,7 @@ class ProfileTest extends TestCase
         $disk = Mockery::mock();
         $disk->shouldReceive('exists')->andReturn(true);
         $disk->shouldReceive('delete')->andReturn(false);
-        Storage::shouldReceive('disk')->with('public')->andReturn($disk);
+        Storage::shouldReceive('disk')->with('local')->andReturn($disk);
 
         $this->actingAs($user)
             ->delete('/profile', ['password' => 'password']);

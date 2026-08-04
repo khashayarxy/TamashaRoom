@@ -213,7 +213,7 @@ class SecurityTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->getJson("/proxy/video/{$this->room->id}");
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]

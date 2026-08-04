@@ -22,7 +22,7 @@ class DeleteRoomAction
      */
     public function execute(Room $room): void
     {
-        $this->deleteFilesForRooms(collect([$room]));
+        $this->deleteFilesForRooms(collect([$room->load('subtitleTracks')]));
 
         DB::transaction(function () use ($room): void {
             $room->subtitleTracks()->delete();
@@ -46,10 +46,17 @@ class DeleteRoomAction
     {
         $rooms = Room::query()
             ->where('user_id', $user->id)
+            ->with('subtitleTracks')
             ->get();
 
         $this->deleteFilesForRooms($rooms);
     }
+
+    /**
+     * Subtitle files live on the non-public `local` disk so they are never
+     * web-accessible; see SubtitleController::SUBTITLE_DISK.
+     */
+    private const SUBTITLE_DISK = 'local';
 
     /**
      * @param  Collection<int, Room>  $rooms
@@ -60,11 +67,11 @@ class DeleteRoomAction
             foreach ($room->subtitleTracks as $subtitle) {
                 $path = $subtitle->file_path;
 
-                if (! Storage::disk('public')->exists($path)) {
+                if (! Storage::disk(self::SUBTITLE_DISK)->exists($path)) {
                     continue;
                 }
 
-                if (! Storage::disk('public')->delete($path)) {
+                if (! Storage::disk(self::SUBTITLE_DISK)->delete($path)) {
                     Log::warning('Failed to delete subtitle file.', [
                         'room_id' => $room->id,
                         'path' => $path,
