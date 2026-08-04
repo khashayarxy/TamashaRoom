@@ -31,6 +31,14 @@ class VideoProxyService
         'ts' => 'video/mp2t',
     ];
 
+    /**
+     * The HTTP status code of the most recent upstream stream open. PHP's
+     * `$http_response_header` is only visible in the scope where the stream was
+     * opened, so openRemoteStream captures it here for later inspection (e.g.
+     * to detect an origin that ignored our Range header).
+     */
+    protected ?int $lastStreamStatus = null;
+
     public function __construct(
         private readonly UrlSecurityService $urlSecurity,
     ) {}
@@ -64,7 +72,7 @@ class VideoProxyService
             return $this->handleRangeRequest($finalUrl, $rangeHeader, $contentType, $contentLength);
         }
 
-        return $this->handleFullRequest($finalUrl, $contentType);
+        return $this->handleFullRequest($finalUrl, $contentType, $acceptRanges);
     }
 
     private function fetchHead(string $url): ?array
@@ -246,8 +254,25 @@ class VideoProxyService
 
         preg_match('/^bytes=(\d*)-(\d*)$/', $rangeHeader, $matches);
 
-        $start = $matches[1] !== '' ? (int) $matches[1] : 0;
-        $end = $matches[2] !== '' ? (int) $matches[2] : ($contentLength !== null ? $contentLength - 1 : null);
+        $specifiedStart = $matches[1] !== '' ? (int) $matches[1] : null;
+        $specifiedEnd = $matches[2] !== '' ? (int) $matches[2] : null;
+
+        // Suffix range: `bytes=-500` means "the last 500 bytes".
+        if ($specifiedStart === null && $specifiedEnd !== null) {
+            if ($contentLength === null) {
+                return $this->errorResponse('Range not satisfiable.', 416);
+            }
+
+            $start = max(0, $contentLength - $specifiedEnd);
+            $end = $contentLength - 1;
+
+            if ($contentLength === 0) {
+                return $this->errorResponse('Range not satisfiable.', 416);
+            }
+        } else {
+            $start = $specifiedStart ?? 0;
+            $end = $specifiedEnd ?? ($contentLength !== null ? $contentLength - 1 : null);
+        }
 
         if ($contentLength !== null && $start >= $contentLength) {
             return $this->errorResponse('Range not satisfiable.', 416);
@@ -255,6 +280,11 @@ class VideoProxyService
 
         if ($end !== null && $contentLength !== null && $end >= $contentLength) {
             $end = $contentLength - 1;
+        }
+
+        // Reject inverted ranges (start > end).
+        if ($end !== null && $start > $end) {
+            return $this->errorResponse('Range not satisfiable.', 416);
         }
 
         $context = $this->createStreamContext([
@@ -266,6 +296,13 @@ class VideoProxyService
 
         if ($stream === false) {
             return $this->errorResponse('Failed to open video stream.', 502);
+        }
+
+        // If the origin ignored our Range header and returned the full body
+        // (HTTP 200), fall through to full-stream semantics rather than
+        // synthesizing an incorrect 206/Content-Range.
+        if ($this->upstreamStatusIs200()) {
+            return $this->buildFullStreamResponse($stream, $contentType, true);
         }
 
         $responseContentLength = $end !== null ? $end - $start + 1 : ($contentLength !== null ? $contentLength - $start : null);
@@ -288,7 +325,7 @@ class VideoProxyService
         return $response;
     }
 
-    private function handleFullRequest(string $url, string $contentType): Response
+    private function handleFullRequest(string $url, string $contentType, bool $acceptRanges): Response
     {
         $context = $this->createStreamContext([
             'User-Agent: TamashaRoom/1.0',
@@ -300,14 +337,24 @@ class VideoProxyService
             return $this->errorResponse('Failed to open video stream.', 502);
         }
 
-        return response()->stream(function () use ($stream): void {
-            $this->streamChunks($stream);
-        }, 200, [
+        return $this->buildFullStreamResponse($stream, $contentType, $acceptRanges);
+    }
+
+    private function buildFullStreamResponse($stream, string $contentType, bool $acceptRanges): Response
+    {
+        $headers = [
             'Content-Type' => $contentType,
-            'Accept-Ranges' => 'bytes',
             'Cache-Control' => 'no-cache, private',
             'X-Proxy' => 'TamashaRoom/1.0',
-        ]);
+        ];
+
+        if ($acceptRanges) {
+            $headers['Accept-Ranges'] = 'bytes';
+        }
+
+        return response()->stream(function () use ($stream): void {
+            $this->streamChunks($stream);
+        }, 200, $headers);
     }
 
     private function streamChunks($stream): void
@@ -316,11 +363,11 @@ class VideoProxyService
             return;
         }
 
-        set_time_limit(self::READ_TIMEOUT + 5);
-
         $relayed = 0;
 
         while (! feof($stream)) {
+            $this->resetTimeLimit();
+
             $chunk = fread($stream, self::CHUNK_SIZE);
 
             if ($chunk === false) {
@@ -351,6 +398,28 @@ class VideoProxyService
     }
 
     /**
+     * Reset PHP's execution-time budget. Called on every relayed chunk so a
+     * long stream is not truncated by max_execution_time partway through.
+     * A testable seam: subclasses can observe these calls without a real
+     * 35s+ relay. Where set_time_limit() is disabled via disable_functions
+     * this is a no-op and the ini max_execution_time applies instead — see
+     * the deployment checklist note about raising it on shared hosts.
+     */
+    protected function resetTimeLimit(): void
+    {
+        set_time_limit(0);
+    }
+
+    /**
+     * Detect whether the upstream origin ignored our Range header by returning
+     * the full body with a 200 status (instead of 206).
+     */
+    private function upstreamStatusIs200(): bool
+    {
+        return $this->lastStreamStatus === 200;
+    }
+
+    /**
      * Overridable seam for tests: fetch response headers for a URL without
      * following redirects. Defaults to PHP's get_headers over the provided
      * stream context. Tests substitute a fake to avoid real network I/O.
@@ -364,11 +433,18 @@ class VideoProxyService
 
     /**
      * Overridable seam for the range/full stream open. Defaults to fopen with
-     * the provided stream context; tests substitute a memory stream.
+     * the provided stream context; tests substitute a memory stream. Captures
+     * the upstream HTTP status from $http_response_header for later use.
      */
     protected function openRemoteStream(string $url, mixed $context)
     {
-        return @fopen($url, 'r', false, $context);
+        $stream = @fopen($url, 'r', false, $context);
+
+        $headers = $http_response_header ?? [];
+
+        $this->lastStreamStatus = $this->extractStatusCode($headers);
+
+        return $stream;
     }
 
     private function errorResponse(string $message, int $statusCode): Response
