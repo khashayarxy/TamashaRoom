@@ -578,14 +578,19 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 </div>
 
                 <Card className="flex-1 overflow-hidden">
-                    {activeTab === "chat" ? (
+                    <div className={activeTab === "chat" ? "h-full" : "hidden"}>
                         <RoomChat
                             roomId={room.id}
                             initialMessages={room.chat_messages}
                             onUnreadCountChange={setChatUnread}
                             presenceMoments={presenceMoments}
                         />
-                    ) : (
+                    </div>
+                    <div
+                        className={
+                            activeTab === "members" ? "h-full" : "hidden"
+                        }
+                    >
                         <CardContent className="p-4">
                             <MemberList
                                 members={presenceMembers}
@@ -599,7 +604,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                 onTransfer={handleTransfer}
                             />
                         </CardContent>
-                    )}
+                    </div>
                 </Card>
             </div>
 
