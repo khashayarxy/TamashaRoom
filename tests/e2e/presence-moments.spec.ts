@@ -5,6 +5,37 @@ async function getXsrfToken(page: Page): Promise<string | undefined> {
   return cookies.find((c) => c.name === "XSRF-TOKEN")?.value;
 }
 
+interface PresenceMemberData {
+  user_id: number;
+  name: string;
+  presence_status: string;
+}
+
+/**
+ * The owner's own reconnect can emit a spurious "به اتاق پیوست" moment for
+ * themselves (their presence flips offline -> online right after the page
+ * loads). Waiting for the guest's *named* join moment is what actually proves
+ * the host's presence baseline captured the guest as online — the leave moment
+ * is only derivable once that baseline transition is in place.
+ */
+async function waitForGuestOnline(
+  hostPage: Page,
+  roomId: number,
+  guestUserId: number,
+): Promise<string> {
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const resp = await hostPage.request.get(`/presence/${roomId}`);
+    const members = (await resp.json()) as PresenceMemberData[];
+    const guest = members.find((m) => m.user_id === guestUserId);
+    if (guest && guest.presence_status === "online") {
+      return guest.name;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error(`guest ${guestUserId} never became online`);
+}
+
 test.describe("Presence join/leave moments", () => {
   test("Host chat shows a system message when a guest joins and leaves", async ({ browser }) => {
     test.setTimeout(60000);
@@ -41,13 +72,17 @@ test.describe("Presence join/leave moments", () => {
       data: { invite_code, force_new: true },
     });
     expect(joinResp.ok()).toBeTruthy();
+    const { user_id: guestUserId } = await joinResp.json();
     await guestPage.goto(room_url);
     await guestPage.waitForLoadState("networkidle");
 
-    // Host polls presence every 5s; the join moment appears once the guest is
-    // online. Poll for it up to ~30s.
+    // The owner's own reconnect can render a spurious join moment, so don't
+    // gate on `.first()` of "به اتاق پیوست". Wait for the *guest's* named join
+    // moment — that guarantees the host's baseline captured the guest online,
+    // which is the transition the subsequent leave moment depends on.
+    const guestName = await waitForGuestOnline(hostPage, room_id, guestUserId);
     await expect(
-      hostPage.getByText("به اتاق پیوست", { exact: false }).first(),
+      hostPage.getByText(`${guestName} به اتاق پیوست`),
     ).toBeVisible({ timeout: 30000 });
 
     // Guest leaves; the leave endpoint flips them offline so the host's next
@@ -59,7 +94,7 @@ test.describe("Presence join/leave moments", () => {
     expect(leaveResp.ok()).toBeTruthy();
 
     await expect(
-      hostPage.getByText("از اتاق خارج شد", { exact: false }).first(),
+      hostPage.getByText(`${guestName} از اتاق خارج شد`),
     ).toBeVisible({ timeout: 30000 });
 
     await hostCtx.close();
