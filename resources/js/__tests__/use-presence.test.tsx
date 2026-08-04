@@ -165,4 +165,105 @@ describe("usePresence moments", () => {
 
         expect(result.current.moments).toHaveLength(1);
     });
+
+    it("calls onRemoved when the presence poll returns 404 (kicked)", async () => {
+        const onRemoved = vi.fn();
+        const { result } = renderHook(() => usePresence(1, { onRemoved }));
+        await flushInitial();
+
+        mockGet.mockRejectedValue({
+            response: { status: 404 },
+        });
+        await advancePoll();
+
+        expect(onRemoved).toHaveBeenCalledTimes(1);
+        expect(result.current.connected).toBe(false);
+    });
+
+    it("calls onRemoved once even if multiple polls return 404", async () => {
+        const onRemoved = vi.fn();
+        renderHook(() => usePresence(1, { onRemoved }));
+        await flushInitial();
+
+        mockGet.mockRejectedValue({
+            response: { status: 403 },
+        });
+        await advancePoll();
+        await advancePoll();
+
+        expect(onRemoved).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not treat a transient network error as removal", async () => {
+        const onRemoved = vi.fn();
+        renderHook(() => usePresence(1, { onRemoved }));
+        await flushInitial();
+
+        mockGet.mockRejectedValue(new Error("network"));
+        await advancePoll();
+
+        expect(onRemoved).not.toHaveBeenCalled();
+    });
+
+    it("uses heartbeat success as the single source of connected state", async () => {
+        const { result } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        // Heartbeat ran on mount and succeeded.
+        expect(result.current.connected).toBe(true);
+
+        // A failed poll alone must not flip connected false (heartbeat owns it).
+        mockGet.mockRejectedValue(new Error("network"));
+        await advancePoll();
+        expect(result.current.connected).toBe(true);
+
+        // A heartbeat failure flips connected false.
+        mockPost.mockRejectedValue(new Error("network"));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(30000);
+        });
+        expect(result.current.connected).toBe(false);
+    });
+
+    it("heartbeat failure flips connected to false", async () => {
+        const { result } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        expect(result.current.connected).toBe(true);
+
+        mockPost.mockRejectedValue(new Error("network"));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(30000);
+        });
+        expect(result.current.connected).toBe(false);
+    });
+
+    it("sends a leave beacon with the CSRF token in the body on unmount", async () => {
+        document.head.innerHTML =
+            '<meta name="csrf-token" content="test-csrf-token">';
+        const sendBeacon = vi.fn<
+            (_url: string, _data?: BodyInit | null) => boolean
+        >(() => true);
+        Object.defineProperty(navigator, "sendBeacon", {
+            configurable: true,
+            value: sendBeacon,
+        });
+
+        const { unmount } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        unmount();
+
+        expect(sendBeacon).toHaveBeenCalledTimes(1);
+        const [url, body] = sendBeacon.mock.calls[0];
+        expect(url).toBe("/presence/1/leave");
+        expect(body).toBeInstanceOf(FormData);
+        expect(body).not.toBeNull();
+        expect((body as FormData).get("_token")).toBe("test-csrf-token");
+
+        Object.defineProperty(navigator, "sendBeacon", {
+            configurable: true,
+            value: undefined,
+        });
+    });
 });

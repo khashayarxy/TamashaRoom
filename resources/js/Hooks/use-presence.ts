@@ -22,7 +22,23 @@ const HEARTBEAT_INTERVAL = 30000;
 const POLL_INTERVAL = 5000;
 const MAX_RETRY_DELAY = 300000;
 
-export function usePresence(roomId: number | null) {
+interface UsePresenceOptions {
+    /** Called when the room is no longer accessible (e.g. the member was removed). */
+    onRemoved?: () => void;
+}
+
+export function usePresence(
+    roomId: number | null,
+    options: UsePresenceOptions = {},
+) {
+    const { onRemoved } = options;
+    const onRemovedRef = useRef(onRemoved);
+    const removedRef = useRef(false);
+
+    useEffect(() => {
+        onRemovedRef.current = onRemoved;
+    }, [onRemoved]);
+
     const [members, setMembers] = useState<PresenceMember[]>([]);
     const [connected, setConnected] = useState(false);
     const [moments, setMoments] = useState<PresenceMoment[]>([]);
@@ -43,6 +59,7 @@ export function usePresence(roomId: number | null) {
     useEffect(() => {
         baselineRef.current = null;
         setMoments([]);
+        removedRef.current = false;
     }, [roomId]);
 
     useEffect(() => {
@@ -72,7 +89,13 @@ export function usePresence(roomId: number | null) {
                 }
                 retryRef.current = HEARTBEAT_INTERVAL;
                 setConnected(true);
-            } catch {
+            } catch (error) {
+                if (isRemovalError(error) && !removedRef.current) {
+                    removedRef.current = true;
+                    setConnected(false);
+                    onRemovedRef.current?.();
+                    return;
+                }
                 retryRef.current = Math.min(
                     retryRef.current * 2,
                     MAX_RETRY_DELAY,
@@ -110,9 +133,18 @@ export function usePresence(roomId: number | null) {
 
             baselineRef.current = buildPresenceBaseline(data);
             setMembers(data);
-            setConnected(true);
-        } catch {
-            setConnected(false);
+        } catch (error) {
+            // A 403/404 means the room is no longer accessible to this user —
+            // typically they were removed/kicked. Surface that distinctly from
+            // a transient network failure so the page can redirect away.
+            if (isRemovalError(error) && !removedRef.current) {
+                removedRef.current = true;
+                setConnected(false);
+                onRemovedRef.current?.();
+                return;
+            }
+            // The presence poll only updates member data; `connected` is owned
+            // by the heartbeat (single source of truth).
         }
     }, [roomId]);
 
@@ -147,12 +179,17 @@ export function usePresence(roomId: number | null) {
         if (!roomId) return;
 
         const handleBeforeUnload = () => {
-            navigator.sendBeacon(`/presence/${roomId}/leave`);
+            sendLeaveBeacon(roomId);
         };
 
         window.addEventListener("beforeunload", handleBeforeUnload);
-        return () =>
+        return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
+            // SPA navigation (Inertia) unmounts the room page without firing
+            // beforeunload, so also send the leave beacon here so the member
+            // is marked offline promptly instead of waiting for the timeout.
+            sendLeaveBeacon(roomId);
+        };
     }, [roomId]);
 
     return {
@@ -163,4 +200,34 @@ export function usePresence(roomId: number | null) {
             scheduleHeartbeat(0);
         },
     };
+}
+
+function isRemovalError(error: unknown): boolean {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { status?: unknown } }).response
+            ?.status === "number"
+    ) {
+        const status = (error as { response: { status: number } }).response
+            .status;
+        return status === 403 || status === 404;
+    }
+    return false;
+}
+
+function sendLeaveBeacon(roomId: number): void {
+    if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+        // sendBeacon cannot set custom headers, so carry the CSRF token in the
+        // body (multipart FormData) so the web-group /leave route doesn't 419.
+        const formData = new FormData();
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content");
+        if (csrfToken) {
+            formData.append("_token", csrfToken);
+        }
+        navigator.sendBeacon(`/presence/${roomId}/leave`, formData);
+    }
 }

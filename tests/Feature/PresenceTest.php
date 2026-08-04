@@ -93,7 +93,7 @@ class PresenceTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->postJson("/presence/{$this->room->id}/heartbeat");
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
@@ -119,6 +119,38 @@ class PresenceTest extends TestCase
             ->postJson("/presence/{$this->room->id}/leave");
 
         $response->assertOk();
+    }
+
+    #[Test]
+    public function leave_beacon_requires_valid_csrf_token_in_body(): void
+    {
+        // PreventRequestForgery short-circuits while running unit tests, so
+        // flip the env to force real CSRF verification for these requests.
+        $this->app['env'] = 'local';
+
+        $this->actingAs($this->member);
+        $this->withSession(['_token' => 'beacon-csrf-token']);
+
+        // A beacon carrying no token is rejected with 419 (the original buggy
+        // implementation relied on Sec-Fetch-Site instead of a real token).
+        $this->post("/presence/{$this->room->id}/leave")
+            ->assertStatus(419);
+
+        $this->memberMember->refresh();
+        $this->assertEquals('online', $this->memberMember->presence_status);
+
+        // The leave beacon carries `_token` in its multipart FormData body,
+        // which the middleware reads via `$request->input('_token')` — the
+        // same parsing path as this form submission. It passes CSRF and the
+        // member is marked offline.
+        $this->post("/presence/{$this->room->id}/leave", [
+            '_token' => 'beacon-csrf-token',
+        ])
+            ->assertOk()
+            ->assertJson(['status' => 'ok']);
+
+        $this->memberMember->refresh();
+        $this->assertEquals('offline', $this->memberMember->presence_status);
     }
 
     #[Test]
@@ -149,7 +181,7 @@ class PresenceTest extends TestCase
         $response = $this->actingAs($this->stranger)
             ->getJson("/presence/{$this->room->id}");
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     #[Test]
