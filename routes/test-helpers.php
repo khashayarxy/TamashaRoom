@@ -9,12 +9,32 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+/**
+ * A globally-unique email for E2E/test-helper users.
+ *
+ * The default UserFactory uses faker's unique()->safeEmail(), but faker's
+ * "unique" state only lives for the current PHP process. Under `php artisan
+ * serve` the application is rebuilt per request, so the unique set resets
+ * every request — and the dev/E2E database accumulates users across runs.
+ * That combination periodically produced a UNIQUE constraint violation on
+ * users.email (a 500 that made E2E helper calls flaky). A random suffix is
+ * collision-proof regardless of how many users the database already holds.
+ */
+if (! function_exists('test_helper_user_email')) {
+    function test_helper_user_email(): string
+    {
+        return 'e2e-'.Str::random(12).'@example.com';
+    }
+}
 
 Route::middleware('web')->group(function () {
     Route::match(['get', 'post'], '/__test/setup-verified-room', function (Request $request) {
         abort_if(! app()->environment('local', 'testing'), 404);
 
         $user = User::factory()->create([
+            'email' => test_helper_user_email(),
             'email_verified_at' => now(),
         ]);
 
@@ -43,6 +63,21 @@ Route::middleware('web')->group(function () {
             ]);
         }
 
+        if ($request->boolean('local_video')) {
+            // A same-origin video served by the dev server (public/videos/sample.mp4).
+            // Direct mode bypasses SSRF so the browser loads it directly — used by
+            // the tap-to-play E2E to exercise real media playback locally.
+            $room->update([
+                'video_url' => $request->getSchemeAndHttpHost().'/videos/sample.mp4',
+                'is_playing' => true,
+                'position_seconds' => 0,
+                'duration_seconds' => 11,
+                'playback_rate' => 1,
+                'state_version' => 1,
+                'playback_mode' => 'direct',
+            ]);
+        }
+
         if ($request->boolean('with_chat')) {
             foreach (['سلام!', 'این یک پیام تست است', 'How about this video?'] as $body) {
                 ChatMessage::create([
@@ -58,7 +93,7 @@ Route::middleware('web')->group(function () {
             $path = sprintf('subtitles/%d/%s', $room->id, $filename);
             $vtt = "WEBVTT\n\n1\n00:00:01.000 --> 00:00:05.000\nزیرنویس فارسی\n\n2\n00:00:06.000 --> 00:00:10.000\nSecond cue in English";
 
-            Storage::disk('public')->put($path, $vtt);
+            Storage::disk('local')->put($path, $vtt);
 
             SubtitleTrack::create([
                 'room_id' => $room->id,
@@ -72,6 +107,7 @@ Route::middleware('web')->group(function () {
 
         if ($request->boolean('with_guest')) {
             $guest = User::factory()->create([
+                'email' => test_helper_user_email(),
                 'email_verified_at' => now(),
             ]);
             RoomMember::create([
@@ -107,6 +143,7 @@ Route::middleware('web')->group(function () {
             $user = $owner;
         } else {
             $user = User::factory()->create([
+                'email' => test_helper_user_email(),
                 'email_verified_at' => now(),
             ]);
             RoomMember::create([
