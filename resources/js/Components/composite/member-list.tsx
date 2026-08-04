@@ -63,7 +63,15 @@ function StatusIndicator({
                       ? "غایب"
                       : "آفلاین"
             }
-        />
+        >
+            <span className="sr-only">
+                {status === "online"
+                    ? "آنلاین"
+                    : status === "away"
+                      ? "غایب"
+                      : "آفلاین"}
+            </span>
+        </span>
     );
 }
 
@@ -179,20 +187,22 @@ export function MemberList({
                         </div>
 
                         {isOwner && !member.is_owner && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => setTransferTarget(member)}
-                                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                    className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 focus-visible:text-primary focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                                     title="انتقال مالکیت"
+                                    aria-label={`انتقال مالکیت به ${member.name}`}
                                 >
-                                    <LogOut className="h-3.5 w-3.5" />
+                                    <LogOut className="h-4 w-4" />
                                 </button>
                                 <button
                                     onClick={() => setKickTarget(member)}
-                                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                    className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:text-destructive focus-visible:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                                     title="حذف از اتاق"
+                                    aria-label={`حذف ${member.name} از اتاق`}
                                 >
-                                    <UserMinus className="h-3.5 w-3.5" />
+                                    <UserMinus className="h-4 w-4" />
                                 </button>
                             </div>
                         )}

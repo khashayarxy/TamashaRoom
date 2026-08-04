@@ -76,7 +76,9 @@ describe("Dashboard", () => {
             target: { value: "https://tamasharoom.example/rooms/join/ABC123" },
         });
         fireEvent.submit(input.closest("form")!);
-        expect(router.get).toHaveBeenCalledWith("/__route/rooms.join/ABC123");
+        expect(router.post).toHaveBeenCalledWith(
+            "/__route/rooms.join.submit/ABC123",
+        );
     });
 
     it("joins with a bare code", () => {
@@ -86,7 +88,9 @@ describe("Dashboard", () => {
         );
         fireEvent.change(input, { target: { value: "ABC123" } });
         fireEvent.submit(input.closest("form")!);
-        expect(router.get).toHaveBeenCalledWith("/__route/rooms.join/ABC123");
+        expect(router.post).toHaveBeenCalledWith(
+            "/__route/rooms.join.submit/ABC123",
+        );
     });
 
     it("shows the re-watch affordance only for rooms with a video", () => {

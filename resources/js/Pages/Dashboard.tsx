@@ -1,11 +1,14 @@
 import { Button } from "@/Components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { Input } from "@/Components/ui/input";
+import { ToastContainer } from "@/Components/composite/toast";
+import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
 import {
-    copyToClipboard,
     CREATE_ROOM_INTENT_KEY,
     extractInviteCode,
+    safeCopyToClipboard,
     timeAgo,
 } from "@/lib/utils";
 import { Link, router, usePage } from "@inertiajs/react";
@@ -35,6 +38,8 @@ export default function Dashboard({ rooms }: DashboardProps) {
     const [joinCode, setJoinCode] = useState("");
     const [creating, setCreating] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const { errors: pageErrors } = usePage().props;
 
     useEffect(() => {
@@ -59,7 +64,7 @@ export default function Dashboard({ rooms }: DashboardProps) {
                     setCreating(false);
                 },
                 onError: (errs) => {
-                    setErrors(errs as Record<string, string>);
+                    setErrors(errs);
                     setCreating(false);
                 },
             },
@@ -70,13 +75,32 @@ export default function Dashboard({ rooms }: DashboardProps) {
         e.preventDefault();
         const code = extractInviteCode(joinCode);
         if (!code.trim()) return;
-        router.get(route("rooms.join", code.trim()));
+        router.post(route("rooms.join.submit", code.trim()));
     };
 
-    const deleteRoom = (room: Room) => {
-        if (confirm(`آیا از حذف "${room.name}" مطمئن هستید؟`)) {
-            router.delete(route("rooms.destroy", room.id));
+    const handleCopy = async (code: string) => {
+        const ok = await safeCopyToClipboard(code);
+        if (ok) {
+            toast.success("کد دعوت کپی شد.");
+        } else {
+            toast.error("کپی شدن کد ممکن نشد. لطفاً به‌صورت دستی کپی کنید.");
         }
+    };
+
+    const deleteRoom = () => {
+        if (!roomToDelete) return;
+        setDeleting(true);
+        router.delete(route("rooms.destroy", roomToDelete.id), {
+            onSuccess: () => {
+                setDeleting(false);
+                setRoomToDelete(null);
+            },
+            onError: () => {
+                setDeleting(false);
+                setRoomToDelete(null);
+                toast.error("خطا در حذف اتاق");
+            },
+        });
     };
 
     return (
@@ -169,8 +193,24 @@ export default function Dashboard({ rooms }: DashboardProps) {
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {rooms.map((room) => (
-                        <Link key={room.id} href={route("rooms.show", room.id)}>
-                            <Card className="h-full hover:shadow-md transition-shadow cursor-pointer group">
+                        <div
+                            key={room.id}
+                            className="relative h-full focus-within:shadow-md hover:shadow-md transition-shadow"
+                        >
+                            {/* Stretched overlay link: the whole card is
+                                navigable, but it must not nest the action
+                                buttons (a11y: interactive elements must be
+                                siblings, not descendants of a link). */}
+                            <Link
+                                href={route("rooms.show", room.id)}
+                                className="absolute inset-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                aria-label={`ورود به اتاق ${room.name}`}
+                            >
+                                <span className="sr-only">
+                                    ورود به اتاق {room.name}
+                                </span>
+                            </Link>
+                            <Card className="h-full cursor-pointer group pointer-events-none">
                                 <CardHeader>
                                     <div className="flex items-start justify-between">
                                         <CardTitle className="text-base">
@@ -211,27 +251,21 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 mt-4">
+                                    <div className="flex items-center gap-2 mt-4 relative z-10">
                                         <button
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                copyToClipboard(
-                                                    room.invite_code,
-                                                );
-                                            }}
-                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary hover:underline"
+                                            onClick={() =>
+                                                handleCopy(room.invite_code)
+                                            }
+                                            className="pointer-events-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-primary hover:underline min-h-[24px]"
                                         >
                                             <Copy className="h-3 w-3" />
                                             کپی کد دعوت
                                         </button>
                                         <button
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                deleteRoom(room);
-                                            }}
-                                            className="flex items-center gap-1 text-xs text-destructive hover:underline ms-auto p-1"
+                                            onClick={() =>
+                                                setRoomToDelete(room)
+                                            }
+                                            className="pointer-events-auto flex items-center gap-1 text-xs text-destructive hover:underline ms-auto p-1 min-h-[24px]"
                                             aria-label="حذف اتاق"
                                         >
                                             <Trash2 className="h-3 w-3" />
@@ -239,10 +273,25 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                     </div>
                                 </CardContent>
                             </Card>
-                        </Link>
+                        </div>
                     ))}
                 </div>
             )}
+
+            <ConfirmDialog
+                open={roomToDelete !== null}
+                onClose={() => {
+                    if (!deleting) setRoomToDelete(null);
+                }}
+                onConfirm={deleteRoom}
+                title={`حذف ${roomToDelete?.name ?? ""}`}
+                description={`آیا از حذف "${roomToDelete?.name ?? ""}" مطمئن هستید؟ این عمل قابل بازگشت نیست.`}
+                confirmLabel="حذف شود"
+                confirmVariant="destructive"
+                loading={deleting}
+            />
+
+            <ToastContainer />
         </div>
     );
 }

@@ -283,7 +283,7 @@ class SecurityTest extends TestCase
 
         $response = $this->actingAs($this->stranger)
             ->from(route('dashboard'))
-            ->get("/rooms/join/{$this->room->invite_code}");
+            ->post("/rooms/join/{$this->room->invite_code}");
 
         $response->assertRedirect(route('dashboard'));
         $response->assertSessionHasErrors('invite_code');

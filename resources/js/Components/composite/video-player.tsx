@@ -245,6 +245,50 @@ export function VideoPlayer({
         [canControl, state.durationSeconds, syncImmediate, videoRef],
     );
 
+    const seekTo = useCallback(
+        (newTime: number) => {
+            const duration = state.durationSeconds || 0;
+            const clamped = Math.max(0, Math.min(newTime, duration));
+            if (videoRef.current) {
+                videoRef.current.currentTime = clamped;
+            }
+            setIsSeeking(true);
+            syncImmediate({ positionSeconds: clamped });
+        },
+        [state.durationSeconds, syncImmediate, videoRef],
+    );
+
+    const handleSeekKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLDivElement>) => {
+            if (!canControl) return;
+            const current = videoRef.current?.currentTime ?? displayTime;
+            const duration = state.durationSeconds || 0;
+            const step = duration > 0 ? duration / 100 : 5;
+
+            switch (e.key) {
+                case "ArrowRight":
+                    e.preventDefault();
+                    seekTo(current + step);
+                    break;
+                case "ArrowLeft":
+                    e.preventDefault();
+                    seekTo(current - step);
+                    break;
+                case "Home":
+                    e.preventDefault();
+                    seekTo(0);
+                    break;
+                case "End":
+                    e.preventDefault();
+                    seekTo(duration);
+                    break;
+                default:
+                    break;
+            }
+        },
+        [canControl, displayTime, seekTo, state.durationSeconds, videoRef],
+    );
+
     const skip = useCallback(
         (seconds: number) => {
             if (!canControl || !videoRef.current) return;
@@ -377,8 +421,18 @@ export function VideoPlayer({
 
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12 transition-opacity group-focus-within:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100">
                 <div
-                    className="h-1 bg-white/30 rounded-full cursor-pointer mb-3"
+                    role="slider"
+                    tabIndex={canControl ? 0 : -1}
+                    aria-label="موقعیت پخش"
+                    aria-valuemin={0}
+                    aria-valuemax={state.durationSeconds || 0}
+                    aria-valuenow={Math.round(
+                        displayTime || state.positionSeconds,
+                    )}
+                    aria-valuetext={`${formatDuration(displayTime || state.positionSeconds)} از ${formatDuration(state.durationSeconds)}`}
                     onClick={handleSeek}
+                    onKeyDown={handleSeekKeyDown}
+                    className="h-1 bg-white/30 rounded-full cursor-pointer mb-3 py-3 -my-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     <div
                         className="h-full bg-primary rounded-full transition-all"

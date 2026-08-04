@@ -54,6 +54,20 @@ export function copyToClipboard(text: string): Promise<void> {
     return navigator.clipboard.writeText(text);
 }
 
+/**
+ * Copy to the clipboard, swallowing rejection (e.g. the Clipboard API being
+ * unavailable or permission-denied) and reporting success/failure instead of
+ * leaving an unhandled promise rejection.
+ */
+export async function safeCopyToClipboard(text: string): Promise<boolean> {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 export function extractInviteCode(input: string): string {
     const trimmed = input.trim();
     const match = trimmed.match(/\/rooms\/join\/([A-Za-z0-9]+)/);

@@ -18,6 +18,7 @@ vi.mock("@/Hooks/use-playback-sync", () => ({
             playbackMode: "direct" as const,
             stateVersion: 1,
             serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
             updatedAt: new Date().toISOString(),
         } satisfies PlaybackState,
         sync: mockSync,
@@ -47,6 +48,7 @@ describe("VideoPlayer", () => {
             playbackMode: "direct" as PlaybackMode,
             stateVersion: 1,
             serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
             updatedAt: new Date().toISOString(),
         };
         vi.mocked(usePlaybackSync).mockReturnValueOnce({
@@ -176,6 +178,7 @@ describe("VideoPlayer", () => {
             playbackMode: "proxy",
             stateVersion: 1,
             serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
             updatedAt: new Date().toISOString(),
         };
         vi.mocked(usePlaybackSync).mockReturnValueOnce({
@@ -201,6 +204,7 @@ describe("VideoPlayer", () => {
             playbackMode: "proxy",
             stateVersion: 1,
             serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
             updatedAt: new Date().toISOString(),
         };
 
@@ -273,6 +277,7 @@ describe("VideoPlayer", () => {
             playbackMode: "direct" as PlaybackMode,
             stateVersion: 1,
             serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
             updatedAt: new Date().toISOString(),
         };
         vi.mocked(usePlaybackSync).mockReturnValueOnce({
@@ -300,6 +305,7 @@ describe("VideoPlayer", () => {
                 playbackMode: "direct" as PlaybackMode,
                 stateVersion: 1,
                 serverTimestamp: Date.now() / 1000,
+                receivedAt: Date.now() / 1000,
                 updatedAt: new Date().toISOString(),
             } satisfies PlaybackState,
             sync: mockSync,
@@ -325,6 +331,7 @@ describe("VideoPlayer", () => {
                 playbackMode: "direct" as PlaybackMode,
                 stateVersion: 1,
                 serverTimestamp: Date.now() / 1000,
+                receivedAt: Date.now() / 1000,
                 updatedAt: new Date().toISOString(),
             } satisfies PlaybackState,
             sync: mockSync,
@@ -468,5 +475,225 @@ describe("VideoPlayer", () => {
         expect(
             screen.queryByText("ویدیو به پایان رسید"),
         ).not.toBeInTheDocument();
+    });
+
+    it("shows a tap-to-play overlay for a guest when the browser blocks autoplay", async () => {
+        const playingState: PlaybackState = {
+            isPlaying: true,
+            positionSeconds: 5,
+            durationSeconds: 300,
+            playbackRate: 1,
+            videoUrl: "https://example.com/video.mp4",
+            playbackMode: "direct" as PlaybackMode,
+            stateVersion: 2,
+            serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
+            updatedAt: new Date().toISOString(),
+        };
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: playingState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+
+        // Simulate a browser autoplay block: play() rejects (jsdom's play()
+        // returns undefined, so stub the rejected-promise contract explicitly).
+        const playSpy = vi
+            .spyOn(HTMLMediaElement.prototype, "play")
+            .mockRejectedValue(
+                new DOMException("NotAllowedError", "NotAllowedError"),
+            );
+
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl={false}
+            />,
+        );
+
+        await screen.findByText("شروع پخش");
+
+        const video = document.querySelector("video")!;
+        expect(video).toBeInTheDocument();
+        playSpy.mockRestore();
+    });
+
+    it("does not show a tap-to-play overlay for the owner", async () => {
+        const playingState: PlaybackState = {
+            isPlaying: true,
+            positionSeconds: 5,
+            durationSeconds: 300,
+            playbackRate: 1,
+            videoUrl: "https://example.com/video.mp4",
+            playbackMode: "direct" as PlaybackMode,
+            stateVersion: 2,
+            serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
+            updatedAt: new Date().toISOString(),
+        };
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: playingState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+
+        const playSpy = vi
+            .spyOn(HTMLMediaElement.prototype, "play")
+            .mockRejectedValue(
+                new DOMException("NotAllowedError", "NotAllowedError"),
+            );
+
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        expect(screen.queryByText("شروع پخش")).not.toBeInTheDocument();
+        playSpy.mockRestore();
+    });
+
+    it("tap-to-play starts the video locally without mutating playback state", async () => {
+        const playingState: PlaybackState = {
+            isPlaying: true,
+            positionSeconds: 5,
+            durationSeconds: 300,
+            playbackRate: 1,
+            videoUrl: "https://example.com/video.mp4",
+            playbackMode: "direct" as PlaybackMode,
+            stateVersion: 2,
+            serverTimestamp: Date.now() / 1000,
+            receivedAt: Date.now() / 1000,
+            updatedAt: new Date().toISOString(),
+        };
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: playingState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+
+        const playSpy = vi
+            .spyOn(HTMLMediaElement.prototype, "play")
+            .mockRejectedValue(
+                new DOMException("NotAllowedError", "NotAllowedError"),
+            );
+
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl={false}
+            />,
+        );
+
+        await screen.findByText("شروع پخش");
+
+        // A user gesture now allows play(); the tap starts the video locally.
+        playSpy.mockResolvedValue();
+        fireEvent.click(screen.getByText("شروع پخش"));
+
+        expect(playSpy).toHaveBeenCalled();
+        expect(mockSyncImmediate).not.toHaveBeenCalled();
+        expect(mockSync).not.toHaveBeenCalled();
+        expect(screen.queryByText("شروع پخش")).not.toBeInTheDocument();
+
+        playSpy.mockRestore();
+    });
+
+    it("seek bar is a keyboard-operable slider for the host", () => {
+        const seekState: PlaybackState = {
+            isPlaying: false,
+            positionSeconds: 10,
+            durationSeconds: 300,
+            playbackRate: 1,
+            videoUrl: "https://example.com/video.mp4",
+            playbackMode: "direct" as PlaybackMode,
+            stateVersion: 1,
+            serverTimestamp: Date.now() / 1000,
+            updatedAt: new Date().toISOString(),
+            receivedAt: Date.now() / 1000,
+        };
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: seekState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        const slider = screen.getByRole("slider", { name: "موقعیت پخش" });
+        expect(slider).toHaveAttribute("aria-valuemin", "0");
+        expect(slider).toHaveAttribute("aria-valuemax", "300");
+        expect(slider).toHaveAttribute("aria-valuenow", "10");
+
+        // ArrowRight seeks forward through the authoritative path.
+        mockSyncImmediate.mockClear();
+        fireEvent.keyDown(slider, { key: "ArrowRight" });
+        expect(mockSyncImmediate).toHaveBeenCalledWith({
+            positionSeconds: expect.any(Number),
+        });
+        const calledWith = mockSyncImmediate.mock.calls[0][0];
+        expect(calledWith.positionSeconds).toBeGreaterThan(10);
+
+        // Home seeks to the start.
+        mockSyncImmediate.mockClear();
+        fireEvent.keyDown(slider, { key: "Home" });
+        expect(mockSyncImmediate).toHaveBeenCalledWith({
+            positionSeconds: 0,
+        });
+    });
+
+    it("seek bar is not focusable for guests", () => {
+        const seekState: PlaybackState = {
+            isPlaying: false,
+            positionSeconds: 10,
+            durationSeconds: 300,
+            playbackRate: 1,
+            videoUrl: "https://example.com/video.mp4",
+            playbackMode: "direct" as PlaybackMode,
+            stateVersion: 1,
+            serverTimestamp: Date.now() / 1000,
+            updatedAt: new Date().toISOString(),
+            receivedAt: Date.now() / 1000,
+        };
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: seekState,
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+
+        render(
+            <VideoPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl={false}
+            />,
+        );
+
+        const slider = screen.getByRole("slider", { name: "موقعیت پخش" });
+        expect(slider).toHaveAttribute("tabindex", "-1");
+
+        mockSyncImmediate.mockClear();
+        fireEvent.keyDown(slider, { key: "ArrowRight" });
+        expect(mockSyncImmediate).not.toHaveBeenCalled();
     });
 });

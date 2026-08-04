@@ -1,4 +1,5 @@
 import { MemberList } from "@/Components/composite/member-list";
+import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { RoomChat } from "@/Components/composite/room-chat";
 import { RoomOnboarding } from "@/Components/composite/room-onboarding";
 import { RoomSettingsDialog } from "@/Components/composite/room-settings";
@@ -15,17 +16,12 @@ import { Input } from "@/Components/ui/input";
 import { usePresence } from "@/Hooks/use-presence";
 import { useRoomOwnership } from "@/Hooks/use-room-ownership";
 import { useSuggestNext } from "@/Hooks/use-suggest-next";
+import { useSubtitles } from "@/Hooks/use-subtitles";
 import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
-import { copyToClipboard } from "@/lib/utils";
-import {
-    clearActiveTrackChoice,
-    loadActiveTrackId,
-    saveActiveTrackId,
-} from "@/lib/subtitle-selection";
+import { safeCopyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
 import { useRoomUiStore } from "@/stores/room-ui";
-import type { SubtitleTrack, SubtitleCue } from "@/lib/types/subtitle";
 import {
     Copy,
     MessageSquare,
@@ -37,7 +33,7 @@ import {
     Users,
     X,
 } from "lucide-react";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
 
 interface ChatMessage {
@@ -93,27 +89,41 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const roomIsLocked = useRoomUiStore((s) => s.roomIsLocked);
     const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
     const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
-    const [tracks, setTracks] = useState<SubtitleTrack[]>([]);
-    const [activeTrackId, setActiveTrackId] = useState<number | null>(() => {
-        const stored = loadActiveTrackId(room.id);
-        return stored === undefined ? room.active_subtitle_track_id : stored;
-    });
-    const [roomDefaultId, setRoomDefaultId] = useState<number | null>(
-        room.active_subtitle_track_id,
-    );
-    const [cues, setCues] = useState<SubtitleCue[]>([]);
-    const [subLoading, setSubLoading] = useState(false);
-    const [subError, setSubError] = useState<string | null>(null);
+    const [settingVideo, setSettingVideo] = useState(false);
     const [chatUnread, setChatUnread] = useState(0);
     const [showOnboarding, setShowOnboarding] = useState(true);
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const {
+        tracks,
+        tracksError,
+        activeTrackId,
+        roomDefaultId,
+        cues,
+        subLoading,
+        subError,
+        trackToDelete,
+        deletingTrack,
+        activeTrack,
+        setTrackToDelete,
+        selectTrack,
+        followRoomDefault,
+        setRoomDefault,
+        uploadTrack,
+        deleteTrack,
+    } = useSubtitles(room.id, room.active_subtitle_track_id);
+
+    const {
         members: presenceMembers,
         connected,
         moments: presenceMoments,
-    } = usePresence(room.id);
+    } = usePresence(room.id, {
+        onRemoved: () => {
+            toast.error("شما از اتاق حذف شده‌اید.");
+            router.visit(route("dashboard"));
+        },
+    });
     const { settings } = useSubtitleSettings();
     const { auth } = usePage().props;
     const { ownerId, isOwner, transferOwnership } = useRoomOwnership({
@@ -122,6 +132,15 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         presenceMembers,
     });
     const { suggestNext } = useSuggestNext(room.id);
+
+    const handleCopy = async (text: string) => {
+        const ok = await safeCopyToClipboard(text);
+        if (ok) {
+            toast.success("لینک دعوت کپی شد.");
+        } else {
+            toast.error("کپی شدن لینک ممکن نشد. لطفاً به‌صورت دستی کپی کنید.");
+        }
+    };
 
     useEffect(() => {
         setRoomName(room.name);
@@ -142,118 +161,21 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     ]);
 
     const setVideo = async () => {
-        if (!videoUrl.trim()) return;
+        if (!videoUrl.trim() || settingVideo) return;
+        setSettingVideo(true);
         try {
             await api.post(`/playback/${room.id}/set-video`, {
                 video_url: videoUrl,
             });
             setShowSetVideo(false);
             setVideoUrl("");
+            toast.success("ویدیو تنظیم شد.");
         } catch {
             toast.error("تنظیم ویدیو ناموفق بود. لطفاً دوباره تلاش کنید.");
+        } finally {
+            setSettingVideo(false);
         }
     };
-
-    useEffect(() => {
-        let cancelled = false;
-        api.get(`/subtitles/${room.id}`)
-            .then((res) => {
-                if (cancelled) return;
-                setTracks(res.data);
-            })
-            .catch(() => {});
-        return () => {
-            cancelled = true;
-        };
-    }, [room.id]);
-
-    const selectTrack = (trackId: number | null) => {
-        setActiveTrackId(trackId);
-        saveActiveTrackId(room.id, trackId);
-    };
-
-    const followRoomDefault = () => {
-        clearActiveTrackChoice(room.id);
-        setActiveTrackId(roomDefaultId);
-    };
-
-    const setRoomDefault = async (trackId: number | null) => {
-        try {
-            await api.post(`/subtitles/${room.id}/default`, {
-                track_id: trackId,
-            });
-            setRoomDefaultId(trackId);
-        } catch {
-            setSubError("خطا در تنظیم زیرنویس پیش‌فرض");
-        }
-    };
-
-    useEffect(() => {
-        if (!activeTrackId) {
-            setCues([]);
-            setSubError(null);
-            return;
-        }
-
-        let cancelled = false;
-        setSubLoading(true);
-        setSubError(null);
-
-        api.get(`/subtitles/${room.id}/${activeTrackId}/cues`)
-            .then((res) => {
-                if (cancelled) return;
-                setCues(res.data.cues ?? []);
-                setSubLoading(false);
-            })
-            .catch(() => {
-                if (cancelled) return;
-                setCues([]);
-                setSubError("خطا در بارگذاری زیرنویس");
-                setSubLoading(false);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [room.id, activeTrackId]);
-
-    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        try {
-            const res = await api.post(`/subtitles/${room.id}`, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            setTracks((prev) => [res.data, ...prev]);
-            selectTrack(res.data.id);
-        } catch {
-            setSubError("خطا در آپلود فایل");
-        }
-
-        if (fileInputRef.current) fileInputRef.current.value = "";
-    };
-
-    const handleDeleteTrack = async (trackId: number) => {
-        try {
-            await api.delete(`/subtitles/${room.id}/${trackId}`);
-            setTracks((prev) => prev.filter((t) => t.id !== trackId));
-            if (activeTrackId === trackId) {
-                selectTrack(null);
-                setCues([]);
-            }
-            if (roomDefaultId === trackId) {
-                setRoomDefaultId(null);
-            }
-        } catch {
-            setSubError("خطا در حذف زیرنویس");
-        }
-    };
-
-    const activeTrack = tracks.find((t) => t.id === activeTrackId);
 
     const handleRoomUpdate = (data: {
         name?: string;
@@ -294,9 +216,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                                copyToClipboard(
-                                    route("rooms.join", roomInviteCode),
-                                )
+                                handleCopy(route("rooms.join", roomInviteCode))
                             }
                         >
                             <Copy className="h-4 w-4" />
@@ -305,7 +225,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => copyToClipboard(roomInviteCode)}
+                            onClick={() => handleCopy(roomInviteCode)}
                         >
                             کپی کد دعوت
                         </Button>
@@ -318,9 +238,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     showOnboarding && (
                         <RoomOnboarding
                             onCopyInvite={() =>
-                                copyToClipboard(
-                                    route("rooms.join", roomInviteCode),
-                                )
+                                handleCopy(route("rooms.join", roomInviteCode))
                             }
                             onAddVideo={() => setShowSetVideo(true)}
                             onDismiss={() => setShowOnboarding(false)}
@@ -359,7 +277,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     dir="ltr"
                                 />
                             </div>
-                            <Button onClick={setVideo} size="sm">
+                            <Button
+                                onClick={setVideo}
+                                size="sm"
+                                loading={settingVideo}
+                            >
                                 تنظیم
                             </Button>
                             <Button
@@ -392,7 +314,16 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                             ref={fileInputRef}
                                             type="file"
                                             accept=".srt,.vtt"
-                                            onChange={handleUpload}
+                                            onChange={(e) => {
+                                                const file =
+                                                    e.target.files?.[0];
+                                                if (file)
+                                                    void uploadTrack(file);
+                                                if (fileInputRef.current) {
+                                                    fileInputRef.current.value =
+                                                        "";
+                                                }
+                                            }}
                                             className="hidden"
                                         />
                                         <Button
@@ -497,7 +428,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                                     </button>
                                                     <button
                                                         onClick={() =>
-                                                            handleDeleteTrack(
+                                                            setTrackToDelete(
                                                                 track.id,
                                                             )
                                                         }
@@ -512,7 +443,12 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     ))}
                                 </div>
                             )}
-                            {tracks.length === 0 && (
+                            {tracksError && tracks.length === 0 && (
+                                <p className="text-xs text-destructive w-full px-1">
+                                    خطا در دریافت لیست زیرنویس‌ها
+                                </p>
+                            )}
+                            {!tracksError && tracks.length === 0 && (
                                 <p className="text-xs text-muted-foreground w-full px-1">
                                     هنوز زیرنویسی آپلود نشده است
                                 </p>
@@ -623,6 +559,21 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     is_locked: roomIsLocked,
                 }}
                 onUpdate={handleRoomUpdate}
+            />
+
+            <ConfirmDialog
+                open={trackToDelete !== null}
+                onClose={() => {
+                    if (!deletingTrack) setTrackToDelete(null);
+                }}
+                onConfirm={() =>
+                    trackToDelete !== null && deleteTrack(trackToDelete)
+                }
+                title="حذف زیرنویس"
+                description="آیا از حذف این زیرنویس اطمینان دارید؟ این عمل قابل بازگشت نیست."
+                confirmLabel="حذف شود"
+                confirmVariant="destructive"
+                loading={deletingTrack}
             />
 
             <ToastContainer />
