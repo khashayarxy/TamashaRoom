@@ -193,7 +193,7 @@ class PlaybackSyncTest extends TestCase
         $response = $this->actingAs($stranger)
             ->getJson("/playback/{$this->room->id}/state");
 
-        $response->assertForbidden();
+        $response->assertNotFound();
     }
 
     public function test_playback_rate_is_validated(): void
@@ -209,6 +209,43 @@ class PlaybackSyncTest extends TestCase
         $this->room->refresh();
         $this->assertEquals(0, $this->room->state_version);
         $this->assertFalse($this->room->is_playing);
+    }
+
+    public function test_position_and_duration_have_an_upper_bound(): void
+    {
+        $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 86401,
+                'duration_seconds' => 120,
+            ])
+            ->assertJsonValidationErrors('position_seconds');
+
+        $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 0,
+                'duration_seconds' => 86401,
+            ])
+            ->assertJsonValidationErrors('duration_seconds');
+
+        $this->room->refresh();
+        $this->assertEquals(0, $this->room->state_version);
+        $this->assertFalse($this->room->is_playing);
+    }
+
+    public function test_position_and_duration_accept_values_at_the_boundary(): void
+    {
+        $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 86400,
+                'duration_seconds' => 86400,
+            ]);
+
+        $this->room->refresh();
+        $this->assertEquals(86400, $this->room->position_seconds);
+        $this->assertEquals(86400, $this->room->duration_seconds);
     }
 
     public function test_state_version_rejects_outdated_client(): void

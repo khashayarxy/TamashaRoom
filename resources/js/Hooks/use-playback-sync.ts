@@ -35,6 +35,7 @@ export function usePlaybackSync({
         stateVersion: 0,
         serverTimestamp: null,
         updatedAt: new Date().toISOString(),
+        receivedAt: null,
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export function usePlaybackSync({
     }, []);
 
     const fetchState = useCallback(async () => {
-        if (cancelledRef.current) {
+        if (cancelledRef.current || documentHiddenRef.current) {
             return;
         }
 
@@ -100,11 +101,20 @@ export function usePlaybackSync({
             versionRef.current = incoming.stateVersion;
             lastPollRef.current = Date.now() / 1000;
 
+            // Baseline for drift extrapolation: the client-clock instant this
+            // authoritative snapshot was received. Extrapolation then uses
+            // purely client-monotonic time, avoiding the client↔server clock
+            // offset entirely.
+            const received = {
+                ...incoming,
+                receivedAt: lastPollRef.current,
+            };
+
             const expected = computeExpectedPosition(
-                incoming,
+                received,
                 lastPollRef.current,
             );
-            const corrected = { ...incoming, positionSeconds: expected };
+            const corrected = { ...received, positionSeconds: expected };
 
             stateRef.current = corrected;
             setState(corrected);
@@ -181,17 +191,24 @@ export function usePlaybackSync({
                 );
                 if (cancelledRef.current) return;
                 if (data.status === "ok") {
-                    versionRef.current = data.state_version;
-                    lastPollRef.current = Date.now() / 1000;
-                    setState((s) => ({
-                        ...s,
-                        ...partial,
-                        stateVersion: data.state_version,
-                        serverTimestamp: data.server_timestamp,
-                        ...(data.playback_mode
-                            ? { playbackMode: data.playback_mode }
-                            : {}),
-                    }));
+                    // Guard against out-of-order/late PATCH responses: only
+                    // apply the response if it reflects a newer server state,
+                    // otherwise it would regress the version and freeze
+                    // subsequent valid polls.
+                    if (data.state_version > versionRef.current) {
+                        versionRef.current = data.state_version;
+                        lastPollRef.current = Date.now() / 1000;
+                        setState((s) => ({
+                            ...s,
+                            ...partial,
+                            stateVersion: data.state_version,
+                            serverTimestamp: data.server_timestamp,
+                            receivedAt: lastPollRef.current,
+                            ...(data.playback_mode
+                                ? { playbackMode: data.playback_mode }
+                                : {}),
+                        }));
+                    }
                 }
                 setError(null);
             } catch {

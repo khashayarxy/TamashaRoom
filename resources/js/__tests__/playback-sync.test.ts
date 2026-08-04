@@ -17,6 +17,7 @@ function makeState(overrides: Partial<PlaybackState> = {}): PlaybackState {
         stateVersion: 5,
         serverTimestamp: 1000,
         updatedAt: new Date().toISOString(),
+        receivedAt: 1000,
         ...overrides,
     };
 }
@@ -74,19 +75,19 @@ describe("computeExpectedPosition", () => {
         expect(computeExpectedPosition(state, 2000)).toBe(42);
     });
 
-    it("returns positionSeconds when serverTimestamp is null", () => {
+    it("returns positionSeconds when receivedAt is null", () => {
         const state = makeState({
             isPlaying: true,
-            serverTimestamp: null,
+            receivedAt: null,
             positionSeconds: 42,
         });
         expect(computeExpectedPosition(state, 2000)).toBe(42);
     });
 
-    it("compensates drift when playing with serverTimestamp at normal speed", () => {
+    it("compensates drift when playing with a receivedAt baseline at normal speed", () => {
         const state = makeState({
             isPlaying: true,
-            serverTimestamp: 1000,
+            receivedAt: 1000,
             positionSeconds: 50,
             playbackRate: 1,
         });
@@ -96,7 +97,7 @@ describe("computeExpectedPosition", () => {
     it("compensates drift at 2x playback rate", () => {
         const state = makeState({
             isPlaying: true,
-            serverTimestamp: 1000,
+            receivedAt: 1000,
             positionSeconds: 50,
             playbackRate: 2,
         });
@@ -106,7 +107,7 @@ describe("computeExpectedPosition", () => {
     it("compensates drift at 0.5x playback rate", () => {
         const state = makeState({
             isPlaying: true,
-            serverTimestamp: 1000,
+            receivedAt: 1000,
             positionSeconds: 50,
             playbackRate: 0.5,
         });
@@ -116,23 +117,24 @@ describe("computeExpectedPosition", () => {
     it("handles large elapsed time (long poll interval)", () => {
         const state = makeState({
             isPlaying: true,
-            serverTimestamp: 1000,
+            receivedAt: 1000,
             positionSeconds: 0,
             playbackRate: 1,
         });
         expect(computeExpectedPosition(state, 1010)).toBe(10);
     });
 
-    it("produces negative drift when clientTimestampNow precedes serverTimestamp (clock skew)", () => {
+    it("extrapolates from a client-monotonic baseline, ignoring the server clock offset", () => {
+        // The snapshot was received at client-time 2000 (server clock said
+        // 1000 — a 1000s client↔server offset). Extrapolation must use the
+        // client receipt baseline, not the server timestamp.
         const state = makeState({
             isPlaying: true,
+            receivedAt: 2000,
             serverTimestamp: 1000,
             positionSeconds: 50,
             playbackRate: 1,
         });
-        const result = computeExpectedPosition(state, 900);
-        expect(result).toBeLessThan(50);
-        expect(result).toBe(50 + (900 - 1000) * 1);
-        expect(result).toBe(-50);
+        expect(computeExpectedPosition(state, 2005)).toBe(55);
     });
 });

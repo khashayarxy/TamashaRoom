@@ -10,6 +10,8 @@ export interface PlaybackState {
     stateVersion: number;
     serverTimestamp: number | null;
     updatedAt: string;
+    /** Client-clock epoch-seconds when this authoritative snapshot was received. */
+    receivedAt: number | null;
 }
 
 export interface PlaybackStateResponse {
@@ -42,16 +44,24 @@ export function toPlaybackState(data: PlaybackStateResponse): PlaybackState {
         stateVersion: data.state_version,
         serverTimestamp: data.server_timestamp,
         updatedAt: data.updated_at,
+        receivedAt: null,
     };
 }
 
+/**
+ * Expected position at `clientTimestampNow`, extrapolated from a
+ * client-monotonic baseline (`receivedAt`) captured when the authoritative
+ * snapshot arrived. This deliberately avoids comparing raw client
+ * `Date.now()` against the server's clock, which would drift by the unknown
+ * client↔server clock offset.
+ */
 export function computeExpectedPosition(
     state: PlaybackState,
     clientTimestampNow: number,
 ): number {
-    if (!state.isPlaying || !state.serverTimestamp) {
+    if (!state.isPlaying || state.receivedAt === null) {
         return state.positionSeconds;
     }
-    const elapsed = clientTimestampNow - state.serverTimestamp;
+    const elapsed = clientTimestampNow - state.receivedAt;
     return state.positionSeconds + elapsed * state.playbackRate;
 }

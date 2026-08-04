@@ -32,6 +32,15 @@ describe("usePlaybackSync", () => {
         mockGet.mockReset();
         mockPatch.mockReset();
         mockGet.mockResolvedValue({ data: makeResponse() });
+        // Undo any document.hidden leakage from visibility tests.
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
     });
 
     it("fetches initial state on mount", async () => {
@@ -185,13 +194,13 @@ describe("usePlaybackSync", () => {
                 await vi.advanceTimersByTimeAsync(0);
             });
 
-            expect(mockGet).toHaveBeenCalledTimes(1);
+            expect(mockGet).toHaveBeenCalledTimes(0);
 
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(30000);
             });
 
-            expect(mockGet).toHaveBeenCalledTimes(1);
+            expect(mockGet).toHaveBeenCalledTimes(0);
         } finally {
             vi.useRealTimers();
         }
@@ -216,7 +225,7 @@ describe("usePlaybackSync", () => {
                 await vi.advanceTimersByTimeAsync(0);
             });
 
-            expect(mockGet).toHaveBeenCalledTimes(1);
+            expect(mockGet).toHaveBeenCalledTimes(0);
 
             Object.defineProperty(document, "hidden", {
                 configurable: true,
@@ -232,13 +241,13 @@ describe("usePlaybackSync", () => {
                 await vi.advanceTimersByTimeAsync(0);
             });
 
-            expect(mockGet).toHaveBeenCalledTimes(2);
+            expect(mockGet).toHaveBeenCalledTimes(1);
 
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(10000);
             });
 
-            expect(mockGet).toHaveBeenCalledTimes(3);
+            expect(mockGet).toHaveBeenCalledTimes(2);
         } finally {
             vi.useRealTimers();
         }
@@ -515,5 +524,37 @@ describe("usePlaybackSync", () => {
         });
 
         expect(mockGet).not.toHaveBeenCalled();
+    });
+
+    it("does not apply a PATCH response with a stale state_version", async () => {
+        mockPatch.mockResolvedValue({
+            data: {
+                status: "ok",
+                state_version: 5,
+                server_timestamp: 5000,
+            },
+        });
+
+        const { result } = renderHook(() =>
+            usePlaybackSync({ roomId: 1, isHost: true }),
+        );
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        // Current version is 1 (from the initial poll). A late/stale PATCH
+        // response claiming an older version must be ignored.
+        mockPatch.mockResolvedValue({
+            data: {
+                status: "ok",
+                state_version: 0,
+                server_timestamp: 1000,
+            },
+        });
+
+        await act(async () => {
+            await result.current.syncImmediate({ isPlaying: true });
+        });
+
+        expect(result.current.state.stateVersion).toBeGreaterThan(0);
     });
 });
