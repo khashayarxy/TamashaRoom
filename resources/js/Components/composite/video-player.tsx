@@ -51,6 +51,7 @@ export function VideoPlayer({
     const endedAtRef = useRef(0);
     const [isSeeking, setIsSeeking] = useState(false);
     const [ended, setEnded] = useState(false);
+    const [autoplayBlocked, setAutoplayBlocked] = useState(false);
     const [displayTime, setDisplayTime] = useState(0);
     const [proxyFailed, setProxyFailed] = useState(false);
     const [muted, setMuted] = useState(false);
@@ -160,7 +161,14 @@ export function VideoPlayer({
             if (diff > DRIFT_THRESHOLD) {
                 video.currentTime = expected;
             }
-            video.play().catch(() => {});
+            video.play().catch(() => {
+                // Autoplay is blocked by the browser (no prior user gesture).
+                // Don't leave the guest on a silently-frozen video — surface
+                // the tap-to-play overlay instead.
+                if (!canControl) {
+                    setAutoplayBlocked(true);
+                }
+            });
             if (ended) {
                 setEnded(false);
             }
@@ -172,7 +180,17 @@ export function VideoPlayer({
             }
             video.pause();
         }
-    }, [state, sourceUrl, videoRef, isSeeking, ended]);
+    }, [state, sourceUrl, videoRef, isSeeking, ended, canControl]);
+
+    const handleLocalPlay = useCallback(() => {
+        const video = videoRef.current;
+        if (!video || !sourceUrl) return;
+
+        setAutoplayBlocked(false);
+        video.play().catch(() => {
+            setAutoplayBlocked(true);
+        });
+    }, [sourceUrl, videoRef]);
 
     const handleEnded = useCallback(() => {
         const video = videoRef.current;
@@ -182,6 +200,7 @@ export function VideoPlayer({
 
     const handlePlay = useCallback(() => {
         setEnded(false);
+        setAutoplayBlocked(false);
     }, []);
 
     const handleReplay = useCallback(() => {
@@ -344,6 +363,15 @@ export function VideoPlayer({
                             )}
                         </div>
                     </div>
+                </div>
+            )}
+
+            {!canControl && !ended && autoplayBlocked && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
+                    <Button size="lg" onClick={handleLocalPlay}>
+                        <Play className="h-5 w-5" />
+                        شروع پخش
+                    </Button>
                 </div>
             )}
 
