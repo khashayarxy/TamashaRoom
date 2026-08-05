@@ -6,6 +6,7 @@ import { CREATE_ROOM_INTENT_KEY } from "@/lib/utils";
 
 vi.mock("@inertiajs/react", () => ({
     usePage: vi.fn(),
+    Head: () => null,
     router: {
         post: vi.fn(),
         get: vi.fn(),
@@ -58,13 +59,13 @@ describe("Dashboard", () => {
     it("opens the create room form when arriving from the header button", () => {
         sessionStorage.setItem(CREATE_ROOM_INTENT_KEY, "1");
         render(<Dashboard rooms={[]} />);
-        expect(screen.getByText("ساخت اتاق جدید")).toBeInTheDocument();
+        expect(screen.getByLabelText("نام اتاق")).toBeInTheDocument();
         expect(sessionStorage.getItem(CREATE_ROOM_INTENT_KEY)).toBeNull();
     });
 
     it("does not open the create form without an intent flag", () => {
         render(<Dashboard rooms={[]} />);
-        expect(screen.queryByText("ساخت اتاق جدید")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("نام اتاق")).not.toBeInTheDocument();
     });
 
     it("extracts the invite code from a pasted join URL", () => {
@@ -78,6 +79,8 @@ describe("Dashboard", () => {
         fireEvent.submit(input.closest("form")!);
         expect(router.post).toHaveBeenCalledWith(
             "/__route/rooms.join.submit/ABC123",
+            {},
+            expect.objectContaining({ onFinish: expect.any(Function) }),
         );
     });
 
@@ -90,6 +93,8 @@ describe("Dashboard", () => {
         fireEvent.submit(input.closest("form")!);
         expect(router.post).toHaveBeenCalledWith(
             "/__route/rooms.join.submit/ABC123",
+            {},
+            expect.objectContaining({ onFinish: expect.any(Function) }),
         );
     });
 
@@ -103,6 +108,7 @@ describe("Dashboard", () => {
                 members_count: 1,
                 max_members: 10,
                 is_playing: false,
+                is_locked: false,
                 video_url: "https://example.com/video.mp4",
                 last_activity_at: null,
                 user_id: 1,
@@ -115,6 +121,7 @@ describe("Dashboard", () => {
                 members_count: 1,
                 max_members: 10,
                 is_playing: false,
+                is_locked: false,
                 video_url: null,
                 last_activity_at: null,
                 user_id: 1,

@@ -1,46 +1,36 @@
-import { Button } from "@/Components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Head, router, usePage } from "@inertiajs/react";
+
+import { Link2, Plus, Tv } from "lucide-react";
+
 import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
-import { Input } from "@/Components/ui/input";
+import { RoomCard, type RoomCardRoom } from "@/Components/composite/room-card";
 import { ToastContainer } from "@/Components/composite/toast";
+import { Button } from "@/Components/ui/button";
+import { Input } from "@/Components/ui/input";
 import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
 import {
     CREATE_ROOM_INTENT_KEY,
     extractInviteCode,
     safeCopyToClipboard,
-    timeAgo,
 } from "@/lib/utils";
-import { Link, router, usePage } from "@inertiajs/react";
-import { Copy, Link2, Plus, RotateCcw, Trash2, Tv, Users } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
 
-interface Room {
-    id: number;
-    name: string;
-    invite_code: string;
-    owner: { id: number; name: string };
-    members_count: number;
-    max_members: number;
-    is_playing: boolean;
-    video_url: string | null;
-    last_activity_at: string | null;
-    user_id: number;
-}
+import type { PageProps } from "@/types";
 
-interface DashboardProps {
-    rooms: Room[];
-}
+type DashboardPageProps = PageProps<{ rooms: RoomCardRoom[] }>;
 
-export default function Dashboard({ rooms }: DashboardProps) {
+export default function Dashboard({ rooms }: { rooms: RoomCardRoom[] }) {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [roomName, setRoomName] = useState("");
     const [joinCode, setJoinCode] = useState("");
     const [creating, setCreating] = useState(false);
+    const [joining, setJoining] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+    const [roomToDelete, setRoomToDelete] = useState<RoomCardRoom | null>(null);
     const [deleting, setDeleting] = useState(false);
-    const { errors: pageErrors } = usePage().props;
+    const { errors: pageErrors } = usePage<DashboardPageProps>().props;
+    const joinInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (sessionStorage.getItem(CREATE_ROOM_INTENT_KEY) === "1") {
@@ -48,6 +38,11 @@ export default function Dashboard({ rooms }: DashboardProps) {
             setShowCreateForm(true);
         }
     }, []);
+
+    const focusJoinInput = () => {
+        setJoinCode("");
+        joinInputRef.current?.focus();
+    };
 
     const createRoom = async (e: FormEvent) => {
         e.preventDefault();
@@ -74,8 +69,15 @@ export default function Dashboard({ rooms }: DashboardProps) {
     const joinRoom = (e: FormEvent) => {
         e.preventDefault();
         const code = extractInviteCode(joinCode);
-        if (!code.trim()) return;
-        router.post(route("rooms.join.submit", code.trim()));
+        if (!code.trim() || joining) return;
+        setJoining(true);
+        router.post(
+            route("rooms.join.submit", code.trim()),
+            {},
+            {
+                onFinish: () => setJoining(false),
+            },
+        );
     };
 
     const handleCopy = async (code: string) => {
@@ -104,53 +106,108 @@ export default function Dashboard({ rooms }: DashboardProps) {
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">اتاق‌های من</h1>
-                <Button onClick={() => setShowCreateForm(!showCreateForm)}>
-                    <Plus className="h-4 w-4" />
-                    اتاق جدید
-                </Button>
-            </div>
+        <div className="space-y-8 lg:space-y-10">
+            <Head title="داشبورد" />
 
-            {showCreateForm && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>ساخت اتاق جدید</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={createRoom} className="flex gap-3">
-                            <div className="flex-1">
-                                <Input
-                                    placeholder="نام اتاق"
-                                    value={roomName}
-                                    onChange={(e) =>
-                                        setRoomName(e.target.value)
-                                    }
-                                    maxLength={255}
-                                />
-                                {errors.name && (
-                                    <p className="text-sm text-destructive mt-1">
-                                        {errors.name}
-                                    </p>
-                                )}
-                            </div>
-                            <Button type="submit" disabled={creating}>
-                                {creating ? "در حال ساخت..." : "ساخت اتاق"}
-                            </Button>
-                        </form>
-                    </CardContent>
-                </Card>
-            )}
+            <header className="space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight">
+                    اتاق‌های من
+                </h1>
+                <p className="text-base text-muted-foreground">
+                    یک اتاق بساز، دوستانت را دعوت کن و با هم فیلم ببین.
+                </p>
+            </header>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>پیوستن به اتاق</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={joinRoom} className="flex gap-3">
-                        <div className="flex-1">
+            <section
+                aria-label="ایجاد یا پیوستن به اتاق"
+                className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+            >
+                <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+                    <div>
+                        <h2 className="text-xl font-bold">ساخت اتاق جدید</h2>
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                            فقط یک نام کافی است؛ اتاقت در چند ثانیه آماده
+                            می‌شود.
+                        </p>
+                        <div className="mt-4">
+                            {showCreateForm ? (
+                                <form
+                                    onSubmit={createRoom}
+                                    noValidate
+                                    className="space-y-3"
+                                >
+                                    <Input
+                                        label="نام اتاق"
+                                        placeholder="مثلاً فیلم شب جمعه"
+                                        value={roomName}
+                                        onChange={(e) =>
+                                            setRoomName(e.target.value)
+                                        }
+                                        maxLength={255}
+                                        autoFocus
+                                        aria-invalid={
+                                            Boolean(errors.name) || undefined
+                                        }
+                                        aria-describedby={
+                                            errors.name
+                                                ? "create-room-error"
+                                                : undefined
+                                        }
+                                    />
+                                    {errors.name && (
+                                        <p
+                                            id="create-room-error"
+                                            role="alert"
+                                            className="text-sm text-destructive"
+                                        >
+                                            {errors.name}
+                                        </p>
+                                    )}
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            type="submit"
+                                            loading={creating}
+                                        >
+                                            {creating
+                                                ? "در حال ساخت..."
+                                                : "ساخت اتاق"}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() =>
+                                                setShowCreateForm(false)
+                                            }
+                                        >
+                                            انصراف
+                                        </Button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <Button
+                                    size="lg"
+                                    onClick={() => setShowCreateForm(true)}
+                                >
+                                    <Plus className="h-5 w-5" />
+                                    اتاق جدید بساز
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="lg:border-s lg:border-border lg:ps-8">
+                        <h2 className="text-xl font-bold">کد دعوت داری؟</h2>
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                            با کد یا لینک دعوت، به اتاق دوستانت بپیوند.
+                        </p>
+                        <form
+                            onSubmit={joinRoom}
+                            noValidate
+                            className="mt-4 space-y-3"
+                        >
                             <Input
+                                ref={joinInputRef}
+                                label="کد یا لینک دعوت"
                                 placeholder="کد یا لینک دعوت را وارد کنید"
                                 value={joinCode}
                                 onChange={(e) => setJoinCode(e.target.value)}
@@ -158,122 +215,66 @@ export default function Dashboard({ rooms }: DashboardProps) {
                                     Boolean(pageErrors?.invite_code) ||
                                     undefined
                                 }
+                                aria-describedby={
+                                    pageErrors?.invite_code
+                                        ? "join-error"
+                                        : undefined
+                                }
                             />
                             {pageErrors?.invite_code && (
                                 <p
-                                    className="text-sm text-destructive mt-1"
+                                    id="join-error"
                                     role="alert"
+                                    className="text-sm text-destructive"
                                 >
                                     {pageErrors.invite_code}
                                 </p>
                             )}
-                        </div>
-                        <Button type="submit" variant="secondary">
-                            <Link2 className="h-4 w-4" />
-                            پیوستن
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
+                            <Button
+                                type="submit"
+                                variant="secondary"
+                                loading={joining}
+                            >
+                                <Link2 className="h-4 w-4" />
+                                پیوستن به اتاق
+                            </Button>
+                        </form>
+                    </div>
+                </div>
+            </section>
 
             {rooms.length === 0 ? (
-                <div className="text-center py-16">
-                    <Tv className="h-16 w-16 mx-auto text-muted-foreground/40 mb-4" />
-                    <h2 className="text-xl font-semibold mb-2">
+                <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-14 text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <Tv className="h-7 w-7" />
+                    </div>
+                    <h2 className="mt-4 text-xl font-bold">
                         هنوز اتاقی ندارید
                     </h2>
-                    <p className="text-muted-foreground mb-6">
-                        یک اتاق بسازید یا با کد دعوت به اتاق دوستان خود بپیوندید
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                        اولین اتاق را بسازید و کد دعوتش را برای دوستانتان
+                        بفرستید؛ در چند ثانیه آماده می‌شود.
                     </p>
-                    <Button onClick={() => setShowCreateForm(true)}>
-                        <Plus className="h-4 w-4" />
-                        اولین اتاق را بسازید
-                    </Button>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                        <Button onClick={() => setShowCreateForm(true)}>
+                            <Plus className="h-4 w-4" />
+                            اولین اتاق را بسازید
+                        </Button>
+                        <Button variant="outline" onClick={focusJoinInput}>
+                            <Link2 className="h-4 w-4" />
+                            پیوستن با کد دعوت
+                        </Button>
+                    </div>
                 </div>
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {rooms.map((room) => (
-                        <div
+                        <RoomCard
                             key={room.id}
-                            className="relative h-full focus-within:shadow-md hover:shadow-md transition-shadow"
-                        >
-                            {/* Stretched overlay link: the whole card is
-                                navigable, but it must not nest the action
-                                buttons (a11y: interactive elements must be
-                                siblings, not descendants of a link). */}
-                            <Link
-                                href={route("rooms.show", room.id)}
-                                className="absolute inset-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                aria-label={`ورود به اتاق ${room.name}`}
-                            >
-                                <span className="sr-only">
-                                    ورود به اتاق {room.name}
-                                </span>
-                            </Link>
-                            <Card className="h-full cursor-pointer group pointer-events-none">
-                                <CardHeader>
-                                    <div className="flex items-start justify-between">
-                                        <CardTitle className="text-base">
-                                            {room.name}
-                                        </CardTitle>
-                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                            <Users className="h-3.5 w-3.5" />
-                                            {room.members_count}/
-                                            {room.max_members}
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2 text-sm text-muted-foreground">
-                                        <div className="flex items-center gap-2">
-                                            <span>
-                                                ساخته شده توسط {room.owner.name}
-                                            </span>
-                                        </div>
-                                        {room.last_activity_at && (
-                                            <div>
-                                                آخرین فعالیت:{" "}
-                                                {timeAgo(room.last_activity_at)}
-                                            </div>
-                                        )}
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <span className="bg-secondary px-2 py-0.5 rounded-full">
-                                                {room.is_playing
-                                                    ? "در حال پخش"
-                                                    : "متوقف"}
-                                            </span>
-                                            {room.video_url && (
-                                                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                                    <RotateCcw className="h-3 w-3" />
-                                                    دوباره ببینیم
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 mt-4 relative z-10">
-                                        <button
-                                            onClick={() =>
-                                                handleCopy(room.invite_code)
-                                            }
-                                            className="pointer-events-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-primary hover:underline min-h-[24px]"
-                                        >
-                                            <Copy className="h-3 w-3" />
-                                            کپی کد دعوت
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                setRoomToDelete(room)
-                                            }
-                                            className="pointer-events-auto flex items-center gap-1 text-xs text-destructive hover:underline ms-auto p-1 min-h-[24px]"
-                                            aria-label="حذف اتاق"
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                            room={room}
+                            onCopyInvite={handleCopy}
+                            onDelete={setRoomToDelete}
+                        />
                     ))}
                 </div>
             )}

@@ -40,14 +40,15 @@ export function timeAgo(date: Date | string): string {
     const diffMs = now.getTime() - past.getTime();
     const diffMinutes = Math.floor(diffMs / 60000);
 
+    // Persian-context relative times must use Persian digits (DESIGN.md).
     if (diffMinutes < 1) return "همین الان";
-    if (diffMinutes < 60) return `${diffMinutes} دقیقه پیش`;
+    if (diffMinutes < 60) return `${toPersianDigits(diffMinutes)} دقیقه پیش`;
 
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours} ساعت پیش`;
+    if (diffHours < 24) return `${toPersianDigits(diffHours)} ساعت پیش`;
 
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} روز پیش`;
+    return `${toPersianDigits(diffDays)} روز پیش`;
 }
 
 export function copyToClipboard(text: string): Promise<void> {
