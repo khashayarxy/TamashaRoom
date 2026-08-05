@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TamashRoom — repository root access control.
+#
+# The web-accessible document root for this app is `public/` only (Laravel).
+# Because the repository is cloned (via `git`) into a path that sits INSIDE
+# another domain's web root (zizolearn.ir => /home/zizolear/public_html, with this
+# repo at /home/zizolear/public_html/tamasharoom), the Laravel files that must stay
+# private (.env, composer.json, .git/, vendor/, storage/) are reachable through
+# that parent domain unless explicitly blocked. These rules deny access to the
+# non-document parts of the repo without affecting `public/`, which is served
+# normally by `public/.htaccess` as the TamashRoom document root.
+#
+# per-dir (.htaccess) rewrites only re-write whatever Apache maps here. Every
+# pattern below matches paths that do NOT live under public/, so application
+# assets (public/) are untouched.
+# ─────────────────────────────────────────────────────────────────────────────
+
+<IfModule mod_negotiation.c>
+    Options -MultiViews -Indexes
+</IfModule>
+
+# ── Sensitive files (secrets, VCS metadata, Composer, app entrypoints) ───────
+<FilesMatch "^(\.env.*|\.git.*|\.gitattributes|\.gitignore|composer\.(json|lock)|package(-lock)?\.json|artisan)$">
+    Require all denied
+</FilesMatch>
+
+# ── Sensitive directories: never served (works on Apache 2.2 + 2.4). ─────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:\.git|vendor|node_modules|storage|bootstrap|database|resources|tests|docs|\.opencode|tools)(?:/.*)?$ - [F,L,NC]
+</IfModule>

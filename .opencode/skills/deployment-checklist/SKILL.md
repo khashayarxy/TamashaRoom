@@ -53,7 +53,7 @@ php artisan view:cache
   `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database`,
   `BROADCAST_CONNECTION=null` (no Redis).
 - **One** cPanel cron entry, and only one:
-  `* * * * * php /home/tamasharoom/artisan schedule:run >> /dev/null 2>&1`.
+  `* * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1`.
   Everything else (queue draining, room pruning, presence timeout) is
   registered inside `routes/console.php` — do **not** add individual cron lines.
 - PHP-FPM workers sized for 2GB RAM; `storage/` and `bootstrap/cache/`

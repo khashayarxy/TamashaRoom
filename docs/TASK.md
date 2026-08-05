@@ -2,6 +2,13 @@
 
 ## Completed
 
+### cPanel Deployment Preparation Audit (2026-08-06)
+- [x] **Deployment audit against the verified cPanel plan** (git clone to `/home/zizolear/public_html/tamasharoom`, doc root `.../tamasharoom/public`, domain `tamasharoom.ir`, MySQL production, private `local` subtitle disk via `storage/app/private`, `schedule:run` cron, no seeders, `.env`/vendor/node_modules/`public/build`-when-built-locally kept server-only).
+- [x] **Verified locally (all pass, nothing blocked)** — `composer install` deps present (vendor tracked, `composer.lock` tracked, platform PHP 8.4.22); `npm run build` OK (10.3s, main chunk 130.7 kB gzip, `tsc` via `npm run build` = `tsc && vite build` per package.json); `php artisan config:cache` AND `php artisan route:cache` both succeed (routes cached to `bootstrap/cache/routes-v7.php`, verified working closures/`route:cache not blocked by closure route); `php artisan optimize:clear` restores clean cache. Frontend build output is gitignored (`/public/build`) so it must be uploaded separately if built locally. `.env.example` values confirmed: `SESSION_SECURE_COOKIE=true` present, `APP_ENV=local`, `APP_DEBUG=true`, `DB_CONNECTION=sqlite` (production overrides to `mysql`), `LOG_CHANNEL=stack` (production overrides to `daily`), `MAIL_MAILER=log` (email verification not enforced — `User` does not implement `MustVerifyEmail`), `SENTRY_DSN` empty → disabled.
+- [x] **Added root `.htaccess (the only genuine in-scope change)** — repo deploys inside `public_html` (parent domain `zizolearn.ir` web root), so without repo-root `.htaccess` the parent domain could serve `.env`, `.git/`, `vendor/`, `storage/`, `composer.json`, etc. by URL traversal. New repo-root `.htaccess` blocks sensitive files/folders (FilesMatch + `mod_rewrite` `[F]`) without affecting `public/`, which remains served normally by untouched `public/.htaccess`). No app features, routes, schema, UI, CI, security (CSP/headers) hardening, storage:link, or architecture touched.
+- [x] **No code blockers needing changes** — audit found no hardcoded filesystem paths in app code (only docs examples); no `storage:link` needed (private disk); PHP `public/` doc-root assumptions intact (`public/index.php`, `public/.htaccess` standard); `bootstrap/cache/.gitignore` = `*\n!.gitignore`; runtime caches gitignored. Production config per PROJECT.md/deployment-checklist stands.
+- [x] **Frontend build strategy** — recommend **Option B (build locally/off-server, upload only `public/build/`)** as safest for this 2GB RAM / single-core cPanel (matches docs/deployment-checklist.md "Node is build-time only; cPanel needs only `public/build/`" and TASK.md §404 font-bundled claim); Node not required on cPanel. Option A (build on cPanel) possible but runs `tsc && vite build` on the constrained host with `npm ci` — heavier, no advantage here.
+
 ### Core Infrastructure
 - [x] Laravel **13** application with Inertia + React (composer.json requires `laravel/framework: ^13.8`; AGENTS.md fixed from "Laravel 12")
 - [x] Authentication (login, register, password reset)
@@ -433,7 +440,7 @@
 ### Deployment
 - [ ] Run migrations on production database
 - [ ] Configure queue drain for production (confirm `QUEUE_CONNECTION=database`; queue is processed in batches by the `schedule:run` cron — no worker/supervisor needed)
-- [ ] Set up cPanel cron entry for `* * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1`
+- [ ] Set up cPanel cron entry for `* * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1`
 - [ ] Confirm `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` in production `.env`
 
 ### Launch Blockers (single-core budget — SYSTEM.md 21.10)

@@ -300,7 +300,7 @@ php artisan migrate
 php artisan db:seed
 
 # Scheduled tasks — the one cPanel cron entry this project needs
-# * * * * * php /home/tamasharoom/artisan schedule:run >> /dev/null 2>&1
+# * * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1
 ```
 
 ## Current Status

@@ -7382,7 +7382,7 @@ The one piece of infrastructure every cPanel account does provide is a cron job.
 
   
 \# cPanel Cron Job (the only one this project needs)  
-\* \* \* \* \* php /home/tamasharoom/artisan schedule:run >> /dev/null 2>&1  
+\* \* \* \* \* php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1
 
 Every other scheduled or background task is registered inside Laravel itself, not as a separate cron line, which keeps the cPanel cron configuration untouched as the app grows:
 

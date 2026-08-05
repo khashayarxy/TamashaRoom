@@ -100,7 +100,7 @@ expected source.
 Add ONE cron entry for `schedule:run`:
 
 ```
-* * * * * php /path/to/tamasharoom/artisan schedule:run >> /dev/null 2>&1
+* * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1
 ```
 
 | Task | Frequency | What it does |
@@ -192,7 +192,7 @@ composer install --no-dev --optimize-autoloader
 php artisan migrate --force
 
 # 3. Add cron entry
-#    * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
+#    * * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1
 #    (runs scheduled tasks + drains the queue in batches — no separate worker needed)
 
 # 4. Cache
