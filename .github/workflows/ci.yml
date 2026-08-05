@@ -12,6 +12,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # gitleaks scans the pushed commit range; the default shallow
+          # checkout (depth 1) omits the base commit and breaks the scan.
+          fetch-depth: 0
 
       - name: Secret detection (gitleaks)
         uses: gitleaks/gitleaks-action@v3
