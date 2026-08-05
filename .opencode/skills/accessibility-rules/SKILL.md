@@ -28,6 +28,20 @@ EN 301 549 and the European Accessibility Act).
 - Verified with keyboard-only navigation, a screen reader, and the automated
   axe audit in CI (`@axe-core/playwright`).
 
+## Fully-Clickable Cards (stretched-link pattern)
+
+- A card that is entirely navigable uses a stretched-overlay link
+  (`absolute inset-0`); its accessible name comes from `aria-label` — don't
+  duplicate the label in an `sr-only` span.
+- Action buttons inside such a card (copy, delete) are **siblings** of the
+  link, raised above it with `pointer-events-auto relative z-10` — never
+  nested inside the `<a>` (interactive content inside a link fails WCAG
+  4.1.2). The card surface is `pointer-events-none` so clicks land on either
+  the link or a button.
+- The link carries the visible focus treatment (`focus-visible:ring-2
+  focus-visible:ring-ring`); keyboard focus lands on the link, never on a
+  non-focusable wrapper `div`.
+
 ## WCAG 2.2-Specific Additions (easy to miss)
 
 - **Target size**: interactive targets (buttons, icon buttons) are at least

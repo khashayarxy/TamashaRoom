@@ -36,6 +36,11 @@ right-to-left. Design directly in RTL; do not design in LTR and mirror it after.
   <span dir="ltr" className="inline-block">{room.inviteCode}</span>
   ```
   Reversed digits in an invite code or timestamp aren't just odd — they're unreadable.
+- **Persian-context numerals use Persian digits (۰–۹)** via `toPersianDigits()`
+  from `@/lib/utils`, applied at display — Latin digits inside natural-language
+  Persian text (counts, durations, relative times) violate DESIGN.md. Exception:
+  literal identifiers meant to be typed/shared exactly (invite codes, URLs)
+  stay Latin and keep `dir="ltr"`.
 - Icons that imply direction (arrows, chevrons for back/forward) get mirrored
   for RTL. Icons whose meaning is direction-independent (checkmark, trash
   icon) must **not** be mirrored.

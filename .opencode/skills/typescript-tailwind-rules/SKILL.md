@@ -17,6 +17,11 @@ Full detail: `docs/SYSTEM.md`, Chapters 19 (TypeScript Rules) and 20 (Tailwind R
 - **Types are kept in sync across the language boundary deliberately** —
   nothing enforces this automatically between a Laravel API Resource and its
   TypeScript type. When you change one, change the other in the same PR.
+- **Shared card/list prop types live with the composite and are imported by
+  the page** (e.g. `RoomCardRoom` exported from the composite) — never
+  redeclared in the page. A UI-only field the backend contract omits (e.g.
+  `is_locked` on the Dashboard room) is declared on the type with an explicit
+  default and never wired to backend data that isn't serialized.
 - Infer types when obvious; write explicit types when complex or exported.
 - Use discriminated unions for state machines, branded types to distinguish
   semantically different strings/numbers (e.g. `RoomId` vs `UserId`, both

@@ -98,6 +98,11 @@ function UserName() {
 - The `use-playback-sync` hook and any polling-based hook are prime unit-test
   candidates precisely because they're isolated from rendering — test the
   hook's state transitions directly rather than only through a rendered component.
+- **Inertia page tests**: mock every `@inertiajs/react` export a page uses —
+  pages rendering `<Head>` need `Head: () => null` in the mock or the render
+  throws. Assert a toggleable form by its control (`getByLabelText`), not a
+  persistent section heading; keep rendered fixtures complete against the
+  component's exported prop type (missing required fields fail `type-check`).
 
 ## Before Any Refactor
 
