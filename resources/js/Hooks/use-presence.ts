@@ -166,8 +166,7 @@ export function usePresence(
         document.addEventListener("visibilitychange", handleVisibility);
 
         return () => {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            ++generationRef.current;
+            invalidateGeneration(generationRef);
             if (heartbeatTimerRef.current)
                 clearTimeout(heartbeatTimerRef.current);
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -200,6 +199,10 @@ export function usePresence(
             scheduleHeartbeat(0);
         },
     };
+}
+
+function invalidateGeneration(generation: { current: number }): void {
+    generation.current += 1;
 }
 
 function isRemovalError(error: unknown): boolean {
