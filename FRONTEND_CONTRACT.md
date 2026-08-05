@@ -95,12 +95,12 @@ All Inertia page routes. Every page receives `auth.user` via the shared middlewa
 | URL | Method | Route Name | Body | Auth |
 |---|---|---|---|---|
 | `GET /subtitles/{room}` | GET | `subtitles.index` | *(none)* | `auth`, `verified` |
-| `POST /subtitles/{room}` | POST | `subtitles.store` | Multipart: `file: File` (required, mimes:srt,vtt,txt, max:2048KB), `label: string` (optional, max:255), `language: string` (optional, max:10, default `"fa"`) | `auth`, `verified` |
+| `POST /subtitles/{room}` | POST | `subtitles.store` | Multipart: `file: File` (required, mimes:srt,vtt,txt, max:2048KB), `label: string` (optional, max:255), `language: string` (optional, max:10, default `"fa"`) | `auth`, `verified`, owner only |
 | `GET /subtitles/{room}/default` | GET | `subtitles.default` | *(none)* — returns `{ default_track_id }` | `auth`, `verified`, `memberAccess` |
-| `POST /subtitles/{room}/default` | POST | `subtitles.set-default` | `{ track_id: int \| null }` — owner-only; returns `{ default_track_id }` | `auth`, `verified` |
+| `POST /subtitles/{room}/default` | POST | `subtitles.set-default` | `{ track_id: int \| null }` — owner-only; returns `{ default_track_id }` | `auth`, `verified`, owner only |
 | `GET /subtitles/{room}/{track}` | GET | `subtitles.show` | *(none)* — returns raw VTT content | `auth`, `verified` |
 | `GET /subtitles/{room}/{track}/cues` | GET | `subtitles.cues` | *(none)* | `auth`, `verified` |
-| `DELETE /subtitles/{room}/{track}` | DELETE | `subtitles.destroy` | *(none)* — owner-only; clears the room default if the deleted track was default | `auth`, `verified` |
+| `DELETE /subtitles/{room}/{track}` | DELETE | `subtitles.destroy` | *(none)* — owner-only; clears the room default if the deleted track was default | `auth`, `verified`, owner only |
 
 **Subtitle filename extensions:** supported filename extensions are **only `.srt` and `.vtt`**. The `txt` value in the `mimes:` rule exists **only** as a MIME-detection fallback — Symfony's `guessExtension()` detects SRT *content* as `txt`. A `.txt` **filename** itself is NOT accepted: the `after()` hook compares the detected format against the uploaded file's client extension, so a file named `foo.txt` (regardless of content) fails validation. See §7.6.
 
@@ -351,7 +351,9 @@ interface SubtitleTrack {
 }
 ```
 
-**Fields NOT exposed:** `room_id`, `user_id`, `file_path` — these are internal.
+The list response omits `room_id`, `user_id`, and `file_path`. The upload
+response also includes `room_id` and `updated_at`; `file_path` remains internal
+and is never exposed.
 
 ### 3.6 `SubtitleCue`
 
@@ -496,11 +498,16 @@ Every HTTP mutation the frontend must send, with exact field names and validatio
 |---|---|---|---|
 | *(none — invite code is URL param)* | — | — | — |
 
-**Route:** `GET /rooms/join/{inviteCode}` (Laravel named `rooms.join`)
+**Preview route:** `GET /rooms/join/{inviteCode}` (Laravel named `rooms.join`)
 **Throttle:** 10 per minute per user.
-**Server-side validation:** `invite_code` must exist in `rooms.invite_code`.
-**Authorization:** Room must not be full, must not be locked, user must not already be a member.
-**Response:** `RedirectResponse` to `rooms.show`
+**Response:** Renders the `Rooms/Join` confirmation page; it does not create
+membership.
+
+**Join route:** `POST /rooms/join/{inviteCode}` (Laravel named
+`rooms.join.submit`). The server validates that `invite_code` exists and that
+the room is not full or locked and the user is not already a member. The
+membership insert is guarded by a transaction and `lockForUpdate()`.
+**Response:** `RedirectResponse` to `rooms.show`.
 
 ### 4.12 Set Video
 
@@ -527,7 +534,7 @@ Every HTTP mutation the frontend must send, with exact field names and validatio
 **Route:** `PATCH /playback/{room}` (Laravel named `playback.update`)
 **Authorization:** Owner only.
 **Throttle:** 60/min (playback bucket).
-**Response:** `{ status: 'ok', state_version: number, server_timestamp: number }`
+**Response:** `{ status: 'ok', state_version: number, server_timestamp: number, playback_mode: 'direct' | 'proxy' }`
 
 ### 4.14 Send Chat Message
 

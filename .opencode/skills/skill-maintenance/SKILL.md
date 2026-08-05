@@ -1,6 +1,6 @@
 ---
 name: skill-maintenance
-description: How to maintain TamashaRoom's OpenCode skill system — when a new skill is justified, how to detect overlap, how to keep skills project-specific and token-efficient, and the validation checklist (frontmatter, references, stale claims, secrets). Use when adding, editing, merging, or removing a skill, or when updating AGENTS.md's skill table.
+description: How to maintain TamashaRoom's OpenCode skill system — when a new skill is justified, how to detect overlap, how to extract reusable rules from completed work, how to keep skills project-specific and token-efficient, and the validation checklist (frontmatter, references, stale claims, secrets). Use when adding, editing, merging, or removing a skill, when reviewing completed work for reusable knowledge, or when updating AGENTS.md's skill table.
 ---
 
 # Skill Maintenance
@@ -24,6 +24,32 @@ Create a new skill only when **all** are true:
 
 If a task-specific procedure is only needed once, put it in the task notes,
 not a skill.
+
+## Knowledge Extraction from Completed Work
+
+After a development task, harvest only the reusable knowledge it produced:
+
+- Review the completed diff for what a future task should do differently,
+  not what changed. Never extract task history, commit hashes, filenames,
+  temporary decisions, one-off fixes, or details unlikely to recur.
+- Check existing skills **and** project docs (`docs/SYSTEM.md`, `DESIGN.md`,
+  `FRONTEND_CONTRACT.md`) before adding anything (see "Detecting Overlap").
+  Prefer updating the skill that owns the concept; create a new skill only
+  when no suitable owner exists and the knowledge is broadly reusable (see
+  "When a New Skill Is Justified").
+- Keep extracted rules concise, actionable, and project-specific — one rule
+  per bullet, traceable to a source file or chapter.
+
+Every proposed addition must be all of: **reusable**, **project-specific**,
+**likely to recur**, **not already documented**, and **valuable enough** to
+keep as permanent context.
+
+- Consolidate or remove obsolete/duplicate rules found during the pass —
+  extraction is also a pruning pass.
+- Make no changes when there is no meaningful reusable knowledge; not every
+  task yields a rule.
+- Report what was added, updated, removed, and intentionally left unchanged
+  (e.g. "rule already exists in `rtl-and-design-system`").
 
 ## Detecting Overlap
 
@@ -86,3 +112,5 @@ Before adding or editing a skill:
 - Cross-references instead of duplicated tables/rules.
 - Frontmatter name == directory; AGENTS.md table updated.
 - No stale counts, no deleted-skill references, no secrets.
+- Completed-work knowledge extracted (or intentionally left unchanged) and
+  reported — added/updated/removed vs. already documented.

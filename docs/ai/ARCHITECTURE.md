@@ -140,7 +140,8 @@ partially confirmed by quality-report.md §5]
   fetching as a workaround for a controller-provided prop. [Confirmed]
 - Zustand = local UI state only; server data arrives as Inertia props. [Confirmed]
 - Strict TypeScript; no `any` without documented reason. [Confirmed]
-- RTL/Persian default; logical properties (`ms-*`, `me-*`), never physical ones.
+- RTL/Persian default; logical properties (`ms-*`, `me-*`) for spacing and
+  alignment, with physical positioning only for invariant overlays.
   [Confirmed]
 
 ---
@@ -251,8 +252,10 @@ Ownership is determined by `room.user_id` — there is no `role` column.
 ```
 1. Owner: create room (POST /rooms)  → name + max_members; invite_code generated
 2. Share invite link (12-char code)
-3. Guests: join via code (GET /rooms/join/{inviteCode})
-   - checks: room exists, not full (lockForUpdate guard), not locked, not already member
+3. Guests: preview the invite via GET /rooms/join/{inviteCode}, then confirm via
+   POST /rooms/join/{inviteCode}
+   - GET renders the confirmation page and never creates membership
+   - POST checks: room exists, not full (lockForUpdate guard), not locked, not already member
    - join rate limit 10/min
 4. Owner sets video URL (POST /playback/{room}/set-video)
    - URL validated for SSRF (UrlSecurityService)
@@ -385,7 +388,7 @@ Others poll GET /presence/{room} every 5s → PresenceMember[]
 ## 13. Subtitle Flow
 
 ```
-Upload (owner/member)
+Upload (owner only)
   → POST /subtitles/{room} (multipart: file ≤2MB, srt|vtt|txt, label, language)
   → UploadSubtitleRequest: MIME rule + after() content validation
      (SRT: timing-line format; VTT: WEBVTT header)

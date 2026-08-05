@@ -3549,7 +3549,7 @@ Use Vazirmatn (or an equivalent well-hinted, variable Persian webfont) as the pr
 /\* resources/css/fonts.css \*/  
 @font-face {  
 font-family: 'Vazirmatn';  
-src: url('/fonts/vazirmatn-var.woff2') format('woff2');  
+src: url('../fonts/vazirmatn-var.woff2') format('woff2');
 font-weight: 100 900;  
 font-display: swap;  
 unicode-range: U+0600-06FF, U+200C-200E, U+FB8A, U+067E, U+0686, U+06AF;  
@@ -7289,13 +7289,12 @@ Rule: For state that must reach every client in a room --- room playback state i
 class PlaybackStateChanged implements ShouldBroadcast  
 {  
 public function \__construct(  
-public string $roomId,  
-public bool $isPlaying,  
-public float $positionSeconds,  
+public Room $room,
+public int $userId,
 ) {}  
 <br/>public function broadcastOn(): Channel  
 {  
-return new PresenceChannel("room.{$this->roomId}");  
+return new PresenceChannel("room.{$this->room->id}");
 }  
 }  
 
@@ -7303,18 +7302,14 @@ return new PresenceChannel("room.{$this->roomId}");
 // app/Http/Controllers/PlaybackController.php  
 public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse  
 {  
-$room->update($request->validated()); // position, is_playing, updated_at  
-broadcast(new PlaybackStateChanged(  
-$room->id,  
-$room->is_playing,  
-$room->position_seconds,  
-));  
-return response()->json(\['ok' => true\]);  
+$room->updatePlaybackState($request->validated());
+broadcast(new PlaybackStateChanged($room, $request->user()->id))->toOthers();
+return response()->json(['status' => 'ok']);
 }  
 
 Nothing above depends on how the event reaches other clients. That is decided once, in BROADCAST_CONNECTION:
 
-- Now (shared cPanel hosting): BROADCAST_CONNECTION=null --- broadcasting is effectively a no-op, and the frontend polls the room’s current state every 3 seconds instead (Rule 2, adjustable post-MVP), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
+- Now (shared cPanel hosting): BROADCAST_CONNECTION=null --- broadcasting is effectively a no-op, and the frontend polls the room’s current state every 3 seconds while playing and every 10 seconds while paused/idle (Rule 2, adjustable post-MVP), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
 - Later (on a VPS with root access): BROADCAST_CONNECTION=reverb, with Laravel Reverb running as a supervised process --- something cPanel’s hosting model cannot support, since it requires a long-lived process outside PHP-FPM’s request lifecycle. The same broadcast(new PlaybackStateChanged(...)) call now pushes over a WebSocket instead of waiting to be polled.
 
 On the frontend, hide this behind one hook so components never know which transport is active:
@@ -7682,7 +7677,7 @@ const untypedLibrary: any = legacyLibrary;
 
 ### Rule
 
-TypeScript types are erased at compile time; they guarantee nothing about the shape of data that arrives from a form submission, an Inertia prop, an API response, or a third-party payload. Every value that crosses one of those boundaries is validated at runtime --- with a Zod schema on the TypeScript side, and with a Laravel Form Request on the PHP side (Chapter 18.04, Rule 1) --- before it is treated as typed data.
+TypeScript types are erased at compile time; they guarantee nothing about the shape of untrusted JSON API responses, localStorage values, or third-party payloads. Validate those runtime boundaries with a Zod schema on the TypeScript side. Client input is validated authoritatively by a Laravel Form Request on the PHP side (Chapter 18.04, Rule 1); optional client-side validation is only a UX layer. Inertia page props are server-owned page contracts: type them at the page boundary and do not redundantly parse them in every page.
 
 **Why This Matters**: A type annotation is an instruction to the compiler, not a check performed while the app is running. ‘const data: Project = await request.json()’ compiles cleanly even when the request body is empty — TypeScript has no way to know, and no way to check. Zod closes that gap on the TypeScript side; the Form Request closes the equivalent gap on the PHP side. Neither substitutes for the other --- Zod validation in the browser is a fast, friendly UX layer (Chapter 18.04, Rule 2), and the Form Request is the actual boundary a malicious or buggy caller cannot bypass (Chapter 18.08, Rule 3).
 
@@ -7868,7 +7863,7 @@ type ProjectStatus = Project\['status'\]; // 'active' | 'archived'
 For every file:
 
 - Strict mode is enabled.
-- Every value crossing a boundary (Inertia form, API request, third-party payload) is validated --- with Zod on the TypeScript side and a Form Request on the PHP side.
+- Untrusted API, localStorage, and third-party values are validated at runtime with Zod; client input is validated on the server with a Form Request. Inertia page props remain typed server-owned contracts.
 - TypeScript types are imported from one source, not redeclared separately, and are kept deliberately in sync with the Laravel Resource or Form Request on the other side of the language boundary.
 - No any without documented justification.
 - unknown is used for truly unknown values.
@@ -8185,17 +8180,17 @@ Fonts block rendering. Self-host them --- do not load from Google Fonts or any t
 /\* resources/css/fonts.css \*/  
 @font-face {  
 font-family: 'Vazirmatn';  
-src: url('/fonts/vazirmatn-var.woff2') format('woff2');  
+src: url('../fonts/vazirmatn-var.woff2') format('woff2');
 font-weight: 100 900;  
 font-display: swap;  
 }  
 
 ### Font Rules
 
-- Self-host WOFF2 files under public/fonts, fingerprinted and cached forever like any other static asset (Chapter 18.03, Rule 4).
+- Self-host WOFF2 files under `resources/fonts/` and let Vite fingerprint them into `public/build/assets/` (Chapter 18.03, Rule 4).
 - display: swap always: show the fallback font immediately, swap when the real font loads --- never block first paint on a font request.
 - Use variable fonts where available (one file covers every weight) instead of a separate file per weight.
-- Preload the one font file used above the fold: &lt;link rel="preload" as="font" type="font/woff2" href="/fonts/vazirmatn-var.woff2" crossOrigin="anonymous"&gt; in the root Blade template.
+- Preload the one font file used above the fold through `Vite::asset('resources/fonts/vazirmatn-var.woff2')` in the root Blade template.
 - Subset to the character sets actually needed --- Latin and Persian for TamashaRoom’s MVP --- rather than shipping every script a typeface supports.
 
 ## 21.06 Rendering Performance

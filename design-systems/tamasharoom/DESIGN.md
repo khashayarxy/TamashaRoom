@@ -60,7 +60,7 @@ These are explicitly forbidden — they contradict the brand's taste and constra
 Implementation rules (enforced at the framework level, not per-component):
 
 - `<html lang="fa" dir="rtl">` on every page — set once, cascade everywhere.
-- All spacing uses Tailwind logical properties: `ms-*` / `me-*` / `ps-*` / `pe-*` / `text-start` / `text-end`. Never `ml-*` / `mr-*` / `pl-*` / `pr-*` / `left-*` / `right-*`.
+- All spacing uses Tailwind logical properties: `ms-*` / `me-*` / `ps-*` / `pe-*` / `text-start` / `text-end`. Physical spacing utilities are not used; physical positioning is reserved for invariant placement such as centered or edge-to-edge overlays.
 - Directional icons (arrows, chevrons for back/forward, skip) are mirrored for RTL. Non-directional icons (checkmark, trash, play, pause, settings) are never mirrored.
 - Progress indicators and slider tracks fill from right to left in RTL.
 - Drawer/slide-in panels enter from the right (start side in RTL).
@@ -147,7 +147,7 @@ No decorative or third typeface. Vazirmatn variable covers every weight need (10
 
 ### Font Loading
 
-- Self-hosted: `/fonts/vazirmatn-var.woff2`
+- Self-hosted Vite asset: `resources/fonts/vazirmatn-var.woff2`, declared in `resources/css/fonts.css` and preloaded through `Vite::asset()` in the root Blade template.
 - `font-display: swap` — text is never invisible
 - `font-weight: 100 900` — variable access to all weights
 - Fallback stack: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
@@ -451,7 +451,7 @@ All tokens above must be defined using Tailwind CSS 4's `@theme` directive (CSS-
 | Page | Mode | Key Design Decisions |
 |---|---|---|---|
 | **Landing (Welcome)** | Persuade | Hero with Vazirmatn display weight, warm dark section, single CTA. No feature grid. |
-| **Dashboard** | Operate | Room list with thumbnails (video poster or fallback), minimal chrome, dark default. Room list timestamps use Persian digits (e.g. "created ۱۵ تیر ۱۴۰۵") and Persian relative time (e.g. "۳ روز پیش"). |
+| **Dashboard** | Operate | Compact room information cards without poster thumbnails, minimal chrome, dark default. Room list timestamps use Persian digits (e.g. "created ۱۵ تیر ۱۴۰۵") and Persian relative time (e.g. "۳ روز پیش"). |
 | **Room Show (in-room)** | Operate | Video ≥70% viewport. Fading overlay controls. Sidebar (chat/members/subtitles tabs). Invite code is displayed with `dir="ltr"` and stays in Latin characters — not converted to Persian digits. |
 | **Login / Register** | Persuade | Warm card on off-white. Minimal visual weight. No illustration — just form + brand mark. |
 | **Profile** | Operate | Simple inline form. Dark card layout. No avatars, no settings sections yet. |

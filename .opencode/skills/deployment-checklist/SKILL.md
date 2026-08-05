@@ -43,8 +43,8 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# 6. Verify the storage symlink exists (subtitle uploads depend on it)
-php artisan storage:link
+# 6. Verify the private subtitle storage path is writable
+#    (subtitle files use the local/private disk; no public symlink is required)
 ```
 
 ## One-Time Environment Setup (new server only)
@@ -81,8 +81,9 @@ php artisan storage:link
 
 - **Stale route/config cache**: a cached config silently overrides new
   `.env`/`routes/` changes — re-run step 5.
-- **Missing storage symlink** after a fresh deploy — subtitle uploads 404
-  until `php artisan storage:link` runs.
+- **Private subtitle storage not writable** after a fresh deploy — verify the
+  account can write under `storage/app/private/` and that the authenticated
+  subtitle endpoints can read the stored file. `storage:link` is not required.
 - **Queue backlog**: queued jobs only drain on the scheduled
   `queue:work --stop-when-empty` tick — a burst may take a minute or two to
   clear; expected, not a bug.

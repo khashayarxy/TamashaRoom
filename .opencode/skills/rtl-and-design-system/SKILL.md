@@ -18,18 +18,21 @@ right-to-left. Design directly in RTL; do not design in LTR and mirror it after.
   ```css
   @font-face {
     font-family: 'Vazirmatn';
-    src: url('/fonts/vazirmatn-var.woff2') format('woff2');
+    src: url('../fonts/vazirmatn-var.woff2') format('woff2');
     font-weight: 100 900;
     font-display: swap;
   }
   ```
+  The asset lives at `resources/fonts/vazirmatn-var.woff2` and is preloaded
+  through `Vite::asset()` in the root Blade template.
 - **Set direction once, at the root**, and let it cascade:
   `<html lang="fa" dir="rtl">`. Never set `dir` on individual components.
 - **Use Tailwind's logical properties** — `ms-*`, `me-*`, `ps-*`, `pe-*`,
-  `text-start`, `text-end` — which flip automatically with the document's
-  `dir`. **Never** use physical-direction utilities (`ml-*`, `mr-*`, `pl-*`,
-  `pr-*`, `left-*`, `right-*`) — they don't flip and produce subtly-wrong
-  spacing/alignment in RTL.
+  `text-start`, `text-end` — for spacing and alignment because they flip
+  automatically with the document's `dir`. Physical positioning utilities
+  (`left-*`, `right-*`, and similar) are allowed only for invariant placement
+  such as centered or edge-to-edge overlays; they must not replace logical
+  spacing utilities.
 - **Mixed-direction content stays LTR even inside RTL text**: numbers, Latin
   brand names, URLs, invite codes. Wrap them explicitly:
   ```tsx
@@ -79,7 +82,9 @@ skill for the CSS-first config mechanics).
 
 ## Common Mistakes to Avoid
 
-- `ml-*`/`mr-*`/`pl-*`/`pr-*` instead of logical equivalents.
+- Physical spacing utilities (`ml-*`/`mr-*`/`pl-*`/`pr-*`) instead of logical
+  equivalents. Physical positioning is acceptable only when the position must
+  not mirror.
 - Directional icons not mirrored for RTL (or non-directional icons mirrored
   when they shouldn't be).
 - Numbers/Latin identifiers rendered without `dir="ltr"`, causing them to

@@ -11,17 +11,18 @@ Full detail: `docs/SYSTEM.md`, Chapters 19 (TypeScript Rules) and 20 (Tailwind R
 
 - **Strict mode always.** No `any` without a documented justification comment.
   Use `unknown` for truly unknown values, paired with a type guard.
-- **Every value crossing a boundary is validated**: Zod on the TypeScript
-  side, a Laravel Form Request on the PHP side. Never trust an Inertia prop,
-  API response, or third-party payload without validating its shape at the edge.
+- **Untrusted runtime values are validated**: Zod on the TypeScript side for
+  JSON API responses, localStorage, and third-party payloads; a Laravel Form
+  Request on the PHP side for client input. Inertia page props are
+  server-owned and remain typed page contracts rather than being redundantly
+  parsed in every page.
 - **Types are kept in sync across the language boundary deliberately** —
   nothing enforces this automatically between a Laravel API Resource and its
   TypeScript type. When you change one, change the other in the same PR.
 - **Shared card/list prop types live with the composite and are imported by
   the page** (e.g. `RoomCardRoom` exported from the composite) — never
-  redeclared in the page. A UI-only field the backend contract omits (e.g.
-  `is_locked` on the Dashboard room) is declared on the type with an explicit
-  default and never wired to backend data that isn't serialized.
+  redeclared in the page. Any UI-only field the backend contract omits must be
+  explicitly defaulted and never wired to data that is not serialized.
 - Infer types when obvious; write explicit types when complex or exported.
 - Use discriminated unions for state machines, branded types to distinguish
   semantically different strings/numbers (e.g. `RoomId` vs `UserId`, both
@@ -65,7 +66,7 @@ Full detail: `docs/SYSTEM.md`, Chapters 19 (TypeScript Rules) and 20 (Tailwind R
 ## Checklist (from SYSTEM.md 19.11 / 20.08)
 
 - Strict mode enabled; no `any` without justification; `unknown` for unknown values.
-- Every cross-boundary value validated (Zod + Form Request).
+- Untrusted API, storage, and third-party values validated (Zod + Form Request).
 - Types imported from one source, kept in sync with the PHP side deliberately.
 - No `as` casts, no unticketed `@ts-ignore`.
 - `cn()` used for all conditional classes.

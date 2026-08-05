@@ -31,8 +31,9 @@ AGENTS.md (invariants, skill table) → docs/MAP.md (this file) →
 - Backend: `app/Http/Controllers/RoomController.php`, `app/Policies/RoomPolicy.php`,
   `app/Http/Requests/StoreRoomRequest.php` `JoinRoomRequest.php` `UpdateRoomRequest.php`,
   `app/Actions/DeleteRoomAction.php`, `app/Models/*`.
-- Frontend: `resources/js/Pages/Rooms/Show.tsx`, `Pages/Dashboard.tsx`,
-  `Components/composite/member-list.tsx` `room-settings.tsx` `confirm-dialog.tsx`,
+- Frontend: `resources/js/Pages/Rooms/Show.tsx`, `Pages/Rooms/Join.tsx`,
+  `Pages/Dashboard.tsx`, `Components/composite/room-card.tsx`,
+  `member-list.tsx` `room-settings.tsx` `confirm-dialog.tsx`,
   `Hooks/use-room-ownership.ts`, `stores/room-ui.ts`.
 - Tests: `tests/Feature/RoomManagementTest.php`, `tests/e2e/room.spec.ts`,
   `tests/e2e/lock-kick-transfer.spec.ts`.

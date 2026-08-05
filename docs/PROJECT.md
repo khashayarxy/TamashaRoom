@@ -161,6 +161,7 @@ resources/
 │   │   ├── composite/              # Domain-specific composites
 │   │   │   ├── confirm-dialog.tsx
 │   │   │   ├── member-list.tsx
+│   │   │   ├── room-card.tsx
 │   │   │   ├── room-chat.tsx
 │   │   │   ├── room-onboarding.tsx
 │   │   │   ├── room-settings.tsx
@@ -197,7 +198,8 @@ resources/
 │   │   ├── Profile/
 │   │   │   └── Edit.tsx
 │   │   ├── Rooms/
-│   │   │   └── Show.tsx            # the watch-room screen itself
+│   │   │   ├── Join.tsx             # invite confirmation screen
+│   │   │   └── Show.tsx             # the watch-room screen itself
 │   │   ├── Dashboard.tsx
 │   │   └── Welcome.tsx
 │   ├── stores/                     # Zustand stores (local UI state only)
@@ -216,7 +218,6 @@ resources/
 
 public/
 ├── build/                          # Vite output — fingerprinted, cached forever
-├── fonts/
 └── robots.txt
 ```
 

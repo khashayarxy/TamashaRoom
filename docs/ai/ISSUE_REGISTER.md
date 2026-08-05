@@ -88,14 +88,19 @@
 - **Status:** RESOLVED (2026-08-01, Batch 2A)
 - **Confidence:** High
 - **Area:** Documentation / deployment
-- **Evidence:** Originally reported as a 13-vs-14 count mismatch. `database/migrations/`
-  actually contains **13** files (3 framework base + 10 application); the count is
-  now consistent across `docs/deployment-checklist.md` and the migrations directory.
+- **Evidence:** At the 2026-08-01 resolution, `database/migrations/` contained
+  **13** files (3 framework base + 10 application), and the deployment checklist
+  was corrected to match. A later `2026-08-03` active-subtitle migration brings
+  the current directory to **14** files; the current deployment checklist now
+  reflects that later state, so the original documentation discrepancy remains
+  resolved.
 - **Impact:** Resolved — the count is correct everywhere.
 - **Production blocking:** No.
-- **Recommended direction:** None — count verified as 13 in both places.
+- **Recommended direction:** None — the current count is 14 in both the
+  migrations directory and deployment checklist.
 - **Verification source:** Directory listing (this pass) vs. deployment-checklist.md.
-- **Notes:** Resolved by Batch 2A (deployment-checklist migration list corrected to 13).
+- **Notes:** Resolved by Batch 2A; the later migration changed the count without
+  reintroducing a documentation mismatch.
 
 ---
 
@@ -181,7 +186,7 @@
 ### TAM-006 — Deployment steps not executed on production
 
 - **ID:** TAM-006
-- **Title:** No production deployment executed (migrations, storage:link, scheduler cron, queue drain)
+- **Title:** No production deployment executed (migrations, scheduler cron, queue drain, environment)
 - **Category:** Operations / Deployment
 - **Severity:** P0
 - **Verification:** CONFIRMED
@@ -189,13 +194,12 @@
 - **Confidence:** High
 - **Area:** Production environment
 - **Evidence:** `docs/TASK.md` "Deployment Readiness": migrations not executed on
-  production, `public/storage` symlink missing, the single cPanel `schedule:run`
-  cron entry (which fans out to the scheduled tasks — including the
+  production, the single cPanel `schedule:run` cron entry (which fans out to the scheduled tasks — including the
   `queue:work --stop-when-empty --max-time=30` batch drain) not configured, and
   `APP_DEBUG=false` / `APP_ENV=production` not confirmed on production.
-- **Impact:** The app cannot run in production until these are done (subtitle
-  uploads depend on the storage symlink; scheduled tasks depend on the cron
-  entry). No persistent worker is needed — queue draining is handled by the
+- **Impact:** The app cannot run in production until these are done (scheduled
+  tasks depend on the cron entry; subtitle files use the private `local` disk
+  and do not require a public storage symlink). No persistent worker is needed — queue draining is handled by the
   scheduled `schedule:run` tick.
 - **Production blocking:** Yes — these are P0 for an actual launch.
 - **Recommended direction:** Follow `docs/deployment-checklist.md` end-to-end and

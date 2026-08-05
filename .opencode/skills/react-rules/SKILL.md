@@ -47,9 +47,10 @@ not to do, see `code-review-rules` (anti-patterns).
 | Shared across a subtree, changes infrequently | React Context |
 | Global, changes frequently, many consumers | Zustand (with selectors) |
 
-State is co-located with the feature that uses it — feature-local Zustand
-stores live in that feature's folder, not a single global store. Never lift
-state higher than the lowest common ancestor that needs it.
+State is co-located with the feature that uses it. TamashaRoom's focused
+Zustand stores are kept in `resources/js/stores/`; component-local state still
+belongs at the lowest common ancestor that needs it. Never lift state higher
+than necessary.
 
 ## Should This Be Its Own Component?
 

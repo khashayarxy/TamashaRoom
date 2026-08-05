@@ -50,7 +50,9 @@ running (`php artisan schedule:list`; the single cron entry).
 
 - **Stale config/route cache** — if an env/route change seems ignored,
   `php artisan config:clear && php artisan route:clear` (or re-cache).
-- **Missing storage symlink** — subtitle upload 404s → `php artisan storage:link`.
+- **Private subtitle storage failure** — subtitle upload/read errors → verify
+  `storage/app/private/` is writable and the `local` disk is configured; the
+  public `storage:link` is not involved.
 - **Queue backlog** — jobs only drain on the scheduled
   `queue:work --stop-when-empty` tick.
 - **N+1 under load** — `preventLazyLoading` is off in production; check

@@ -54,9 +54,11 @@ Event**, so the future migration stays a driver swap. See the
   validated by Form Requests; simple action endpoints may use inline
   `$request->validate()` (e.g. `ChatController::store`). No `any` without a
   documented reason. No `$request->all()` reaching Eloquent unvalidated.
-- Persian (RTL) and dark mode are the default, not an overlay. Use Tailwind's
-  logical properties (`ms-*`, `me-*`, `ps-*`, `pe-*`, `text-start`, `text-end`),
-  never physical ones (`ml-*`, `mr-*`, `pl-*`, `pr-*`).
+- Persian (RTL) and dark mode are the default, not an overlay. Prefer Tailwind's
+  logical properties (`ms-*`, `me-*`, `ps-*`, `pe-*`, `text-start`, `text-end`).
+  Physical positioning utilities are allowed only when the position must remain
+  invariant (for example, centered or edge-to-edge overlays); see
+  `rtl-and-design-system`.
 - Business logic lives in Laravel Actions/Services and frontend hooks — never
   directly in controllers or components.
 - Every async operation has explicit loading, error, success, and empty states.

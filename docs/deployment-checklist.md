@@ -48,15 +48,15 @@ This runs all 14 migrations: 3 framework base files (users + password_reset_toke
 
 ---
 
-## 3. Storage Symlink
+## 3. Private Subtitle Storage
 
-```bash
-php artisan storage:link
-```
+Subtitle files use Laravel's private `local` disk under `storage/app/private/` and
+are served only through authenticated, room-scoped endpoints. No
+`public/storage` symlink is required for subtitle uploads.
 
-Creates `public/storage → storage/app/public`. Required for subtitle file uploads. If the symlink already exists, the command is idempotent ("The [public/storage] link already exists").
-
-**Verify:** `ls -la public/storage` shows a symlink to `../storage/app/public`.
+**Verify:** the PHP/web-server account can write to `storage/app/private/` and
+an authenticated room member can load a subtitle through
+`/subtitles/{room}/{track}`.
 
 ---
 
@@ -141,7 +141,7 @@ php artisan view:cache
 | Inertia renders | Page source contains `<div id="app" data-page="...">` |
 | Login works | Visit `/login` — form renders in Persian |
 | Registration works | Create a test account |
-| Storage accessible | `curl -s -o /dev/null -w "%{http_code}" https://yourdomain.com/storage/` → `200` or redirect |
+| Subtitle access control | Authenticated room members can load `/subtitles/{room}/{track}`; the file is not publicly served from `/storage/` |
 | Queue drained | `php artisan queue:failed` → no failed jobs (jobs table stays empty) |
 | Cron is running | Create a room, wait 1+ minute, verify `presence:timeout` worked |
 | Rate limiting | Login with wrong password 6+ times → `429 Too Many Requests` |
@@ -177,7 +177,7 @@ rollback has a restore point.
 - **Sentry** (if configured): Monitor error rate in the first 24h
 - **Laravel log**: `tail -f storage/logs/laravel.log`
 - **Queue failures**: `php artisan queue:failed` — retry with `php artisan queue:retry all`
-- **Disk usage**: `du -sh storage/app/public/subtitles/` — subtitle files accumulate
+- **Disk usage**: `du -sh storage/app/private/subtitles/` — subtitle files accumulate
 
 ---
 
@@ -191,18 +191,15 @@ composer install --no-dev --optimize-autoloader
 # 2. Database
 php artisan migrate --force
 
-# 3. Storage
-php artisan storage:link
-
-# 4. Add cron entry
+# 3. Add cron entry
 #    * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
 #    (runs scheduled tasks + drains the queue in batches — no separate worker needed)
 
-# 5. Cache
+# 4. Cache
 php artisan config:cache
 php artisan route:cache
 
-# 6. Build frontend (may be run off-server; upload only public/build/ to cPanel)
+# 5. Build frontend (may be run off-server; upload only public/build/ to cPanel)
 npm ci
 npm run build
 ```
