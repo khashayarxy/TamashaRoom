@@ -31,7 +31,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             className="flex items-center gap-2 font-bold text-xl"
                         >
                             <Tv className="h-6 w-6 text-primary" />
-                            <span>TamashaRoom</span>
+                            <span>تماشاروم</span>
                         </Link>
                         <nav className="hidden sm:flex items-center gap-1">
                             {navItems.map((item) => (

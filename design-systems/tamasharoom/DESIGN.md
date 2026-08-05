@@ -12,14 +12,18 @@
 
 | Form | Usage |
 |---|---|
-| **TamashaRoom** | English / brand-safe form — used in code, URLs, tech contexts |
-| **تماشاروم** | Persian display form — used in headings, hero sections, branding |
+| **تماشاروم** | The product's user-facing name — the ONLY form allowed in the UI, browser titles, meta/OG tags, accessibility text, or any user-facing content |
+| **TamashaRoom** | Internal technical identifier — allowed ONLY in code identifiers, config keys, URLs, repository/file paths, env var names, HTTP headers, and this documentation set |
 
-The English name should always appear in title case: `TamashaRoom`, never `tamasha room`, `Tamasha Room`, or `Tamasha-room`.
+Canonical rule (product naming audit, 2026-08-06):
+
+- The user-facing name is always **تماشاروم** — exactly that form, with no English/transliterated variant anywhere in the website UI, browser titles, meta/OG tags, alt text, or accessible text. This applies even when the surrounding text is English.
+- The English form `TamashaRoom` must never be shown to a user. It survives only as a technical identifier: code, config keys, URLs, env var names, package/header names, and internal documentation.
+- Wherever `TamashaRoom` does appear as a technical identifier it should be in title case — never `tamasha room`, `Tamasha Room`, or `Tamasha-room`.
 
 ### Voice & Tone
 
-TamashaRoom speaks like a friend who set up the couch, grabbed snacks, and queued the movie — not like a SaaS platform.
+تماشاروم speaks like a friend who set up the couch, grabbed snacks, and queued the movie — not like a SaaS platform.
 
 - **Warm, not corporate.** The feeling is "watching together on the couch with friends," not "real-time media synchronization platform."
 - **Intimate.** Address the reader directly (second-person). Use the kind of Persian you'd use with friends, not in a formal letter.
@@ -34,7 +38,7 @@ These are explicitly forbidden — they contradict the brand's taste and constra
 |---|---|
 | Purple-to-pink gradients | Overused in social/entertainment; reads as generic "startup branding" |
 | Inter as everything | Inter has poor Persian glyph support — Vazirmatn replaces it for UI |
-| Logo-left / links-center / CTA-right nav | The default corporate nav pattern; TamashaRoom should feel warmer |
+| Logo-left / links-center / CTA-right nav | The default corporate nav pattern; تماشاروم should feel warmer |
 | Icon-tile feature grids | "Feature boxes with rounded corners and an icon above text" — generic SaaS |
 | Centered-everything layouts | No visual hierarchy, hard to scan. Use asymmetric, content-led layouts |
 | Fabricated stats / testimonials | Dishonest; the product is pre-launch. Don't pretend otherwise |
@@ -131,7 +135,7 @@ The library should also provide a formatter that outputs Jalali month names (ف�
 
 ### Face Selection
 
-Override SYSTEM.md §11.02 (which recommended Inter): **Vazirmatn is the new primary typeface for all UI, body, and heading text.** Inter does not support Persian script properly, and TamashaRoom's audience is Persian-speaking.
+Override SYSTEM.md §11.02 (which recommended Inter): **Vazirmatn is the new primary typeface for all UI, body, and heading text.** Inter does not support Persian script properly, and تماشاروم's audience is Persian-speaking.
 
 | Role | Typeface | Rationale |
 |---|---|---|
@@ -313,7 +317,7 @@ All grays carry a warm (amber-based) undertone, replacing the cool grays from SY
 
 ## Product Modes
 
-TamashaRoom has two distinct visual modes with different priorities. They are not "light vs dark" — they are contexts, and each exists in both light and dark color schemes.
+تماشاروم has two distinct visual modes with different priorities. They are not "light vs dark" — they are contexts, and each exists in both light and dark color schemes.
 
 ### Persuade Mode — Landing Page
 

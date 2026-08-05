@@ -1,5 +1,5 @@
 # PROJECT.md
-# TamashaRoom Project Specification
+# تماشاروم Project Specification
 # Version: MVP
 # Last Updated: 2026-08-02
 
@@ -7,7 +7,7 @@
 
 ## Project Overview
 
-**Name**: TamashaRoom
+**Name**: تماشاروم
 **Stage**: MVP
 **Purpose**: A synchronized watch-party platform for Iranian users — multiple people watch a video together from different locations, with playback kept in sync, so it feels like watching together in person rather than separately.
 **Primary language**: Persian (RTL) — the only MVP language
@@ -16,7 +16,7 @@
 
 ## Core Concept
 
-A user creates a private room and provides a video source (an external link — TamashaRoom does not store or host video files). They share an invite link with friends; anyone with the link joins the same room, and playback stays synchronized for everyone in it.
+A user creates a private room and provides a video source (an external link — تماشاروم does not store or host video files). They share an invite link with friends; anyone with the link joins the same room, and playback stays synchronized for everyone in it.
 
 ## MVP Features
 
@@ -224,7 +224,7 @@ public/
 
 ```bash
 # Application
-APP_NAME=TamashaRoom
+APP_NAME=تماشاروم
 APP_ENV=production
 APP_KEY=                      # php artisan key:generate
 APP_DEBUG=false                # non-negotiable in production — see SYSTEM.md 18.08, Rule 6
@@ -310,7 +310,7 @@ Chapters 21 (Performance), 22 (Accessibility), and 23 (SEO) were audited and upd
 Chapters 24–29 (Error Handling, Review Engine, Refactoring, Anti Patterns, Output Rules, Final Checklist) were audited on 2026-07-18 for global-error.tsx/not-found.tsx, React 19 Actions, instrumentation.ts, ESLint flat config, and consistency with the Chapter 21–23 changes; Chapter 26 required no changes.
 A final full-document consistency pass (all 29 chapters plus PROJECT.md and TASK.md) was completed on 2026-07-18: fixed broken cross-references (including a missing 06.11 concept, now added), corrected mis-numbered chapter references, resolved a conflicting memoization recommendation in Chapter 17 (React Rules) that predated the Chapter 21 React Compiler update, and synchronized file naming and status reporting across all three documents.
 **On 2026-07-20, the entire stack was re-architected for the official deployment environment (shared cPanel hosting — no Docker, Redis, WebSockets, background workers, or root access).** Next.js was replaced end-to-end by PHP 8.4 + Laravel + Inertia.js + React 19 + Vite, with Node.js 22 used only as a build-time tool. Chapter 18 (Next.js Rules) became Chapter 18 (PHP and Laravel Backend Rules); Chapters 16, 17, 19, 21, 23, 24, 27, 28, and 29 were updated for consistency with it. Persian (RTL) typography (SYSTEM.md 11.08) and a first-release dark mode requirement (SYSTEM.md 12.04) were also added. This file (tech stack, directory structure, environment variables, scripts) was updated to match; see TASK.md for the itemized change log and the resulting implementation tasks.
-**Also on 2026-07-20, the actual product was defined**: TamashaRoom is a synchronized watch-party platform (private rooms, invite links, synced play/pause/seek, member presence, in-room chat, soft subtitles, external video links only — no server-side storage). Because playback sync is the product's core mechanic and normally requires WebSockets, which the MVP hosting does not support, SYSTEM.md 18.05 gained a new Rule 3 (and 21.10 a new item 5): playback state is written as a Laravel broadcastable Event and delivered by polling for now, with the transport swappable to Laravel Reverb on a future VPS without a feature rewrite. See "Real-Time Architecture" above.
+**Also on 2026-07-20, the actual product was defined**: تماشاروم is a synchronized watch-party platform (private rooms, invite links, synced play/pause/seek, member presence, in-room chat, soft subtitles, external video links only — no server-side storage). Because playback sync is the product's core mechanic and normally requires WebSockets, which the MVP hosting does not support, SYSTEM.md 18.05 gained a new Rule 3 (and 21.10 a new item 5): playback state is written as a Laravel broadcastable Event and delivered by polling for now, with the transport swappable to Laravel Reverb on a future VPS without a feature rewrite. See "Real-Time Architecture" above.
 **On 2026-07-21, five launch-blocker and deployment tasks were completed**: (1) per-room member cap with `lockForUpdate()` race guard and system-wide active-room ceiling via `config/tamasharoom.php`; (2) shared `DeleteRoomAction` for data cleanup on room deletion, used by both `rooms:prune-inactive` and the owner-initiated delete path; (3) `DetermineVideoPlaybackModeAction` that detects CORS+Range support and switches between direct client-side playback and the server proxy; (4) `.github/workflows/ci.yml` running Pint, ESLint, TypeScript, Vite build, and PHPUnit tests on SQLite `:memory:`; (5) Sentry error monitoring (`sentry/sentry-laravel` package installed, `config/sentry.php` published). A comprehensive security audit was also completed, fixing a critical transaction gap in `DeleteRoomAction`, a prune-query bug that could delete freshly-created rooms, adding a `rooms.last_activity_at` index, creating an `App\Enums\PlaybackMode` backed enum, fixing RTL property usage, translating user-facing error messages to Persian, adding rate limiters, and adding integration coverage for the join race condition.
 
 **On 2026-07-22, documentation was synchronized with the actual codebase**: stack references changed from Radix/Pest to Headless UI/PHPUnit; removed stale `pestphp/pest-plugin` from `composer.json`; removed unused `zod-validation-error` from `package.json`; installed `laravel/sanctum`, `zustand`, `zod`, `vitest`, `prettier`, and `@testing-library/react` as missing dependencies; added `type-check`, `format`, `test`, `test:e2e`, `test:watch` scripts; created `vitest.config.ts` and Playwright E2E config; added a placeholder Vitest test suite awaiting real test cases.

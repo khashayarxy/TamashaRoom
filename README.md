@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://via.placeholder.com/400x100/1e293b/ffffff?text=TamashaRoom">
-    <img alt="TamashaRoom" src="https://via.placeholder.com/400x100/ffffff/1e293b?text=TamashaRoom" width="400">
+    <source media="(prefers-color-scheme: dark)" srcset="https://via.placeholder.com/400x100/1e293b/ffffff?text=%D8%AA%D9%85%D8%A7%D8%B4%D8%A7%D8%B1%D9%88%D9%85">
+    <img alt="تماشاروم" src="https://via.placeholder.com/400x100/ffffff/1e293b?text=%D8%AA%D9%85%D8%A7%D8%B4%D8%A7%D8%B1%D9%88%D9%85" width="400">
   </picture>
 </p>
 
@@ -11,7 +11,7 @@
 
 ---
 
-**TamashaRoom** is a synchronized watch-party platform for Persian speakers. Friends scattered across cities — or across the world — open the same video together and watch it in real-time sync: when one person pauses, everyone pauses; when one seeks, everyone follows. No counting down to hit play at the same time, no "wait, where are you now?" over the phone.
+**تماشاروم** is a synchronized watch-party platform for Persian speakers. Friends scattered across cities — or across the world — open the same video together and watch it in real-time sync: when one person pauses, everyone pauses; when one seeks, everyone follows. No counting down to hit play at the same time, no "wait, where are you now?" over the phone.
 
 The idea is simple: you create a private room, share an invite link, and suddenly you're watching together again, with in-room chat, soft subtitles, and a shared sense of presence. The video plays from an external link — nothing is stored on our servers, just the state that keeps everyone in sync.
 

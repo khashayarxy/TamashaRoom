@@ -1,4 +1,4 @@
-# TamashaRoom (تماشاروم) — Product Brief
+# تماشاروم — Product Brief
 
 **What it is**: A synchronized watch-party platform for Persian-speaking users. 
 Create a private room, share an invite link, and watch an external video together — 
