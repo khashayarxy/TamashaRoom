@@ -43,7 +43,7 @@ tested or automated (see `accessibility-rules`).
 **Performance**: no unnecessary re-renders (memoization only where the
 Compiler doesn't reach); images pre-optimized; no large dependency added
 without bundle analysis; controllers own data-fetching (see
-`performance-rules`).
+`laravel-backend-rules`).
 
 **Testing**: unit tests for business logic; integration tests for user flows;
 error paths tested; tests deterministic (see `testing-strategy`).
@@ -134,7 +134,10 @@ A feature is not done when the code is written. It's done when it is:
 ## Self-Review Before Considering Work Done
 
 - Read the diff yourself, line by line.
-- Remove all debug code (`console.log`, `debugger`) and commented-out code.
+- Remove all debug code and commented-out code (no `console.log` is enforced
+  by ESLint — see `output-conventions`).
+- No `[debug:` call sites or `VITE_DEBUG` flags in the final diff — debug
+  logging is a temporary tool, not shipping code (see `debugging`).
 - Run the linter, type checker, and tests — fix everything before moving on.
 - Test the feature manually: happy path and error paths.
 - Check accessibility (keyboard nav, contrast) and responsive behavior.

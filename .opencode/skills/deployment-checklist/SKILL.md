@@ -13,9 +13,8 @@ Chapter 18. This skill is the condensed operational summary.
 ## Before Every Deploy
 
 - [ ] CI is green on the commit being deployed (lint, type-check, PHPUnit,
-      Pint, Vitest, Playwright a11y + E2E, build — see `.github/workflows/ci.yml`).
-      Note: CI does **not** run a Prettier check; run `npm run format:check`
-      locally before committing.
+      Pint, Vitest, Playwright a11y + E2E, build, Prettier — see
+      `.github/workflows/ci.yml`).
 - [ ] `docs/TASK.md` reflects what's actually shipping.
 - [ ] No pending migration you haven't reviewed for data loss (a `DROP
       COLUMN` or renamed table needs a backup first).
@@ -52,7 +51,7 @@ php artisan storage:link
 
 - `.env` per `docs/PROJECT.md` — especially `CACHE_STORE=database`,
   `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database`,
-  `BROADCAST_CONNECTION=log` (no Redis).
+  `BROADCAST_CONNECTION=null` (no Redis).
 - **One** cPanel cron entry, and only one:
   `* * * * * php /home/tamasharoom/artisan schedule:run >> /dev/null 2>&1`.
   Everything else (queue draining, room pruning, presence timeout) is

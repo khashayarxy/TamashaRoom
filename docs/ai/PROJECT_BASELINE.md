@@ -202,7 +202,7 @@ docs/SYSTEM.md ch. 18.00]
   currentTime is corrected when drift exceeds 2 seconds. [Confirmed]
 - Optimistic concurrency via `state_version` (client ignores stale responses).
   [Confirmed]
-- `BROADCAST_CONNECTION=log` today; transport is swappable to Reverb later without
+- `BROADCAST_CONNECTION=null` today; transport is swappable to Reverb later without
   a feature rewrite. [Confirmed — docs/PROJECT.md, docs/SYSTEM.md ch. 18.05]
 
 ## Chat

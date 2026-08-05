@@ -33,9 +33,8 @@ Run every feature request through these questions, in order:
 4. **Can it be built without compromising the existing architecture** — the
    shared-hosting constraints in particular? If no → redesign or defer.
 
-The correct response to "let's also add..." is not yes-and or no-but. It's:
-**"tell me the user outcome, and I'll tell you if this is the best way to
-achieve it."**
+The response to "let's also add..." is: **"tell me the user outcome, and I'll
+tell you if this is the best way to achieve it."**
 
 ## Before Adding a New Dependency — The Dependency Test
 
@@ -65,8 +64,8 @@ new caching strategy):
 3. **List options with real trade-offs**, not just the one you want.
 4. **Apply the project's actual constraints** (see `AGENTS.md` — no Docker,
    no Redis, no WebSockets, no persistent workers).
-5. Prefer the option that's **reversible**. Ask: what's the cost of being
-   wrong, and can this be undone in a week? A month? Ever?
+5. Prefer the option that's **reversible** — what does being wrong cost, and
+   can it be undone in a week? A month? Ever?
 
 ## Prioritization — RICE
 

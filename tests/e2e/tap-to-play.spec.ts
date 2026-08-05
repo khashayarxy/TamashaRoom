@@ -95,15 +95,19 @@ test.describe("Guest tap-to-play", () => {
       )
       .toEqual(expect.objectContaining({ paused: false }));
 
-    // Playback position actually advances (real media, not a stub).
+    // Playback position actually advances (real media, not a stub). Poll
+    // rather than wait a fixed window: under full-suite single-worker load the
+    // video's first frames can buffer slower than a fixed delay, but the
+    // assertion is unchanged — playback must genuinely move forward.
     const t1 = await guest.evaluate(
       () => document.querySelector("video")?.currentTime ?? 0,
     );
-    await guest.waitForTimeout(1500);
-    const t2 = await guest.evaluate(
-      () => document.querySelector("video")?.currentTime ?? 0,
-    );
-    expect(t2).toBeGreaterThan(t1);
+    await expect
+      .poll(
+        () => guest.evaluate(() => document.querySelector("video")?.currentTime ?? 0),
+        { timeout: 8000 },
+      )
+      .toBeGreaterThan(t1);
 
     // The guest's local play is purely local: no playback mutation request
     // (PATCH/POST/DELETE to /playback/{room}) is ever sent.

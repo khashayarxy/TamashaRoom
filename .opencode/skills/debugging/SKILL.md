@@ -82,6 +82,17 @@ running (`php artisan schedule:list`; the single cron entry).
   it in isolation (`npx playwright test -g "test name"`) before treating it
   as a regression — full-suite runs on one worker can flake under load.
 
+## Debug Logging Conventions
+
+- Backend: name temporary debug lines with the `[debug:<topic>]` prefix:
+  `Log::debug('[debug:proxy] range request', ['room' => $roomId, 'range' => $range])`.
+  This keeps debug output greppable (`grep "\[debug:" storage/logs/laravel.log`)
+  and instantly removable.
+- Frontend: use `debug(topic, ...)` from `@/lib/debug` (gated behind
+  `VITE_DEBUG=true`, namespaced `[debug:<topic>]`).
+- Debug logging is a **temporary tool**: remove `[debug:` call sites and
+  `VITE_DEBUG` flags from the final diff (see `code-review-rules`).
+
 ## Checklist
 
 - Reproduced with a focused test before changing code.

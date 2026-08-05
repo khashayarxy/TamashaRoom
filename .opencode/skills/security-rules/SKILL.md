@@ -50,10 +50,10 @@ you didn't write will eventually call it.
    input shape, and rate limits are enforced inside the controller/Form Request
    — never assumed from "only our app calls this." This holds for the
    `web.php` JSON endpoints just as much as for `api.php`.
-3. **Validate all input.** Structured multi-field input goes through a Form
-   Request (`authorize()` + `rules()`); simple single-field action endpoints may
-   use inline `$request->validate()` (e.g. `ChatController::store`). Either way
-   only validated data reaches Eloquent — never `$request->all()`.
+3. **Validate all input.** Structured multi-field input → Form Request;
+   simple single-field action endpoints → inline `$request->validate()` (see
+   `laravel-backend-rules`). Only validated data reaches Eloquent — never
+   `$request->all()`.
 4. **Authenticate then authorize, inside the controller, as the first two
    actions**:
    ```php

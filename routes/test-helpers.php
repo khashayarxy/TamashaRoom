@@ -64,14 +64,17 @@ Route::middleware('web')->group(function () {
         }
 
         if ($request->boolean('local_video')) {
-            // A same-origin video served by the dev server (public/videos/sample.mp4).
+            // A same-origin video served by the dev server (public/videos/...).
             // Direct mode bypasses SSRF so the browser loads it directly — used by
-            // the tap-to-play E2E to exercise real media playback locally.
+            // the tap-to-play and playback-sync E2E to exercise real media
+            // playback locally. Defaults to sample.mp4; pass ?video_file=name.ext
+            // to select a different fixture (e.g. the long sync-sample.webm).
+            $videoFile = $request->input('video_file', 'sample.mp4');
             $room->update([
-                'video_url' => $request->getSchemeAndHttpHost().'/videos/sample.mp4',
+                'video_url' => $request->getSchemeAndHttpHost().'/videos/'.$videoFile,
                 'is_playing' => true,
                 'position_seconds' => 0,
-                'duration_seconds' => 11,
+                'duration_seconds' => $videoFile === 'sample.mp4' ? 11 : 95,
                 'playback_rate' => 1,
                 'state_version' => 1,
                 'playback_mode' => 'direct',

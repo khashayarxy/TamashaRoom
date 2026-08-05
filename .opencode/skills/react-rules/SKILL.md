@@ -15,8 +15,8 @@ not to do, see `code-review-rules` (anti-patterns).
 ## Component Rules
 
 1. **Components are pure functions.** Same props + state → same JSX. No
-   `console.log`, DOM manipulation, network requests, or random values during
-   render. Side effects belong in `useEffect`, event handlers, or the server.
+   DOM manipulation, network requests, or random values during render.
+   Side effects belong in `useEffect`, event handlers, or the server.
 2. **Props are read-only.** Never mutate them — always create a new value
    when transforming props (`[...users].sort()`, not `users.sort()`).
 3. **Lift state carefully.** State lives at the lowest common ancestor that
@@ -25,16 +25,18 @@ not to do, see `code-review-rules` (anti-patterns).
 4. **Children over configuration props.** Use composition
    (`<Dialog><DialogTitle>...`) instead of config props
    (`<Dialog title="..." primaryAction="...">`).
+5. **Hooks at top level only; `useEffect` only for external system sync** —
+   never for data transformation (see `code-review-rules`).
 
 ## State Rules
 
-1. **State is minimal and derived.** Don't store computed values in state —
-   compute them at render time (`const filtered = items.filter(...)`, not a
-   second `useState` + `useEffect` synced to it). Derived state can't go stale.
+1. **State is minimal and derived.** Compute derived values at render time
+   (`const filtered = items.filter(...)`) — never a second `useState` +
+   `useEffect` synced to it.
 2. **Functional updates** when new state depends on old state:
    `setCount(c => c + 1)`, never `setCount(count + 1)` (stale-closure risk).
 3. **Normalized shape** for related entities — flat, keyed by ID, not deeply
-   nested. Nested state requires deep cloning to update safely.
+   nested.
 
 ## Where Should This State Live?
 
@@ -58,11 +60,9 @@ Create a new component when **all** of these are true:
 3. Has **enough complexity** to justify it (logic, state, multiple elements).
 4. Needs **isolated testing**.
 
-Do **not** extract when:
-- Used in only one place with no complexity.
-- It's a styled wrapper with no behavior — inline the Tailwind classes.
-- It would have only one prop — use the value directly.
-- It's a one-off layout adjustment.
+Do **not** extract when: used once with no complexity; a styled wrapper with
+no behavior (inline the Tailwind classes); a one-prop wrapper (use the value
+directly); a one-off layout adjustment.
 
 ## The Five Component Categories
 
@@ -89,9 +89,8 @@ Rules per category:
 
 ## The Component Contract
 
-Every component is a contract: given these props, it renders this UI and
-behaves this way. A prop interface should be minimal (3-5 props typical) and
-fully typed.
+A component is a contract: given these props, it renders this UI and behaves
+this way. Prop interfaces are minimal (3-5 props typical) and fully typed.
 
 **`className`/`style` are escape hatches — forbidden for styling overrides or
 behavioral changes.** Acceptable only for layout positioning on wrapper
@@ -109,9 +108,9 @@ resolve conflicting Tailwind classes.
 
 ## Performance Rules (React Compiler is enabled)
 
-The React Compiler is on (wired through the Vite plugin,
-`babel-plugin-react-compiler`). It already performs the memoization a
-`useMemo`/`useCallback`/`React.memo` would, based on real data-flow analysis.
+The React Compiler is on (Vite plugin, `babel-plugin-react-compiler`); it
+already does the memoization a `useMemo`/`useCallback`/`React.memo` would,
+from real data-flow analysis.
 
 1. **Don't optimize prematurely.** Measure with React DevTools Profiler first.
 2. **Component splitting beats memoization.** Before `React.memo`, ask: can
@@ -129,20 +128,9 @@ The React Compiler is on (wired through the Vite plugin,
 
 ## Common Mistakes
 
-- Extracting every `<div>` into a component ("component explosion").
-- Never extracting, leading to god components (see `code-review-rules`).
-- A composite component that's actually generic (should be a UI component).
-- A UI component with domain-specific logic baked in (should be a composite).
-- Putting layout logic directly in a page component instead of a Layout.
-- Accepting `className` as an escape hatch instead of adding a proper variant.
-
-## Checklist
-
-- Pure function, no side effects during render; props immutable.
-- State at the lowest necessary level; composition over config props.
-- Hooks at top level only; `useEffect` only for external system sync (never
-  data transformation — see `code-review-rules`).
-- `useMemo`/`useCallback` only where the Compiler doesn't reach.
-- Derived values computed at render, not stored in state; functional
-  updaters used; stable unique list keys.
-- Component categorized correctly; `cn()` variants, not `className` overrides.
+- Extracting every `<div>` into a component; never extracting, leading to god
+  components (see `code-review-rules`).
+- A composite that's actually generic (should be a UI component), or a UI
+  component with domain logic baked in (should be a composite).
+- Putting layout logic in a page component instead of a Layout; accepting
+  `className` as an escape hatch instead of adding a proper variant.

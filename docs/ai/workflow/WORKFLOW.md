@@ -40,6 +40,13 @@ codebase and returns reports. It never edits code and never updates documentatio
 — including `docs/ai/` and `ISSUE_REGISTER.md`. All documentation updates are made
 by Web AI / the human after reviewing a report.
 
+**In-app mapping (`opencode.json`):** the OpenCode implementer role is the
+`implementer` agent (DeepSeek direct, full write access); the Desktop-AI
+read-only role is the `desktop-ai` agent (`permission: { edit: deny, bash: ask }`);
+the Web AI role is an external tool (ChatGPT/Claude Web) and has no in-app
+agent. DeepSeek direct is the only configured provider; model defaults live in
+`opencode.json` at the repo root.
+
 ## The Standard Workflow
 
 ```

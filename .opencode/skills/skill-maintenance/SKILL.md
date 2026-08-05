@@ -51,8 +51,9 @@ Before adding or editing a skill:
 
 ## Keeping Skills Token-Efficient
 
-- Target ≤ ~100 lines; the largest skill in this repo is ~130 lines and
-  should stay the ceiling.
+- Target ≤ ~100 lines; the largest skills (`code-review-rules` ~143,
+  `testing-strategy` ~140, `laravel-backend-rules` ~139) are the ceiling —
+  don't grow them further.
 - Frontmatter `description` is the trigger — make it state *when to use*
   (task types), not just *what the skill is about*.
 - No code snippets that duplicate what's already in `docs/SYSTEM.md` —

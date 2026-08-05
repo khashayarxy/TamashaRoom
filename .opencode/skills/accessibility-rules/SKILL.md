@@ -9,7 +9,7 @@ Full detail: `docs/SYSTEM.md`, Chapter 22 (Accessibility). AA is the
 committed bar for this project, referencing WCAG 2.2 (the version behind
 EN 301 549 and the European Accessibility Act).
 
-## Core Requirements
+## Core Requirements (SYSTEM.md 22.10)
 
 - **Semantic HTML** over generic `<div>` + ARIA. Use `<button>`, `<nav>`,
   `<form>`, `<label>` — ARIA is a supplement, not a substitute.
@@ -20,9 +20,13 @@ EN 301 549 and the European Accessibility Act).
 - All images have meaningful `alt` text, or `alt=""` if purely decorative.
 - Form inputs have associated `<label>`s; error messages link to their input
   with `aria-describedby`.
+- Color contrast meets WCAG 2.2 AA (4.5:1 text, 3:1 UI); color is never the
+  only signal.
 - Dynamic content (toasts, live playback status) is announced via
   `aria-live` regions.
 - Animations respect `prefers-reduced-motion`.
+- Verified with keyboard-only navigation, a screen reader, and the automated
+  axe audit in CI (`@axe-core/playwright`).
 
 ## WCAG 2.2-Specific Additions (easy to miss)
 
@@ -44,20 +48,3 @@ EN 301 549 and the European Accessibility Act).
 - **Accessible authentication**: never require a cognitive test (remembering
   a password, transcribing a code) with no alternative. Allow pasting into
   password and one-time-code fields — never block paste on an auth input.
-
-## Checklist (from SYSTEM.md 22.10)
-
-- Semantic HTML; logical heading hierarchy.
-- All interactive elements keyboard accessible; focus visible and logical.
-- Modals trap and restore focus.
-- Images have meaningful alt text (or `alt=""`).
-- Form inputs labeled; errors linked via `aria-describedby`.
-- Color contrast meets WCAG 2.2 AA (4.5:1 text, 3:1 UI); color never the only signal.
-- Dynamic content announced with `aria-live`.
-- Animations respect `prefers-reduced-motion`.
-- Interactive targets meet 24×24px minimum or equivalent spacing.
-- Focus never fully obscured by sticky elements.
-- Drag interactions have a non-drag alternative.
-- Password/OTP fields allow pasting.
-- Tested with keyboard-only navigation and a screen reader.
-- Passes automated audit in CI (`@axe-core/playwright`) and Lighthouse.

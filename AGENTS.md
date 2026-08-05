@@ -60,7 +60,11 @@ Event**, so the future migration stays a driver swap. See the
 - Business logic lives in Laravel Actions/Services and frontend hooks — never
   directly in controllers or components.
 - Every async operation has explicit loading, error, success, and empty states.
-- No `console.log`, no commented-out code, no TODO without a ticket reference.
+- No commented-out code; no TODO without a ticket reference. No `console.log`
+  is enforced by ESLint (`no-console`) — see `output-conventions`.
+- Git safety: never commit or push unless explicitly asked; never force-push,
+  never `reset --hard`/`clean -fd`, never amend a pushed commit. See the
+  `git-workflow` skill before any git operation.
 
 ## Commands
 

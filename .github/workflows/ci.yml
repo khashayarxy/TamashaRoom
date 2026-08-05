@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Secret detection (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -72,6 +77,12 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Run docs & skills drift check
+        run: npm run check:docs
 
       - name: Run Vitest frontend tests
         run: npm run test

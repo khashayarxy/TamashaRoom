@@ -15,7 +15,7 @@ restating what is already known*.
 2. The **one skill** that matches the task (load it via the skill tool, not
    by opening the file manually).
 3. Only the **specific chapter** of `docs/SYSTEM.md` the skill points to —
-   never the whole 10,000-line file. Use the chapter→line index at the top
+   never the whole 10,000+ line file. Use the chapter→line index at the top
    of `docs/SYSTEM.md` to open exactly that range.
 4. `docs/MAP.md` to locate the subsystem's files, then the actual source
    files via targeted searches first.

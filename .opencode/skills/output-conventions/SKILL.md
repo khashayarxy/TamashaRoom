@@ -16,6 +16,11 @@ Full detail: `docs/SYSTEM.md`, Chapter 28 (Output Rules).
 | Utilities | `kebab-case.ts` | `date-utils.ts` |
 | Types | `kebab-case.ts` or `types.ts` | `room-types.ts` |
 | Tests | `kebab-case.test.ts` | `member-list.test.tsx` |
+| Layouts | `PascalCase.tsx` | `Layouts/AuthenticatedLayout.tsx` |
+| Pages | `PascalCase.tsx` (one per route) | `Pages/Rooms/Show.tsx` |
+
+Layouts and Pages are the exception to kebab-case: they live in `Layouts/` and
+`Pages/` respectively (see `react-rules`).
 
 ## Import Order
 
@@ -44,8 +49,8 @@ import type { Room } from './types';
 
 ```ts
 // ✅ Good
-// We poll on a tiered cadence here (3s active, 10s idle), not push, because
-// this hosting has no WebSocket server (docs/SYSTEM.md 18.05, Rule 2).
+// We poll (not push) because this hosting has no WebSocket server — see
+// `laravel-backend-rules` for the tiered-cadence pattern.
 const { state } = usePlaybackSync(roomId);
 
 // ❌ Bad
@@ -83,9 +88,10 @@ refactor(presence): extract usePresenceHeartbeat from MemberList
 
 ## Before Any Code Is Delivered
 
-- Formatted with Prettier (`npm run format`); PHP formatted with Pint (`./vendor/bin/pint`).
-- Zero ESLint errors (`npm run lint`); TypeScript compiles with `strict: true`
-  (`npm run type-check`).
-- File names kebab-case; imports grouped and ordered.
-- No `console.log` (except `console.error` for real errors).
+- Formatted with Prettier (`npm run format:check`) and Pint
+  (`./vendor/bin/pint --test`); zero ESLint errors (`npm run lint`);
+  TypeScript strict-clean (`npm run type-check`).
+- File names kebab-case (Layouts/Pages PascalCase); imports grouped and ordered.
+- No `console.log` — enforced by ESLint (`no-console`); `console.error` and
+  `console.warn` are allowed.
 - No commented-out code; no TODO without a ticket reference.

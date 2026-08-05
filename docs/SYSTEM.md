@@ -7314,7 +7314,7 @@ return response()->json(\['ok' => true\]);
 
 Nothing above depends on how the event reaches other clients. That is decided once, in BROADCAST_CONNECTION:
 
-- Now (shared cPanel hosting): BROADCAST_CONNECTION=log --- broadcasting is effectively a no-op, and the frontend polls the room’s current state every 3 seconds instead (Rule 2, adjustable post-MVP), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
+- Now (shared cPanel hosting): BROADCAST_CONNECTION=null --- broadcasting is effectively a no-op, and the frontend polls the room’s current state every 3 seconds instead (Rule 2, adjustable post-MVP), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
 - Later (on a VPS with root access): BROADCAST_CONNECTION=reverb, with Laravel Reverb running as a supervised process --- something cPanel’s hosting model cannot support, since it requires a long-lived process outside PHP-FPM’s request lifecycle. The same broadcast(new PlaybackStateChanged(...)) call now pushes over a WebSocket instead of waiting to be polled.
 
 On the frontend, hide this behind one hook so components never know which transport is active:

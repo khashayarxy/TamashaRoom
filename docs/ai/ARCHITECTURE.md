@@ -277,7 +277,7 @@ The core mechanic. No WebSockets on this host, so:
    → `Room::updatePlaybackState()` inside a DB transaction with `lockForUpdate()`,
    incrementing `state_version` and stamping `server_timestamp = microtime(true)`.
 2. **Event:** `broadcast(new PlaybackStateChanged($room, $userId))` —
-   transport-agnostic. With `BROADCAST_CONNECTION=log` this is effectively a no-op
+   transport-agnostic. With `BROADCAST_CONNECTION=null` this is effectively a no-op
    today; later it pushes over Reverb without changing the feature.
 3. **Read path:** every client polls `GET /playback/{room}/state` every 3s
    (playing) or 10s (paused) via `usePlaybackSync`.
@@ -292,7 +292,7 @@ Owner                                          Guests
   │   (DB txn: lock, update, state_version++,     │
   │    server_timestamp)                          │
   │ broadcast(PlaybackStateChanged)  ───────────► │
-  │ BROADCAST_CONNECTION=log (no-op today)        │
+  │ BROADCAST_CONNECTION=null (no-op today)        │
   │                                               │ poll GET /playback/{room}/state
   │ ◄─────────────────────────────────────────────│ (3s playing / 10s paused)
   │                                               │ reconcile via state_version + drift

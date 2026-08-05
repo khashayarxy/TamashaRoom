@@ -68,6 +68,13 @@ coverage/
 Homestead.json
 Homestead.yaml
 
+# ─── Debug Artifacts ──────────────────────────────────────────────────────
+*-probe.cjs
+debug-*.cjs
+/tools/debug/*
+!/tools/debug/README.md
+!/tools/debug/_harness.cjs
+
 # ─── NPM & Yarn ───────────────────────────────────────────────────────────
 npm-debug.log*
 yarn-debug.log*

@@ -21,11 +21,11 @@ visitor. This is the most important constraint in the whole project.
 - Treat a slow query as a shared-resource problem: one unindexed query
   holding a MySQL connection blocks every other request waiting on that table.
 - **Room-based polling is a direct multiplier on this budget.** A watch-party
-  room polling on the tiered cadence (3s active while playing, 10s idle while
-  paused — see `use-playback-sync.ts`) is N rooms × M members requests every
-  interval, sustained for as long as the room is open — not a brief spike.
-  Keep the polling interval conservative and cap members per room. Migrating
-  to Reverb is the real fix once usage numbers justify it — not a premature one.
+  room polling on the tiered cadence (see `laravel-backend-rules`) is N rooms ×
+  M members requests every interval, sustained for as long as the room is open
+  — not a brief spike. Keep the polling interval conservative and cap members
+  per room. Migrating to Reverb is the real fix once usage numbers justify it
+  — not a premature one.
 
 ## Frontend
 

@@ -122,6 +122,22 @@ export function VideoPlayer({
         setProxyFailed(false);
     }, [state.videoUrl]);
 
+    // The src attribute is owned imperatively here (no React src prop, no
+    // key). `sourceUrl` already resolves to the mode-correct URL — the direct
+    // URL for direct-mode rooms (and the proxy→direct fallback when the proxy
+    // fails), or the proxy URL for proxy-mode rooms. Load it, and only reload
+    // when the target actually changes: a direct-mode room must play the
+    // source directly, never sit on the proxy (which SSRF-blocks loopback
+    // URLs and streams external ones that direct mode deliberately avoids).
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !sourceUrl) return;
+
+        if (video.getAttribute("src") === sourceUrl) return;
+        video.src = sourceUrl;
+        video.load();
+    }, [sourceUrl, videoRef]);
+
     useEffect(() => {
         const video = videoRef.current;
         if (!video || !sourceUrl) return;
@@ -156,16 +172,29 @@ export function VideoPlayer({
             ) {
                 return;
             }
-            const expected = computeExpectedPosition(state, Date.now() / 1000);
-            const diff = Math.abs(video.currentTime - expected);
-            if (diff > DRIFT_THRESHOLD) {
-                video.currentTime = expected;
+            // The host (canControl) is authoritative for its own position —
+            // never yank it based on a poll response that may be stale or
+            // regressed.  Only guests receive drift corrections.
+            if (!canControl) {
+                const expected = computeExpectedPosition(
+                    state,
+                    Date.now() / 1000,
+                );
+                const diff = Math.abs(video.currentTime - expected);
+                if (diff > DRIFT_THRESHOLD) {
+                    video.currentTime = expected;
+                }
             }
-            video.play().catch(() => {
-                // Autoplay is blocked by the browser (no prior user gesture).
-                // Don't leave the guest on a silently-frozen video — surface
-                // the tap-to-play overlay instead.
-                if (!canControl) {
+            video.play().catch((err: unknown) => {
+                // Only a genuine autoplay-policy rejection (NotAllowedError)
+                // means the user must tap to start. Media-load errors (e.g.
+                // NotSupportedError from a broken/blocked source) must NOT
+                // re-surface the tap-to-play overlay — that leaves the guest
+                // on a paused video that the error/fallback logic handles.
+                if (
+                    !canControl &&
+                    (err as DOMException)?.name === "NotAllowedError"
+                ) {
                     setAutoplayBlocked(true);
                 }
             });
@@ -173,10 +202,14 @@ export function VideoPlayer({
                 setEnded(false);
             }
         } else {
-            const targetTime = state.positionSeconds;
-            const diff = Math.abs(video.currentTime - targetTime);
-            if (diff > DRIFT_THRESHOLD) {
-                video.currentTime = targetTime;
+            // Pause command applies to everyone (host + guests), but only
+            // guests get their currentTime corrected from server state.
+            if (!canControl) {
+                const targetTime = state.positionSeconds;
+                const diff = Math.abs(video.currentTime - targetTime);
+                if (diff > DRIFT_THRESHOLD) {
+                    video.currentTime = targetTime;
+                }
             }
             video.pause();
         }
@@ -187,8 +220,14 @@ export function VideoPlayer({
         if (!video || !sourceUrl) return;
 
         setAutoplayBlocked(false);
-        video.play().catch(() => {
-            setAutoplayBlocked(true);
+        video.play().catch((err: unknown) => {
+            // Same rule as the sync effect: only a real autoplay block
+            // re-shows the overlay; media errors fall through to the
+            // proxy→direct fallback instead of trapping the guest on a
+            // paused video.
+            if ((err as DOMException)?.name === "NotAllowedError") {
+                setAutoplayBlocked(true);
+            }
         });
     }, [sourceUrl, videoRef]);
 
@@ -369,8 +408,6 @@ export function VideoPlayer({
             )}
             <video
                 ref={videoRef}
-                key={sourceUrl}
-                src={sourceUrl}
                 className="w-full h-full object-contain"
                 onTimeUpdate={handleTimeUpdate}
                 onClick={handlePlayPause}

@@ -56,9 +56,9 @@ TamashaRoom's own UI uses `routes/web.php` exclusively:
    mobile/third parties. Currently only `GET /user`.
 
 Rules: every route resolving to a missing/unauthorized resource calls
-`abort(404)`, not 403 (403 confirms existence; 404 doesn't). Group related
-routes with middleware; use persistent Inertia layouts so shared UI isn't
-remounted on navigation.
+`abort(404)`, not 403 (see `security-rules`). Group related routes with
+middleware; use persistent Inertia layouts so shared UI isn't remounted on
+navigation.
 
 (The security lens on which routes are public network boundaries lives in
 `security-rules`, see "API Boundary Rules".)
@@ -128,7 +128,7 @@ always go through the Event.**
 ## Checklist (from SYSTEM.md 18.11)
 
 - Controller (not page component) fetches initial page data; relationships eager-loaded.
-- Missing/unauthorized resources return 404, not 403.
+- Missing/unauthorized resources return 404, not 403 (see `security-rules`).
 - Expensive reads cached (database driver) and invalidated on the write.
 - `config:cache` / `route:cache` / `view:cache` on every deploy.
 - Structured input → Form Request; simple action endpoints → inline `validate()`. Never `$request->all()` unvalidated.

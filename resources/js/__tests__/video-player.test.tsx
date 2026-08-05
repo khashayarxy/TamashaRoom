@@ -630,7 +630,7 @@ describe("VideoPlayer", () => {
             error: null,
         });
 
-        render(
+        const { container } = render(
             <VideoPlayer
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
@@ -642,6 +642,18 @@ describe("VideoPlayer", () => {
         expect(slider).toHaveAttribute("aria-valuemin", "0");
         expect(slider).toHaveAttribute("aria-valuemax", "300");
         expect(slider).toHaveAttribute("aria-valuenow", "10");
+
+        // The host seeks relative to its own current position (it is
+        // authoritative and no longer receives drift corrections from the
+        // server). jsdom's <video> has no real clock, so seed currentTime to
+        // the state position explicitly to establish the starting point.
+        const video = container.querySelector("video");
+        expect(video).not.toBeNull();
+        Object.defineProperty(video!, "currentTime", {
+            configurable: true,
+            writable: true,
+            value: 10,
+        });
 
         // ArrowRight seeks forward through the authoritative path.
         mockSyncImmediate.mockClear();
