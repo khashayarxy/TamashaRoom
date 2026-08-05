@@ -2,7 +2,7 @@
 
 > **version:** 1.0  
 > **applies to:** TamashaRoom — synchronized watch-party platform  
-> **status:** draft — confirm before implementing on any page
+> **status:** confirmed — landing page (Welcome.tsx) implemented per this spec (2026-08-05)
 
 ---
 

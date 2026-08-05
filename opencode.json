@@ -8,6 +8,18 @@
   //     (auto-detected by OpenCode) — nothing secret is hard-coded here.
   //   - No skills are listed here: skills are discovered dynamically via the
   //     AGENTS.md -> skill -> agent-selection flow, never a hard-coded list.
+  //   - MCP: TypeUI (hosted design-system/UI-prompt resource for the design
+  //     pilot). Remote server; auth is browser OAuth stored outside the repo
+  //     (~/.local/share/opencode/mcp-auth.json), never a credential here.
+  //     Restart opencode, then `opencode mcp auth typeui` to sign in.
+  "mcp": {
+    "typeui": {
+      "type": "remote",
+      "url": "https://mcp.typeui.sh/mcp",
+      "enabled": true
+    }
+  },
+
   "model": "deepseek/deepseek-v4-flash",
   "small_model": "deepseek/deepseek-v4-flash",
 

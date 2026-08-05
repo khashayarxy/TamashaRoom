@@ -12,7 +12,7 @@
 **Purpose**: A synchronized watch-party platform for Iranian users — multiple people watch a video together from different locations, with playback kept in sync, so it feels like watching together in person rather than separately.
 **Primary language**: Persian (RTL) — the only MVP language
 **Deployment**: Shared cPanel hosting (Apache, PHP 8.4, MySQL/MariaDB, 2GB RAM, 1 CPU core, 20GB storage) for the MVP/test phase; see "Real-Time Architecture" below for the planned migration path.
-**Design system**: The authoritative design-system document is `design-systems/tamasharoom/DESIGN.md` (draft status — confirm before implementing on any page). There is no `docs/DESIGN.md` or root-level `DESIGN.md`; PRODUCT.md's bare "DESIGN.md" reference was corrected to point here.
+**Design system**: The authoritative design-system document is `design-systems/tamasharoom/DESIGN.md` (confirmed 2026-08-05 — landing page implemented per it). There is no `docs/DESIGN.md` or root-level `DESIGN.md`; PRODUCT.md's bare "DESIGN.md" reference was corrected to point here.
 
 ## Core Concept
 
