@@ -253,9 +253,10 @@ docs/SYSTEM.md ch. 18.00]
 
 ## Storage
 
-- Default filesystem disk is `local`; subtitle files stored under
-  `storage/app/public/subtitles`. [Partially confirmed — docs/TASK.md and
-  deployment-checklist reference `storage/app/public/subtitles`]
+- Default filesystem disk is `local` (root `storage/app/private`); subtitle
+  files are stored at runtime in a gitignored `subtitles` directory under that
+  root — a runtime storage location, not a tracked repo path. [Confirmed —
+  `config/filesystems.php` and `SubtitleController::SUBTITLE_DISK`]
 - `storage:link` symlink (`public/storage`) is required but does not yet exist in
   production. [Confirmed — docs/TASK.md "Deployment Readiness"]
 - Queue/cache/session all use database drivers (no Redis). [Confirmed]
