@@ -104,6 +104,10 @@ app/
   [Confirmed — docs/SYSTEM.md ch. 18.09]
 - Unauthorized resources return 404, not 403. [Confirmed]
 - No unvalidated `$request->all()` reaching Eloquent. [Confirmed]
+- Laravel 13 registers broadcasting via `bootstrap/app.php` (the framework's
+  `BroadcastServiceProvider` + `withRouting(channels: ...)`); there is no
+  `providers` array in `config/app.php` — Laravel 11+ moved provider registration
+  out of config files. [Confirmed — bootstrap/app.php, config/app.php]
 
 ---
 
@@ -276,16 +280,21 @@ Ownership is determined by `room.user_id` — there is no `role` column.
 
 ## 9. Playback Synchronization
 
-The core mechanic. No WebSockets on this host, so:
+The core mechanic. No WebSockets on this host, so events are pushed via a hosted
+service (Pusher) with polling as fallback:
 
 1. **Write path:** owner changes play/pause/seek → `PATCH /playback/{room}`
    → `Room::updatePlaybackState()` inside a DB transaction with `lockForUpdate()`,
    incrementing `state_version` and stamping `server_timestamp = microtime(true)`.
 2. **Event:** `broadcast(new PlaybackStateChanged($room, $userId))` —
-   transport-agnostic. With `BROADCAST_CONNECTION=null` this is effectively a no-op
-   today; later it pushes over Reverb without changing the feature.
-3. **Read path:** every client polls `GET /playback/{room}/state` every 3s
-   (playing) or 10s (paused) via `usePlaybackSync`.
+   transport-agnostic. Today it is pushed via Pusher (primary), with Apinator as
+   a dormant backup driver and a database queue + cron fallback; when
+   `BROADCAST_CONNECTION=null` (CI/unconfigured) it is effectively a no-op and
+   clients poll instead; later it pushes over Reverb without changing the feature.
+3. **Read path:** clients receive the pushed event; when no push transport is
+   active (`BROADCAST_CONNECTION=null` / unconfigured) they poll
+   `GET /playback/{room}/state` every 3s (playing) or 10s (paused) via
+   `usePlaybackSync`.
 4. **Client reconciliation:**
    - Optimistic concurrency: ignore responses where `state_version <= local`.
    - Drift compensation: `expected = position + (now - serverTimestamp) * rate`;
@@ -297,7 +306,7 @@ Owner                                          Guests
   │   (DB txn: lock, update, state_version++,     │
   │    server_timestamp)                          │
   │ broadcast(PlaybackStateChanged)  ───────────► │
-  │ BROADCAST_CONNECTION=null (no-op today)        │
+  │ BROADCAST_CONNECTION=pusher (push; poll fallback) │
   │                                               │ poll GET /playback/{room}/state
   │ ◄─────────────────────────────────────────────│ (3s playing / 10s paused)
   │                                               │ reconcile via state_version + drift
@@ -354,7 +363,7 @@ Sender                                           Others
   │ POST /chat/{room}/messages                     │
   │  (body ≤500 chars, throttle 30/min)            │
   │ broadcast(NewChatMessage)  ───────────────────►│
-  │  (no-op today — log driver)                    │
+  │  (delivered via Pusher; chat UI still polls)   │
   │                                                │ poll GET /chat/{room}/messages
   │ ◄──────────────────────────────────────────────│ every 3s
   │                                                │ (last 50, oldest-first)
@@ -372,7 +381,7 @@ Sender                                           Others
 Member (every 30s, with exponential backoff up to 5min)
   → POST /presence/{room}/heartbeat   (throttle 60/min)
   → updates room_members.last_seen_at
-  → broadcast(MemberPresenceChanged)  (no-op today)
+  → broadcast(MemberPresenceChanged)  (pushed via Pusher; poll fallback)
 
 beforeunload → navigator.sendBeacon(POST /presence/{room}/leave)
 

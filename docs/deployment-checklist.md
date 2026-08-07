@@ -29,7 +29,7 @@ cp .env.example .env
 | `SESSION_DRIVER` | `database` | DB-backed sessions — required on a single server |
 | `QUEUE_CONNECTION` | `database` | Queue drained by the scheduler; no persistent worker |
 | `CACHE_STORE` | `database` | DB cache store — required (Laravel 13 uses `CACHE_STORE`, not `CACHE_DRIVER`) |
-| `BROADCAST_CONNECTION` | `null` | Nothing consumes broadcast events yet (frontend polls); `null` avoids writing every event to the log. Switch to `reverb` only after migrating to a VPS |
+| `BROADCAST_CONNECTION` | `pusher` | Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when `null` (CI) or unconfigured. Future: Laravel Reverb self-hosted when scaling beyond 500 concurrent |
 | `LOG_CHANNEL` | `daily` | Rotated logs with 14-day retention — recommended for production instead of `stack`/`single` so long-running uploads/proxy streams don't bloat one file |
 | `DB_*` | Your production DB credentials | — |
 | `SENTRY_DSN` | (optional) | For error monitoring |

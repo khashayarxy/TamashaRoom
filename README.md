@@ -29,7 +29,7 @@ It started as a late-night thought: *why is it so hard to watch a movie with som
 | **Frontend** | React 19, Inertia.js 2, TypeScript (strict) |
 | **Styling** | Tailwind CSS 4, RTL-first (Persian) |
 | **Build** | Vite 5 |
-| **Infrastructure** | Shared cPanel hosting — Apache, single-core, no Docker, no Redis, no WebSockets (polling-based sync, WebSocket-ready architecture) |
+| **Infrastructure** | Shared cPanel hosting — Apache, single-core, no Docker, no Redis, no WebSockets. Broadcasting: Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when `BROADCAST_CONNECTION=null` (CI) or unconfigured. Future: Laravel Reverb self-hosted when scaling beyond 500 concurrent |
 
 ---
 

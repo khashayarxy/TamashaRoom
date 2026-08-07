@@ -7311,8 +7311,8 @@ return response()->json(['status' => 'ok']);
 
 Nothing above depends on how the event reaches other clients. That is decided once, in BROADCAST_CONNECTION:
 
-- Now (shared cPanel hosting): BROADCAST_CONNECTION=null --- broadcasting is effectively a no-op, and the frontend polls the room’s current state every 3 seconds while playing and every 10 seconds while paused/idle (Rule 2, adjustable post-MVP), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
-- Later (on a VPS with root access): BROADCAST_CONNECTION=reverb, with Laravel Reverb running as a supervised process --- something cPanel’s hosting model cannot support, since it requires a long-lived process outside PHP-FPM’s request lifecycle. The same broadcast(new PlaybackStateChanged(...)) call now pushes over a WebSocket instead of waiting to be polled.
+- Now (shared cPanel hosting): BROADCAST_CONNECTION=pusher --- Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when BROADCAST_CONNECTION=null (CI) or unconfigured, on the Rule 2 tiered cadence (every 3 seconds while playing, every 10 seconds while paused/idle, adjustable post-MVP), reading the same data the event carries. Expect roughly a 1-2 second sync drift between members --- acceptable for an early test phase, not frame-accurate.
+- Later (on a VPS with root access, when scaling beyond 500 concurrent): BROADCAST_CONNECTION=reverb, with Laravel Reverb running as a supervised process --- something cPanel’s hosting model cannot support, since it requires a long-lived process outside PHP-FPM’s request lifecycle. The same broadcast(new PlaybackStateChanged(...)) call now pushes over a WebSocket instead of waiting to be polled.
 
 On the frontend, hide this behind one hook so components never know which transport is active:
 

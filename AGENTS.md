@@ -31,11 +31,14 @@ MySQL/MariaDB + Tailwind CSS 4 + Headless UI (@headlessui/react) + Zustand (UI s
 background workers, no root access.**
 
 Playback sync (the product's core mechanic) would normally use WebSockets.
-Instead: state changes are written as a Laravel broadcastable Event, and the
-frontend polls for it on a tiered cadence — 3 seconds while playing, 10 seconds
-while paused/idle (adjustable post-MVP). This is deliberate and transport-agnostic
-— moving to real-time later means installing Laravel Reverb on a VPS and
-flipping `BROADCAST_CONNECTION`, not rewriting the feature. **Never build new
+Instead: state changes are written as a Laravel broadcastable Event and pushed
+via the Pusher push transport (primary), with Apinator as a dormant backup
+driver and a database queue + cron fallback. Polling remains as fallback when
+`BROADCAST_CONNECTION=null` (CI) or unconfigured, on a tiered cadence — 3 seconds
+while playing, 10 seconds while paused/idle (adjustable post-MVP). This is
+deliberate and transport-agnostic — moving to real-time later means installing
+Laravel Reverb on a VPS when scaling beyond 500 concurrent and flipping
+`BROADCAST_CONNECTION`, not rewriting the feature. **Never build new
 room-state features against direct polling of a model — always go through the
 Event**, so the future migration stays a driver swap. See the
 `laravel-backend-rules` skill for the full pattern.

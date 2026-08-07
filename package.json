@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit",
     "format": "prettier --write 'resources/js/**/*.{ts,tsx,css}'",
     "format:check": "prettier --check 'resources/js/**/*.{ts,tsx,css}'",
+    "prettier:check": "npm run format:check",
     "format:php": "php vendor/bin/pint",
     "check:docs": "node scripts/check-docs.cjs",
     "test": "vitest run",

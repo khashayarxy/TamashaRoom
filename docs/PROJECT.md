@@ -33,8 +33,9 @@ A user creates a private room and provides a video source (an external link — 
 
 Playback sync is the product's core mechanic, and it is normally built on WebSockets — which the MVP's shared cPanel hosting does not support (see "Tech Stack" below). For the test/MVP phase:
 
-- Playback state changes are written as a Laravel broadcastable Event (`PlaybackStateChanged`); the frontend polls for it every 3 seconds while playing (10 seconds when paused) — see `resources/js/Hooks/use-playback-sync.ts` and Chapter 18.05, Rule 2. Expect roughly 1–2 seconds of sync drift between members — acceptable for early testing, not frame-accurate.
-- The write path and the event are deliberately transport-agnostic (Chapter 18.05, Rule 3): moving to real-time later is a `BROADCAST_CONNECTION` config change plus a Laravel Reverb install on a VPS, not a feature rewrite. No component that reads room state needs to change.
+- Broadcasting: Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when `BROADCAST_CONNECTION=null` (CI) or unconfigured.
+- Playback state changes are written as a Laravel broadcastable Event (`PlaybackStateChanged`) and pushed via the broadcast driver; when no push transport is active, the frontend polls on a tiered cadence — every 3 seconds while playing (10 seconds when paused) — see `resources/js/Hooks/use-playback-sync.ts` and Chapter 18.05, Rule 2. Expect roughly 1–2 seconds of sync drift between members — acceptable for early testing, not frame-accurate.
+- The write path and the event are deliberately transport-agnostic (Chapter 18.05, Rule 3): moving to real-time later is a `BROADCAST_CONNECTION` config change plus a Laravel Reverb install on a VPS (self-hosted when scaling beyond 500 concurrent), not a feature rewrite. No component that reads room state needs to change.
 - **Do not build new room-state features against direct polling of a model.** Always go through the Event, so the future migration stays a driver swap.
 
 ## Tech Stack
@@ -63,7 +64,7 @@ Playback sync is the product's core mechanic, and it is normally built on WebSoc
 | Linting (JS/TS) | ESLint | 9.x | Flat config, no framework-specific preset |
 | Linting (PHP) | Laravel Pint | latest | PHP code style |
 | Formatting | Prettier | 3.x | JS/TS/CSS formatting |
-| Real-time (planned, post-MVP) | Laravel Reverb + Laravel Echo | — | WebSocket transport for playback sync, once migrated off shared hosting to a VPS with root access. **Not installed for the MVP** — see "Real-Time Architecture" above and SYSTEM.md 18.05, Rule 3. |
+| Real-time transport | Pusher Channels (push) + Laravel Echo (client) | — | Push transport for playback sync/presence, with Apinator as a dormant backup driver and polling as fallback. Future: Laravel Reverb self-hosted on a VPS when scaling beyond 500 concurrent — see "Real-Time Architecture" above and SYSTEM.md 18.05, Rule 3. |
 
 **Deployment target**: shared cPanel hosting — Apache, PHP 8.4, MySQL/MariaDB, 2GB RAM, 1 CPU core, 20GB storage. No Docker, no Redis, no WebSockets, no persistent background workers, no root access. See SYSTEM.md, Chapter 18, for the full rationale and the rules this constrains.
 
@@ -249,11 +250,11 @@ SESSION_DRIVER=database
 SESSION_SECURE_COOKIE=true
 QUEUE_CONNECTION=database
 
-# Broadcasting — no WebSocket server on this host, and nothing currently
-# consumes the broadcast events (the frontend polls instead), so this is `null`
-# to avoid writing every event to the log. Change to
-# BROADCAST_CONNECTION=reverb only after migrating to a VPS.
-BROADCAST_CONNECTION=null
+# Broadcasting — Pusher push transport (primary), Apinator backup (dormant),
+# database queue + cron fallback. Polling remains as fallback when this is
+# null (CI) or unconfigured. BROADCAST_CONNECTION=reverb only after migrating
+# to a VPS when scaling beyond 500 concurrent.
+BROADCAST_CONNECTION=pusher
 
 # Capacity ceiling — system-wide active-room cap (config/tamasharoom.php)
 TAMASHAROOM_MAX_CONCURRENT_ROOMS=50
