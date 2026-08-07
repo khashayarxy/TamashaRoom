@@ -112,10 +112,11 @@ class SecurityTest extends TestCase
     #[Test]
     public function csp_connect_src_allows_the_pusher_websocket_when_broadcasting_is_pusher(): void
     {
-        putenv('PUSHER_APP_CLUSTER=ap1');
-        putenv('PUSHER_HOST=');
-        putenv('PUSHER_SCHEME=https');
         config(['broadcasting.default' => 'pusher']);
+        // Pin the cluster via config(), not putenv(): env() reads $_ENV first,
+        // which the bootstrapped .env already populated (empty in CI, where the
+        // copied .env.example has no cluster) — putenv cannot override it.
+        config(['broadcasting.connections.pusher.options.cluster' => 'ap1']);
 
         $response = $this->actingAs($this->owner)->get('/dashboard');
         $response->assertOk();

@@ -107,10 +107,13 @@ class SecurityHeadersMiddleware
      * The WebSocket origin the Echo client dials when the pusher driver is
      * active. Mirrors resources/js/lib/echo.ts: PUSHER_HOST (VITE_PUSHER_HOST
      * client-side) overrides the default ws-{cluster}.pusher.com, and
-     * PUSHER_SCHEME decides ws:// vs wss://. Read from raw env, not the
-     * resolved broadcast options — the driver's `host` option is the REST API
-     * host (api-*.pusher.com), which is NOT the WebSocket host. Null when
-     * broadcasting is not pusher, so the CSP stays as tight as ever.
+     * PUSHER_SCHEME decides ws:// vs wss://. The cluster is read from the
+     * resolved broadcast config so an empty PUSHER_APP_CLUSTER degrades to the
+     * mt1 default instead of emitting a broken "ws-.pusher.com" origin, and
+     * tests can pin it via config(). PUSHER_HOST/PUSHER_SCHEME stay raw env —
+     * the driver's `host` option is the REST API host (api-*.pusher.com),
+     * which is NOT the WebSocket host. Null when broadcasting is not pusher,
+     * so the CSP stays as tight as ever.
      */
     private function pusherWebSocketOrigin(): ?string
     {
@@ -118,7 +121,7 @@ class SecurityHeadersMiddleware
             return null;
         }
 
-        $cluster = (string) env('PUSHER_APP_CLUSTER', 'mt1');
+        $cluster = (string) (config('broadcasting.connections.pusher.options.cluster') ?: 'mt1');
         $host = (string) env('PUSHER_HOST', '');
         $scheme = (string) env('PUSHER_SCHEME', 'https');
 
