@@ -51,6 +51,10 @@ node_test.txt
 _ide_helper.php
 .phpactor.json
 
+# ─── Agent Skills Tooling ─────────────────────────────────────────────────
+.agents/
+skills-lock.json
+
 # ─── OS Files ─────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
