@@ -236,3 +236,207 @@ New decisions get a new ID in sequence. Only decisions actually supported by
 project materials (source code, docs, or verified test results) should be added.
 If historical reasoning is unknown, say so explicitly rather than inventing it —
 as done above for DECISION-002.
+
+
+## DECISION-011 - Guest join = real user row with is_guest flag
+
+- **ID:** DECISION-011
+- **Title:** Unauthenticated watch-room join via a flagged user row, not a guest/anon role
+- **Date:** 2026-08-07
+- **Status:** ACCEPTED (implemented)
+- **Context:** Invite-link recipients without an account should join a room and
+  watch/chat with only a display name - no email/password/login. But the schema
+  forces a real `users` row for a member: `users.email` is NOT NULL unique,
+  `users.password` is NOT NULL, and `room_members.user_id` / `chat_messages.user_id`
+  are NOT NULL FKs with no nullable "guest user" channel.
+- **Decision:** A joining guest becomes a real `users` row with `is_guest = true`,
+  a randomized unique `guest-{uuid}@tamasharoom.local` email, and a random
+  password. `RoomController@join` creates it and calls `Auth::login` only after
+  `Gate::forUser($user)->authorize('join', $room)` passes, so full/locked rooms
+  never leave an orphan guest row. The `/rooms/join/{inviteCode}` GET/POST routes
+  moved out of the `['auth','verified']` group (still `throttle:join`).
+- **Reason:** Reuses the entire existing stack - `RoomPolicy`, chat, playback,
+  presence, and subtitle routes all already branch on the authenticated user, and
+  `verified` middleware is a no-op because `User` does not implement
+  `MustVerifyEmail`. No new "guest member" concept, no nullable-FK schema change,
+  no parallel auth channel.
+- **Consequences:** A guest occupies a `users` row (potential growth; accept for
+  MVP, prunable later). Guests can join rooms *only* via the invite link; they
+  never see a global dashboard because registration stays account-gated.
+- **Alternatives considered:** Separate anonymous `room_guests` table
+  (rejected - duplicates the whole member identity contract); making user FKs
+  nullable (rejected - schema-wide churn, weakens referential integrity).
+- **Source:** app/Http/Controllers/RoomController.php, app/Models/User.php,
+  routes/web.php, tests/Feature/GuestJoinTest.php.
+
+---
+
+## DECISION-012 - Custom player controls on native `<video>`
+
+- **ID:** DECISION-012
+- **Title:** Rebuild the player UI on native `<video>`, not a player library
+- **Date:** 2026-08-07
+- **Status:** SUPERSEDED by DECISION-013 (Plyr) on 2026-08-07 — see below.
+- **Context:** The player needed a polished, buffered-aware seekbar, keyboard
+  shortcuts, RTL/mobile support, with soft subtitle overlay - while continuing to
+  drive the existing play/pause/seek sync contract. Native browser controls cannot
+  show buffered+position cleanly and controlled sync.
+- **Decision:** Rebuild the control overlay by hand over the native `<video>`
+  element (no library). The seekbar renders a buffered rail (`video.buffered`) +
+  a played fill + thumb; time is a `tabular-nums` current/duration readout;
+  keyboard shortcuts (Space, ArrowLeft/Right, m, f) are scoped to the player
+  wrapper (`tabIndex=0`, `aria-keyshortcuts`) so the chat box and seek slider are
+  never hijacked.
+- **Reason:** A library (Plyr etc.) would add a dependency for UI that the native
+  element + React state already cover, and any opinionated library fights the
+  existing sync contract. Keeping it hand-written keeps the polling-to-WebSocket
+  migration branch a pure transport swap with no player coupling.
+- **Status change 2026-08-07:** REVERSED after implementation review — the
+  hand-rolled keyboard/slider logic turned out harder than expected to keep
+  accessible and RTL-correct (custom slider drag math, keyboard focus management,
+  `aria-keyshortcuts` conflicts), and the implementer's manual `<video>` wiring
+  was recreated by Plyr anyway (see DECISION-013).
+- **Source:** resources/js/Components/composite/video-player.tsx (deleted),
+  resources/js/__tests__/video-player.test.tsx (deleted).
+
+---
+
+## DECISION-013 - Plyr player (`plyr-react`) for the media surface
+
+- **ID:** DECISION-013
+- **Title:** Adopt Plyr (`plyr-react`) as the media player UI
+- **Date:** 2026-08-07
+- **Status:** SUPERSEDED by DECISION-014 (Video.js v10) on 2026-08-07 — see below.
+- **Context:** The hand-written player (DECISION-012) carried its own seekbar
+  math, keyboard scoping, buffered rails, and RTL/accessibility fixes that a
+  battle-tested library already ships. Replacing it needed to keep the exact
+  poll-to-Event sync contract (`use-playback-sync` → `sync`/`syncImmediate`)
+  and the drift/tap-to-play/ended overlay behaviors working.
+- **Decision:** Render `PlyrPlayer` (a thin presenter) + `SyncedPlyrPlayer` (the
+  sync shell) in `resources/js/Components/Player/`. Plyr owns controls (Persian
+  `i18n`, RTL video bar), keyboard, buffer, captions (native `<track>`), and
+  fullscreen. The sync shell keeps host/guest authority rules, drift correction
+  via `computeExpectedPosition`, autoplay-blocked overlay, proxy→direct
+  fallback, end card, and the subtitle cue overlay.
+- **Reason:** Eliminates ~500 lines of hand-rolled control/seek/keyboard RTL
+  code, gives accessibility + captions for free, and the sync stays a transport
+  swap (plays through the same hook). Verified fixes that made it work:
+  (1) `Plyr` swallows `timeupdate` — listeners bind on the **media element**
+  (`player.media`), not the instance; (2) `react-aptor` recreates the instance
+  when `source` changes, so a watchdog re-binds to whatever media element is
+  current; (3) `apiRef.current.plyr` becomes a placeholder Proxy before mount —
+  every handler reads the live media element, never assumed instance fields;
+  (4) `apply`-driven `play()`/`pause()` re-fires native `play`/`pause` events —
+  an `applyingRef` guard prevents the resulting sync loop that previously
+  yanked the host backward; (5) the host syncs play/pause with a position so
+  the server never records a stale `position_seconds:0`.
+- **Status change 2026-08-07:** SUPERSEDED. Plyr's `source` change path proved
+  unreliable in the field: `react-aptor` destroys and recreates the whole
+  instance (with its element listeners) on every src swap, forcing the ~200 ms
+  watchdog re-bind, and Plyr's `timeupdate` suppression kept the event contract
+  fragile. Video.js v10 (DECISION-014) replaces it.
+- **Consequences:** `plyr-react` + `plyr` added to dependencies; the sync hook,
+  controllers, and event model are untouched. Custom controls code (DECISION-012)
+  and its tests removed. Replaced by DECISION-014.
+- **Alternatives considered:** Keeping DECISION-012's custom controls (rejected —
+  the seekbar/X.550RTL/accessibility cost outweighs it), video.js (rejected — an
+  equal dependency with no user-facing gain over Plyr here).
+- **Source:** resources/js/Components/Player/PlyrPlayer.tsx,
+  resources/js/Components/Player/SyncedPlyrPlayer.tsx,
+  resources/js/__tests__/plyr-player.test.tsx.
+
+---
+
+## DECISION-014 - Video.js v10 (`@videojs/react`) for the media surface
+
+- **ID:** DECISION-014
+- **Title:** Adopt Video.js v10 (`@videojs/react`) as the media player UI
+- **Date:** 2026-08-07
+- **Status:** ACCEPTED (implemented)
+- **Context:** Plyr (DECISION-013) carried the playback surface but its
+  integration was fragile in exactly the area this app depends on: source
+  changes. `react-aptor` destroys and recreates the entire player instance on
+  every `source` swap, dropping the media-element event listeners the sync
+  contract binds — the workaround was a ~200 ms watchdog re-bind and a host of
+  lifecycle guards. The replacement must keep the exact poll-to-Event sync
+  contract (`use-playback-sync` → `sync`/`syncImmediate`) and all overlay
+  behaviors (drift, tap-to-play, end card, proxy→direct fallback, subtitles).
+- **Decision:** Rebuild the player on Video.js v10 (`@videojs/react`
+  `10.0.0-beta.26`): `VideoJsPlayer` (thin presenter) + `SyncedVideoJsPlayer`
+  (sync shell) in `resources/js/Components/Player/`, with `lib/player-source.ts`
+  holding the position-preservation decision. v10's **`store.loadSource()`** is
+  the documented src-change API — it mutates the SAME `<video>` element
+  (`media.src = src; media.load()`), so element-bound event listeners survive
+  every source swap and no watchdog/recreate logic is needed. Source changes are
+  therefore driven through the store, never through React `key`/remount. Persian
+  i18n via `I18nProvider locale="fa"` + `@videojs/react/i18n/locales/fa/register`
+  (play="پخش", pause="توقف", seek="جستجو"); the v10 skin CSS is imported in
+  `resources/css/app.css` (replacing the plyr stylesheet).
+- **Reason:** Solves the exact failure mode that sank DECISION-013: a stable
+  element identity across src swaps, so the sync shell binds native `play`,
+  `pause`, `seeked`, `timeupdate`, `ended`, `error` once and they keep working.
+  The `applyingRef` guard, host/guest authority, drift correction, and the
+  autoplay-block/end overlays port over unchanged. v10 is transport-agnostic —
+  the polling→WebSocket migration stays a driver swap.
+- **Key implementation notes:**
+  - `loadSource()` throws until the store is attached; the `Player.Provider`
+    attaches in an effect after first commit, so the load effect gates on
+    `store.target` with a `setTimeout(0)` retry.
+  - `Player.usePlayer()` returns the store instance; `useMedia()` returns the
+    raw media element (used as the `<Video>` ref), so `SubtitleOverlay` reads a
+    live `HTMLVideoElement` through the imperative handle.
+  - `loadSource` natively resets `currentTime`; `lib/player-source.ts` decides
+    when a source change is a same-content proxy→direct transport fallback
+    (preserve position, clamped to the new duration) vs. a genuinely new video
+    (reset — `PlaybackController@setVideo` already zeroes `position_seconds`).
+  - Imperative handle contract preserved: getCurrentTime, getDuration,
+    getVolume, isPlaying, seekTo, play, pause, toggleMuted, toggleCaptions,
+    enterFullscreen, getVideoElement.
+- **Consequences:** `@videojs/react` + `@videojs/*` deps replace `plyr-react`
+  (removed). The sync hook, controllers, events, and polling are untouched.
+  Show-page bundle grows (~97 kB gzip) for the full-featured v10 skin; skin CSS
+  replaces the plyr stylesheet. E2E selectors moved from `.plyr__controls
+  button[data-plyr="play"]` / slider "موقعیت پخش" to `button.media-button--play`
+  / slider "جستجو".
+- **Alternatives considered:** Keeping Plyr and hardening the watchdog
+  (rejected — fights the library's destroy/recreate model); native `<video>` +
+  hand-rolled controls (rejected in DECISION-012/013 — accessibility/RTL cost);
+  driving src changes via a React `key` remount on v10 (rejected — breaks the
+  same-element guarantee that makes the listener binding work).
+- **Source:** resources/js/Components/Player/VideoJsPlayer.tsx,
+  resources/js/Components/Player/SyncedVideoJsPlayer.tsx,
+  resources/js/lib/player-source.ts,
+  resources/js/__tests__/videojs-player.test.tsx,
+  resources/js/__tests__/player-source.test.ts,
+  tests/e2e/playback-sync-verification.spec.ts, tests/e2e/tap-to-play.spec.ts.
+
+## DECISION-015 — Pusher → Apinator migration path
+
+- **ID:** DECISION-015
+- **Title:** Apinator as backup broadcast driver (Pusher-compatible endpoint)
+- **Date:** 2026-08-07
+- **Status:** ACCEPTED (configured, inactive — `BROADCAST_CONNECTION` stays `pusher`)
+- **Context:** Pusher Channels is the active real-time transport, but it is a
+  single vendor dependency for the product's core playback-sync and presence
+  mechanics. A second, Pusher-compatible hosted endpoint costs no client SDK
+  change and de-risks a vendor outage. Self-hosting Reverb remains the eventual
+  destination (per DECISION-002 / the transport-agnostic backbone), but that
+  needs a VPS, which is out of the current shared-hosting budget.
+- **Decision:** Add an `apinator` broadcast connection to
+  `config/broadcasting.php` (`driver => 'pusher'`, custom `host =>
+  api.apinator.io`) and a matching branch in `resources/js/lib/echo.ts` driven
+  by `VITE_BROADCAST_CONNECTION`. Configured but inactive; the active driver
+  stays `pusher`.
+- **Reason:** Apinator's free tier covers up to 500 concurrent connections —
+  headroom for the MVP — and it speaks the same Pusher protocol, so `pusher-js`
+  + `laravel-echo` and the `PusherBroadcaster` backend need no rework. Switching
+  is an env change (`BROADCAST_CONNECTION=apinator` +
+  `VITE_BROADCAST_CONNECTION=apinator`), exactly the driver-swap the
+  transport-agnostic design was built for.
+- **Consequences:** The `apinator` connection is defined but dormant; no secrets
+  live in `.env.example` (placeholders only). CI keeps `BROADCAST_CONNECTION=null`
+  so broadcasts stay no-ops and the frontend polls. Future: migrate to a
+  self-hosted Reverb when approaching 500+ concurrent connections or when more
+  stability is needed.
+- **Source:** config/broadcasting.php, resources/js/lib/echo.ts, .env.example,
+  docs/TASK.md "Pusher Push Transport: broadcast delivery for E2E".

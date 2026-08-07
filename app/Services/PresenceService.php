@@ -65,13 +65,39 @@ class PresenceService
     {
         $timeout = now()->subSeconds(90);
 
-        return RoomMember::query()
+        $affectedRoomIds = RoomMember::query()
+            ->where('presence_status', 'online')
+            ->where('last_seen_at', '<', $timeout)
+            ->select('room_id')
+            ->distinct()
+            ->pluck('room_id');
+
+        $updated = RoomMember::query()
             ->where('presence_status', 'online')
             ->where('last_seen_at', '<', $timeout)
             ->update([
                 'presence_status' => 'offline',
                 'disconnected_at' => now(),
             ]);
+
+        foreach ($affectedRoomIds as $roomId) {
+            $room = Room::find($roomId);
+
+            if ($room !== null) {
+                $this->dispatchPresenceEvent($room);
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Broadcast the current member roster for a room. Public entry point used by
+     * membership mutations that happen outside this service (join/kick/transfer).
+     */
+    public function broadcastMembers(Room $room): void
+    {
+        $this->dispatchPresenceEvent($room);
     }
 
     private function dispatchPresenceEvent(Room $room): void

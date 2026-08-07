@@ -1,10 +1,12 @@
 import api from "@/lib/api";
+import { getEcho, type EchoPresenceChannel } from "@/lib/echo";
 import {
     buildPresenceBaseline,
     derivePresenceMoments,
     type PresenceBaseline,
     type PresenceMoment,
 } from "@/lib/presence-moments";
+import { usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface PresenceMember {
@@ -27,6 +29,22 @@ interface UsePresenceOptions {
     onRemoved?: () => void;
 }
 
+/**
+ * Presence transport-agnostic hook.
+ *
+ * Push mode (default when Pusher is configured): the member roster rides the
+ * room's presence channel (`here`/`joining`/`leaving`) plus the server's
+ * `member.presence.changed` broadcasts (status changes, kick, transfer,
+ * timeout). Every roster change flows through `applySnapshot`, which diffs
+ * against the baseline — so moments are never double-emitted regardless of
+ * which source delivers the same roster.
+ *
+ * The heartbeat POST (every 30s, exponential backoff) is unchanged in both
+ * modes: it owns `connected`, keeps `presence_status` fresh on the server, and
+ * its 403/404 is the fallback removal signal when push is unavailable.
+ *
+ * Polling fallback (no Pusher configured, e.g. CI): the same GET every 5s.
+ */
 export function usePresence(
     roomId: number | null,
     options: UsePresenceOptions = {},
@@ -42,6 +60,7 @@ export function usePresence(
     const [members, setMembers] = useState<PresenceMember[]>([]);
     const [connected, setConnected] = useState(false);
     const [moments, setMoments] = useState<PresenceMoment[]>([]);
+    const membersRef = useRef<PresenceMember[]>([]);
     const baselineRef = useRef<PresenceBaseline | null>(null);
     const momentIdRef = useRef(0);
     const versionRef = useRef(0);
@@ -55,6 +74,15 @@ export function usePresence(
     const documentHiddenRef = useRef(
         typeof document !== "undefined" && document.hidden,
     );
+    const cancelledRef = useRef(false);
+    const currentUserIdRef = useRef<number | null>(null);
+    const channelRef = useRef<EchoPresenceChannel | null>(null);
+    const reconnectCleanupRef = useRef<{
+        pusher: { connection: { unbind: (e: string, c: () => void) => void } };
+        onConnected: () => void;
+    } | null>(null);
+    const fetchPresenceRef = useRef<() => Promise<void>>(async () => {});
+    const applySnapshotRef = useRef<(list: PresenceMember[]) => void>(() => {});
 
     useEffect(() => {
         baselineRef.current = null;
@@ -65,6 +93,58 @@ export function usePresence(
     useEffect(() => {
         roomIdRef.current = roomId;
     }, [roomId]);
+
+    // Current user id for the kicked-self detection. Guarded so the hook still
+    // works outside the Inertia page context (component tests).
+    let currentUserId: number | null = null;
+    try {
+        const page = usePage();
+        currentUserId =
+            (page.props as { auth?: { user?: { id?: number } } }).auth?.user
+                ?.id ?? null;
+    } catch {
+        currentUserId = null;
+    }
+    useEffect(() => {
+        currentUserIdRef.current = currentUserId;
+    }, [currentUserId]);
+
+    /**
+     * Single path for every roster snapshot — initial GET, presence-channel
+     * events, and broadcasts. Diffs against the baseline (so repeated/duplicate
+     * deliveries emit no moments) and detects when the current user is no
+     * longer a member (kicked/removed) to fire onRemoved.
+     */
+    const applySnapshot = useCallback((list: PresenceMember[]) => {
+        if (cancelledRef.current || removedRef.current) return;
+
+        const myId = currentUserIdRef.current;
+        if (myId !== null && !list.some((m) => m.user_id === myId)) {
+            removedRef.current = true;
+            setConnected(false);
+            onRemovedRef.current?.();
+            return;
+        }
+
+        const derived = derivePresenceMoments(
+            baselineRef.current,
+            list,
+            Date.now(),
+        );
+        if (derived.length > 0) {
+            setMoments((prev) => [
+                ...prev,
+                ...derived.map((moment) => ({
+                    ...moment,
+                    id: `moment-${++momentIdRef.current}`,
+                })),
+            ]);
+        }
+
+        baselineRef.current = buildPresenceBaseline(list);
+        membersRef.current = list;
+        setMembers(list);
+    }, []);
 
     const scheduleHeartbeat = useCallback((delay: number) => {
         const gen = ++generationRef.current;
@@ -116,23 +196,7 @@ export function usePresence(
                 `/presence/${roomId}`,
             );
 
-            const derived = derivePresenceMoments(
-                baselineRef.current,
-                data,
-                Date.now(),
-            );
-            if (derived.length > 0) {
-                setMoments((prev) => [
-                    ...prev,
-                    ...derived.map((moment) => ({
-                        ...moment,
-                        id: `moment-${++momentIdRef.current}`,
-                    })),
-                ]);
-            }
-
-            baselineRef.current = buildPresenceBaseline(data);
-            setMembers(data);
+            applySnapshot(data);
         } catch (error) {
             // A 403/404 means the room is no longer accessible to this user —
             // typically they were removed/kicked. Surface that distinctly from
@@ -146,33 +210,106 @@ export function usePresence(
             // The presence poll only updates member data; `connected` is owned
             // by the heartbeat (single source of truth).
         }
-    }, [roomId]);
+    }, [roomId, applySnapshot]);
+
+    useEffect(() => {
+        fetchPresenceRef.current = fetchPresence;
+    }, [fetchPresence]);
+
+    useEffect(() => {
+        applySnapshotRef.current = applySnapshot;
+    }, [applySnapshot]);
 
     useEffect(() => {
         if (!roomId) return;
 
-        scheduleHeartbeat(0);
-        fetchPresence();
+        cancelledRef.current = false;
+        const echo = getEcho();
 
-        pollTimerRef.current = setInterval(fetchPresence, POLL_INTERVAL);
+        scheduleHeartbeat(0);
+        void fetchPresenceRef.current();
+
+        if (echo) {
+            // Echo's join() already prepends the presence- prefix, so pass the
+            // base channel name to subscribe to presence-room.{id} on the wire.
+            const channel = echo.join(`room.${roomId}`);
+            channelRef.current = channel;
+
+            channel.here((echoMembers) => {
+                if (cancelledRef.current) return;
+                applySnapshotRef.current(echoMembers as PresenceMember[]);
+            });
+
+            channel.joining((member) => {
+                if (cancelledRef.current) return;
+                const info = member as PresenceMember;
+                const current = membersRef.current;
+                if (!current.some((m) => m.user_id === info.user_id)) {
+                    applySnapshotRef.current([...current, info]);
+                }
+            });
+
+            channel.leaving((member) => {
+                if (cancelledRef.current) return;
+                const info = member as PresenceMember;
+                applySnapshotRef.current(
+                    membersRef.current.filter(
+                        (m) => m.user_id !== info.user_id,
+                    ),
+                );
+            });
+
+            channel.listen(".member.presence.changed", (payload) => {
+                if (cancelledRef.current) return;
+                const data = payload as { members?: PresenceMember[] };
+                if (Array.isArray(data.members)) {
+                    applySnapshotRef.current(data.members);
+                }
+            });
+
+            // A dropped/re-established socket must re-seed the roster.
+            const pusher = echo.connector.pusher;
+            const onConnected = () => {
+                if (!cancelledRef.current) void fetchPresenceRef.current();
+            };
+            pusher.connection.bind("connected", onConnected);
+            reconnectCleanupRef.current = { pusher, onConnected };
+        }
+
+        if (!echo) {
+            pollTimerRef.current = setInterval(() => {
+                void fetchPresenceRef.current();
+            }, POLL_INTERVAL);
+        }
 
         const handleVisibility = () => {
             documentHiddenRef.current = document.hidden;
             if (document.visibilityState === "visible") {
-                void fetchPresence();
+                void fetchPresenceRef.current();
                 scheduleHeartbeat(0);
             }
         };
         document.addEventListener("visibilitychange", handleVisibility);
 
         return () => {
+            cancelledRef.current = true;
             invalidateGeneration(generationRef);
             if (heartbeatTimerRef.current)
                 clearTimeout(heartbeatTimerRef.current);
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
             document.removeEventListener("visibilitychange", handleVisibility);
+            if (reconnectCleanupRef.current) {
+                reconnectCleanupRef.current.pusher.connection.unbind(
+                    "connected",
+                    reconnectCleanupRef.current.onConnected,
+                );
+                reconnectCleanupRef.current = null;
+            }
+            channelRef.current?.stopListening(".member.presence.changed");
+            echo?.leave(`room.${roomId}`);
+            channelRef.current = null;
         };
-    }, [roomId, scheduleHeartbeat, fetchPresence]);
+    }, [roomId, scheduleHeartbeat]);
 
     useEffect(() => {
         if (!roomId) return;

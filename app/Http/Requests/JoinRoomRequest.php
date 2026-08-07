@@ -17,6 +17,7 @@ class JoinRoomRequest extends FormRequest
     {
         return [
             'invite_code' => ['required', 'string', 'exists:rooms,invite_code'],
+            'guest_name' => ['nullable', 'string', 'max:60'],
         ];
     }
 

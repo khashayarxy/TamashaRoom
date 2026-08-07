@@ -5364,12 +5364,14 @@ resources/js/Components/
 ├── composite/ # Domain-specific composites (cross-feature)  
 │ ├── room-chat.tsx  
 │ ├── member-list.tsx  
-│ ├── video-player.tsx  
 │ ├── subtitle-overlay.tsx  
 │ ├── subtitle-settings.tsx  
 │ ├── room-settings.tsx  
 │ ├── confirm-dialog.tsx  
 │ └── toast.tsx  
+├── Player/ # Playback surface (Video.js v10)  
+│ ├── VideoJsPlayer.tsx  
+│ └── SyncedVideoJsPlayer.tsx  
 └── (plus legacy Breeze components at the root: PrimaryButton, TextInput, Modal, Dropdown, …)
 
 Layout components do not live under Components/ — they live in `resources/js/Layouts/` (AppLayout, AuthenticatedLayout, GuestLayout).  

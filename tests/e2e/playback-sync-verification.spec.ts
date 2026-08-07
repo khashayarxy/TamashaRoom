@@ -120,8 +120,9 @@ async function videoInfo(page: Page): Promise<{
 }> {
     return page.evaluate(() => {
         const v = document.querySelector("video");
-        // The sync error banner is bg-destructive/90 (see VideoPlayer). Plain
-        // bg-destructive is the ConfirmDialog delete button — not a sync error.
+        // The sync error banner is bg-destructive/90 (see SyncedVideoJsPlayer).
+        // Plain bg-destructive is the ConfirmDialog delete button — not a
+        // sync error.
         const errorBanner = !!document.querySelector(
             '[class*="bg-destructive/90"]',
         );
@@ -136,16 +137,22 @@ async function videoInfo(page: Page): Promise<{
 /**
  * The browser blocks unmuted autoplay without a prior gesture (loopback is not
  * exempt for this Chromium build), so both host and guest need one real click
- * to start. This toggles the play/pause button until the video is actually
+ * to start. This toggles the v10 play button until the video is actually
  * advancing, mirroring how a real user starts playback.
+ *
+ * Video.js v10's play button has a stable selector (button.media-button--play)
+ * whose aria-label flips between "پخش" and "مکث", so the label is not a stable
+ * locator — the class always is. The controls are pointer-events:none while
+ * idle, so the click is dispatched synchronously via JS (the same pattern as
+ * startPlayback below) rather than a pointer click that races the fade-out.
  */
 async function ensurePlaying(page: Page): Promise<boolean> {
     for (let i = 0; i < 5; i++) {
         const s = await videoInfo(page);
         if (!s.paused && s.currentTime > 0) return true;
-        const pb = page.getByRole("button", { name: "پخش یا مکث" });
+        const pb = page.locator("button.media-button--play");
         if ((await pb.count()) > 0) {
-            await pb.click();
+            await pb.evaluate((el) => (el as HTMLButtonElement).click());
             await page.waitForTimeout(1500);
         }
     }
@@ -396,10 +403,10 @@ test.describe("Playback sync drift + out-of-order PATCH guard", () => {
 
         // Trigger two rapid syncImmediate actions via the host UI. The first is held;
         // the second is forwarded and bumps the real server version.
-        const playBtn = host.getByRole("button", { name: "پخش یا مکث" });
-        await playBtn.click();
+        const playBtn = host.locator("button.media-button--play");
+        await playBtn.evaluate((el) => (el as HTMLButtonElement).click());
         await host.waitForTimeout(400);
-        await host.getByRole("slider", { name: "موقعیت پخش" }).focus();
+        await host.getByRole("slider", { name: "جستجو" }).focus();
         await host.keyboard.press("ArrowRight");
 
         await expect
@@ -425,7 +432,7 @@ test.describe("Playback sync drift + out-of-order PATCH guard", () => {
             .toBeGreaterThan(0);
 
         // A fresh seek still works and produces a new PATCH.
-        await host.getByRole("slider", { name: "موقعیت پخش" }).focus();
+        await host.getByRole("slider", { name: "جستجو" }).focus();
         await host.keyboard.press("ArrowRight");
         await expect
             .poll(() => patchCount, { timeout: 15000 })

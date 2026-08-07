@@ -12,16 +12,24 @@ use App\Http\Requests\UpdateRoomRequest;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use App\Services\PresenceService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RoomController extends Controller
 {
+    public function __construct(
+        private readonly PresenceService $presence,
+    ) {}
+
     public function index(Request $request): Response
     {
         $rooms = Room::query()
@@ -100,9 +108,24 @@ class RoomController extends Controller
                 ->where('invite_code', $inviteCode)
                 ->firstOrFail();
 
+            $authenticatedUser = $request->user();
+            $isGuest = $authenticatedUser === null;
+            $createdGuest = null;
+
+            $user = $authenticatedUser;
+
+            if ($isGuest) {
+                $user = $this->createGuestUser($request->input('guest_name'));
+                $createdGuest = $user;
+            }
+
             try {
-                $this->authorize('join', $room);
+                Gate::forUser($user)->authorize('join', $room);
             } catch (AuthorizationException $e) {
+                if ($createdGuest !== null) {
+                    $createdGuest->delete();
+                }
+
                 return back()
                     ->withInput(['invite_code' => $inviteCode])
                     ->withErrors(['invite_code' => $e->getMessage()]);
@@ -110,7 +133,7 @@ class RoomController extends Controller
 
             RoomMember::create([
                 'room_id' => $room->id,
-                'user_id' => $request->user()->id,
+                'user_id' => $user->id,
                 'last_seen_at' => now(),
                 'presence_status' => 'online',
                 'joined_at' => now(),
@@ -118,8 +141,26 @@ class RoomController extends Controller
 
             $room->touchActivity();
 
+            if ($isGuest) {
+                Auth::login($user);
+            }
+
+            $this->presence->broadcastMembers($room);
+
             return to_route('rooms.show', $room);
         });
+    }
+
+    private function createGuestUser(?string $name): User
+    {
+        $displayName = trim((string) $name) !== '' ? trim($name) : 'مهمان';
+
+        return User::create([
+            'name' => $displayName,
+            'email' => 'guest-'.Str::uuid().'@tamasharoom.local',
+            'password' => Str::random(32),
+            'is_guest' => true,
+        ]);
     }
 
     public function members(Request $request, Room $room): JsonResponse
@@ -167,6 +208,8 @@ class RoomController extends Controller
 
         $room->members()->where('user_id', $target->id)->delete();
 
+        $this->presence->broadcastMembers($room);
+
         return response()->json(['status' => 'ok']);
     }
 
@@ -184,6 +227,8 @@ class RoomController extends Controller
 
         $room->user_id = $target->id;
         $room->save();
+
+        $this->presence->broadcastMembers($room);
 
         return response()->json(['status' => 'ok']);
     }

@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { getEcho, type EchoPresenceChannel } from "@/lib/echo";
 import {
     computeExpectedPosition,
     PlaybackState,
@@ -20,6 +21,21 @@ interface SyncOptions {
     onRemoteChange?: (state: PlaybackState) => void;
 }
 
+/**
+ * Playback sync transport-agnostic hook.
+ *
+ * Push mode (default when Pusher is configured): the host's authoritative
+ * writes are broadcast as `playback.state.changed` over the room's presence
+ * channel and applied here. A one-shot `GET /playback/{room}/state` on mount
+ * (and again on visibility-restore / socket reconnect) seeds the baseline, so
+ * late joiners and reconnects never wait for the next event.
+ *
+ * Polling fallback (no Pusher configured, e.g. CI): the same GET on the old
+ * tiered cadence — 3s while playing, 10s while idle.
+ *
+ * The write path is unchanged and identical in both modes: host-only PATCH
+ * (debounced) or immediate, guarded by the server's state_version.
+ */
 export function usePlaybackSync({
     roomId,
     isHost = false,
@@ -51,12 +67,56 @@ export function usePlaybackSync({
     const documentHiddenRef = useRef(
         typeof document !== "undefined" && document.hidden,
     );
+    const pushEnabledRef = useRef(false);
+    const channelRef = useRef<EchoPresenceChannel | null>(null);
+    const reconnectCleanupRef = useRef<{
+        pusher: { connection: { unbind: (e: string, c: () => void) => void } };
+        onConnected: () => void;
+    } | null>(null);
+    const fetchStateRef = useRef<() => Promise<void>>(async () => {});
+    const applySnapshotRef = useRef<(raw: PlaybackStateResponse) => void>(
+        () => {},
+    );
 
     useEffect(() => {
         stateRef.current = state;
     }, [state]);
 
-    const fetchStateRef = useRef<() => Promise<void>>(async () => {});
+    /**
+     * Single path for authoritative snapshots — from the state GET and from
+     * push events alike. Applies the version guard, seeds the client-clock
+     * drift baseline, extrapolates, and surfaces the corrected state.
+     */
+    const applySnapshot = useCallback(
+        (raw: PlaybackStateResponse) => {
+            if (cancelledRef.current) return;
+
+            const incoming = toPlaybackState(raw);
+
+            if (incoming.stateVersion <= versionRef.current) {
+                return;
+            }
+
+            versionRef.current = incoming.stateVersion;
+            lastPollRef.current = Date.now() / 1000;
+
+            const received = {
+                ...incoming,
+                receivedAt: lastPollRef.current,
+            };
+            const expected = computeExpectedPosition(
+                received,
+                lastPollRef.current,
+            );
+            const corrected = { ...received, positionSeconds: expected };
+
+            stateRef.current = corrected;
+            setState(corrected);
+            onRemoteChange?.(corrected);
+            setError(null);
+        },
+        [onRemoteChange],
+    );
 
     const schedulePoll = useCallback(() => {
         if (cancelledRef.current || documentHiddenRef.current) {
@@ -92,34 +152,7 @@ export function usePlaybackSync({
                 return;
             }
 
-            const incoming = toPlaybackState(data);
-
-            if (incoming.stateVersion <= versionRef.current) {
-                return;
-            }
-
-            versionRef.current = incoming.stateVersion;
-            lastPollRef.current = Date.now() / 1000;
-
-            // Baseline for drift extrapolation: the client-clock instant this
-            // authoritative snapshot was received. Extrapolation then uses
-            // purely client-monotonic time, avoiding the client↔server clock
-            // offset entirely.
-            const received = {
-                ...incoming,
-                receivedAt: lastPollRef.current,
-            };
-
-            const expected = computeExpectedPosition(
-                received,
-                lastPollRef.current,
-            );
-            const corrected = { ...received, positionSeconds: expected };
-
-            stateRef.current = corrected;
-            setState(corrected);
-            onRemoteChange?.(corrected);
-            setError(null);
+            applySnapshot(data);
         } catch {
             if (cancelledRef.current || requestId !== requestIdRef.current) {
                 return;
@@ -133,27 +166,49 @@ export function usePlaybackSync({
                 return;
             }
             setLoading(false);
-            schedulePoll();
+            if (!pushEnabledRef.current) {
+                schedulePoll();
+            }
         }
-    }, [roomId, onRemoteChange, schedulePoll]);
+    }, [roomId, applySnapshot, schedulePoll]);
 
     useEffect(() => {
         fetchStateRef.current = fetchState;
     }, [fetchState]);
 
     useEffect(() => {
-        cancelledRef.current = false;
-        void fetchState();
-        return () => {
-            cancelledRef.current = true;
-            activeControllerRef.current?.abort();
-            if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-            if (debounceTimerRef.current)
-                clearTimeout(debounceTimerRef.current);
-        };
-    }, [fetchState]);
+        applySnapshotRef.current = applySnapshot;
+    }, [applySnapshot]);
 
     useEffect(() => {
+        cancelledRef.current = false;
+        const echo = getEcho();
+        pushEnabledRef.current = echo !== null;
+
+        if (echo) {
+            // Echo's join() already prepends the presence- prefix, so pass the
+            // base channel name to subscribe to presence-room.{id} on the wire.
+            const channel = echo.join(`room.${roomId}`);
+            channelRef.current = channel;
+
+            channel.listen(".playback.state.changed", (payload) => {
+                if (cancelledRef.current) return;
+                applySnapshotRef.current(payload as PlaybackStateResponse);
+            });
+
+            // A dropped/re-established socket must re-seed from the
+            // authoritative GET — broadcasts alone would resume from whatever
+            // the socket last delivered.
+            const pusher = echo.connector.pusher;
+            const onConnected = () => {
+                if (!cancelledRef.current) void fetchStateRef.current();
+            };
+            pusher.connection.bind("connected", onConnected);
+            reconnectCleanupRef.current = { pusher, onConnected };
+        }
+
+        void fetchStateRef.current();
+
         const handleVisibility = () => {
             documentHiddenRef.current = document.hidden;
             if (document.visibilityState === "visible") {
@@ -161,9 +216,26 @@ export function usePlaybackSync({
             }
         };
         document.addEventListener("visibilitychange", handleVisibility);
-        return () =>
+
+        return () => {
+            cancelledRef.current = true;
+            activeControllerRef.current?.abort();
+            if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+            if (debounceTimerRef.current)
+                clearTimeout(debounceTimerRef.current);
             document.removeEventListener("visibilitychange", handleVisibility);
-    }, []);
+            if (reconnectCleanupRef.current) {
+                reconnectCleanupRef.current.pusher.connection.unbind(
+                    "connected",
+                    reconnectCleanupRef.current.onConnected,
+                );
+                reconnectCleanupRef.current = null;
+            }
+            channelRef.current?.stopListening(".playback.state.changed");
+            echo?.leave(`room.${roomId}`);
+            channelRef.current = null;
+        };
+    }, [roomId]);
 
     const sync = useCallback(
         async (partial: Partial<PlaybackState>) => {
@@ -194,7 +266,7 @@ export function usePlaybackSync({
                     // Guard against out-of-order/late PATCH responses: only
                     // apply the response if it reflects a newer server state,
                     // otherwise it would regress the version and freeze
-                    // subsequent valid polls.
+                    // subsequent valid snapshots.
                     if (data.state_version > versionRef.current) {
                         versionRef.current = data.state_version;
                         lastPollRef.current = Date.now() / 1000;

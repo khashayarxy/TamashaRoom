@@ -20,13 +20,18 @@ Route::get('/', function () {
     ]);
 });
 
+// Guest-accessible invite join. No auth required so invite-link recipients can
+// enter with just a display name. Rate limited per IP when unauthenticated.
+Route::prefix('rooms')->name('rooms.')->group(function () {
+    Route::get('/join/{inviteCode}', [RoomController::class, 'joinConfirm'])->middleware('throttle:join')->name('join');
+    Route::post('/join/{inviteCode}', [RoomController::class, 'join'])->middleware('throttle:join')->name('join.submit');
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [RoomController::class, 'index'])->name('dashboard');
 
     Route::prefix('rooms')->name('rooms.')->group(function () {
         Route::post('/', [RoomController::class, 'store'])->middleware('throttle:room-create')->name('store');
-        Route::get('/join/{inviteCode}', [RoomController::class, 'joinConfirm'])->middleware('throttle:join')->name('join');
-        Route::post('/join/{inviteCode}', [RoomController::class, 'join'])->middleware('throttle:join')->name('join.submit');
         Route::get('/{room}', [RoomController::class, 'show'])->name('show');
         Route::get('/{room}/members', [RoomController::class, 'members'])->name('members');
         Route::patch('/{room}', [RoomController::class, 'update'])->name('update');

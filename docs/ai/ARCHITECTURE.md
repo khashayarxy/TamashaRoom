@@ -119,8 +119,10 @@ resources/js/
 │   └── Rooms/Show.tsx           # the watch-room screen
 ├── Components/
 │   ├── composite/               # domain composites: room-chat, member-list,
-│   │                            # video-player, subtitle-overlay/settings,
+│   │                            # subtitle-overlay/settings,
 │   │                            # room-settings, confirm-dialog, toast
+│   ├── Player/                  # playback surface (Video.js v10): VideoJsPlayer,
+│   │                            # SyncedVideoJsPlayer
 │   └── ui/                      # primitives: button, input, card, dialog
 │   (plus legacy Breeze components: PrimaryButton, TextInput, Modal, Dropdown…)
 ├── Hooks/                       # use-playback-sync, use-presence, use-toast,

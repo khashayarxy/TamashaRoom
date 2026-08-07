@@ -35,6 +35,7 @@ class PlaybackStateChanged implements ShouldBroadcast
             'duration_seconds' => $this->room->duration_seconds,
             'playback_rate' => $this->room->playback_rate,
             'video_url' => $this->room->video_url,
+            'playback_mode' => $this->room->playback_mode?->value ?? 'proxy',
             'state_version' => $this->room->state_version,
             'server_timestamp' => $this->room->server_timestamp,
             'user_id' => $this->userId,

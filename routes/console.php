@@ -16,3 +16,8 @@ Schedule::command('presence:timeout')
     ->everyMinute()
     ->withoutOverlapping()
     ->description('Mark stale members as offline');
+
+Schedule::command('pusher:usage')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->description('Log Pusher presence-channel connection counts');

@@ -3,13 +3,10 @@ import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { RoomChat } from "@/Components/composite/room-chat";
 import { RoomOnboarding } from "@/Components/composite/room-onboarding";
 import { RoomSettingsDialog } from "@/Components/composite/room-settings";
-import {
-    SubtitleOverlay,
-    useSubtitleSettings,
-} from "@/Components/composite/subtitle-overlay";
+import { useSubtitleSettings } from "@/Components/composite/subtitle-overlay";
 import { SubtitleSettingsDialog } from "@/Components/composite/subtitle-settings";
 import { ToastContainer } from "@/Components/composite/toast";
-import { VideoPlayer } from "@/Components/composite/video-player";
+import { SyncedVideoJsPlayer } from "@/Components/Player/SyncedVideoJsPlayer";
 import { Button } from "@/Components/ui/button";
 import { Card, CardContent } from "@/Components/ui/card";
 import { Input } from "@/Components/ui/input";
@@ -92,7 +89,6 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const [settingVideo, setSettingVideo] = useState(false);
     const [chatUnread, setChatUnread] = useState(0);
     const [showOnboarding, setShowOnboarding] = useState(true);
-    const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const {
@@ -246,22 +242,19 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     )}
 
                 <div className="flex-1 relative">
-                    <VideoPlayer
+                    <SyncedVideoJsPlayer
                         roomId={room.id}
                         canControl={isOwner}
                         initialVideoUrl={room.video_url}
                         className="h-full"
-                        videoRef={videoRef}
                         onSuggestNext={suggestNext}
-                    >
-                        <SubtitleOverlay
-                            videoRef={videoRef}
-                            cues={cues}
-                            settings={settings}
-                            loading={subLoading}
-                            error={subError}
-                        />
-                    </VideoPlayer>
+                        subtitles={{
+                            cues,
+                            settings,
+                            loading: subLoading,
+                            error: subError,
+                        }}
+                    />
                 </div>
 
                 <div className="flex flex-wrap gap-2">

@@ -46,11 +46,14 @@ AGENTS.md (invariants, skill table) → docs/MAP.md (this file) →
   `app/Http/Requests/UpdatePlaybackRequest.php`, `app/Services/VideoProxyService.php`
   (range/proxy streaming).
 - Frontend: `Hooks/use-playback-sync.ts`, `Hooks/use-suggest-next.ts`,
-  `Components/composite/video-player.tsx` (host-only replay + suggest-next at
-  video end), `lib/types/playback.ts`, `lib/api.ts`.
+  `Components/Player/SyncedVideoJsPlayer.tsx` (host-only, guest drift, replay +
+  suggest-next at video end, autoplay-block overlay, proxy→direct fallback),
+  `Components/Player/VideoJsPlayer.tsx` (Video.js v10 shell, `loadSource`
+  src changes, Persian i18n), `lib/player-source.ts` (position-preserve
+  decision for transport fallbacks), `lib/types/playback.ts`, `lib/api.ts`.
 - Tests: `tests/Feature/PlaybackSyncTest.php`, `tests/Feature/VideoStreamTest.php`,
-  frontend hook tests for `use-playback-sync`, `video-player.test.tsx`,
-  `use-suggest-next.test.ts`.
+  frontend hook tests for `use-playback-sync`, `videojs-player.test.tsx`,
+  `player-source.test.ts`, `use-suggest-next.test.ts`.
 
 ### Chat (polled send/list/delete)
 - Skill: `laravel-backend-rules`, `security-rules` (validation/inline `$request->validate()`).

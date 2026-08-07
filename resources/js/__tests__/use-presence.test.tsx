@@ -1,15 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePresence, type PresenceMember } from "@/Hooks/use-presence";
+import { createFakeEcho, type FakeEcho } from "./helpers/fake-echo";
 
 const mockGet = vi.fn();
 const mockPost = vi.fn();
+
+const echoHolder = vi.hoisted(() => ({ instance: null as FakeEcho | null }));
 
 vi.mock("@/lib/api", () => ({
     default: {
         get: (...args: unknown[]) => mockGet(...args),
         post: (...args: unknown[]) => mockPost(...args),
     },
+}));
+
+vi.mock("@/lib/echo", () => ({
+    getEcho: () => echoHolder.instance,
 }));
 
 function member(
@@ -265,5 +272,116 @@ describe("usePresence moments", () => {
             configurable: true,
             value: undefined,
         });
+    });
+});
+
+describe("usePresence (Pusher push transport)", () => {
+    let fakeEcho: FakeEcho;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.useFakeTimers();
+        fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+        mockGet.mockResolvedValue({ data: [member(1, "online")] });
+        mockPost.mockResolvedValue({ data: { heartbeat_version: 1 } });
+        Object.defineProperty(navigator, "sendBeacon", {
+            configurable: true,
+            value: vi.fn(() => true),
+        });
+    });
+
+    afterEach(() => {
+        echoHolder.instance = null;
+        vi.useRealTimers();
+        delete (navigator as { sendBeacon?: unknown }).sendBeacon;
+    });
+
+    async function flushInitial() {
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+    }
+
+    it("joins the presence channel and applies the here snapshot", async () => {
+        const { result } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        expect(fakeEcho.joinedChannels).toContain("room.1");
+        expect(fakeEcho.listening(".member.presence.changed")).toBe(true);
+
+        await act(async () => {
+            fakeEcho.fireHere([member(1, "online"), member(2, "online")]);
+        });
+
+        expect(result.current.members).toHaveLength(2);
+    });
+
+    it("adds joining and removes leaving members without polling", async () => {
+        const { result } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        await act(async () => {
+            fakeEcho.fireJoining(member(2, "online", "سارا"));
+        });
+        expect(result.current.members).toHaveLength(2);
+
+        await act(async () => {
+            fakeEcho.fireLeaving(member(2, "online", "سارا"));
+        });
+        expect(result.current.members).toHaveLength(1);
+    });
+
+    it("applies a .member.presence.changed payload roster", async () => {
+        const { result } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        await act(async () => {
+            fakeEcho.emit(".member.presence.changed", {
+                members: [member(1, "away"), member(3, "online", "رها")],
+            });
+        });
+
+        expect(result.current.members).toHaveLength(2);
+        expect(
+            result.current.members.find((m) => m.user_id === 1)
+                ?.presence_status,
+        ).toBe("away");
+    });
+
+    it("re-seeds the roster from GET when the socket reconnects", async () => {
+        renderHook(() => usePresence(1));
+        await flushInitial();
+
+        mockGet.mockClear();
+        mockGet.mockResolvedValue({ data: [member(1, "online")] });
+
+        await act(async () => {
+            fakeEcho.fireConnected();
+        });
+
+        expect(mockGet).toHaveBeenCalled();
+    });
+
+    it("does not run the polling interval while push is active", async () => {
+        renderHook(() => usePresence(1));
+        await flushInitial();
+
+        mockGet.mockClear();
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(15000);
+        });
+
+        expect(mockGet).not.toHaveBeenCalled();
+    });
+
+    it("leaves the channel on unmount", async () => {
+        const { unmount } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        unmount();
+
+        expect(fakeEcho.leftChannels).toContain("room.1");
     });
 });

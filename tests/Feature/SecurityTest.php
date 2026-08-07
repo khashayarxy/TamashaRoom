@@ -110,6 +110,36 @@ class SecurityTest extends TestCase
     }
 
     #[Test]
+    public function csp_connect_src_allows_the_pusher_websocket_when_broadcasting_is_pusher(): void
+    {
+        putenv('PUSHER_APP_CLUSTER=ap1');
+        putenv('PUSHER_HOST=');
+        putenv('PUSHER_SCHEME=https');
+        config(['broadcasting.default' => 'pusher']);
+
+        $response = $this->actingAs($this->owner)->get('/dashboard');
+        $response->assertOk();
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString('connect-src', $csp);
+        // The Echo client dials wss://ws-{cluster}.pusher.com; without this the
+        // room hooks sit in push mode with every socket connection CSP-blocked.
+        $this->assertStringContainsString('wss://ws-ap1.pusher.com', $csp);
+    }
+
+    #[Test]
+    public function csp_connect_src_omits_websocket_origins_when_broadcasting_is_not_pusher(): void
+    {
+        config(['broadcasting.default' => 'log']);
+
+        $response = $this->actingAs($this->owner)->get('/dashboard');
+        $response->assertOk();
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+        $this->assertStringNotContainsString('wss:', $csp);
+    }
+
+    #[Test]
     public function security_headers_are_not_leaking_server_info(): void
     {
         $response = $this->actingAs($this->owner)->get('/dashboard');

@@ -52,6 +52,14 @@ class SecurityHeadersMiddleware
         ]);
         $response->headers->set('Permissions-Policy', $permissions, true);
 
+        // The client-side Echo instance (resources/js/lib/echo.ts) dials
+        // wss://ws-{cluster}.pusher.com (or a custom VITE_PUSHER_HOST for a
+        // future Reverb endpoint) when BROADCAST_CONNECTION=pusher. connect-src
+        // must allow that WebSocket origin or push never connects and the room
+        // hooks silently fall back to nothing. Only emitted when the pusher
+        // driver is actually active.
+        $pusherOrigin = $this->pusherWebSocketOrigin();
+
         if (app()->environment('local')) {
             $viteDevOrigin = 'http://127.0.0.1:5173';
             $viteDevWs = 'ws://127.0.0.1:5173';
@@ -61,7 +69,8 @@ class SecurityHeadersMiddleware
                 ."style-src 'self' 'unsafe-inline' {$viteDevOrigin}; "
                 ."img-src 'self' data: blob: https:; "
                 ."font-src 'self' data:; "
-                ."connect-src 'self' https: {$viteDevOrigin} {$viteDevWs}; "
+                ."connect-src 'self' https: {$viteDevOrigin} {$viteDevWs}"
+                .($pusherOrigin !== null ? " {$pusherOrigin}" : '').'; '
                 ."media-src 'self' https:; "
                 ."frame-src 'none'; "
                 ."object-src 'none'; "
@@ -73,7 +82,8 @@ class SecurityHeadersMiddleware
                 ."style-src 'self' 'unsafe-inline'; "
                 ."img-src 'self' data: blob: https:; "
                 ."font-src 'self' data:; "
-                ."connect-src 'self' https:; "
+                ."connect-src 'self' https:"
+                .($pusherOrigin !== null ? " {$pusherOrigin}" : '').'; '
                 ."media-src 'self' https:; "
                 ."frame-src 'none'; "
                 ."object-src 'none'; "
@@ -91,5 +101,29 @@ class SecurityHeadersMiddleware
         $response->headers->remove('Server');
 
         return $response;
+    }
+
+    /**
+     * The WebSocket origin the Echo client dials when the pusher driver is
+     * active. Mirrors resources/js/lib/echo.ts: PUSHER_HOST (VITE_PUSHER_HOST
+     * client-side) overrides the default ws-{cluster}.pusher.com, and
+     * PUSHER_SCHEME decides ws:// vs wss://. Read from raw env, not the
+     * resolved broadcast options — the driver's `host` option is the REST API
+     * host (api-*.pusher.com), which is NOT the WebSocket host. Null when
+     * broadcasting is not pusher, so the CSP stays as tight as ever.
+     */
+    private function pusherWebSocketOrigin(): ?string
+    {
+        if (config('broadcasting.default') !== 'pusher') {
+            return null;
+        }
+
+        $cluster = (string) env('PUSHER_APP_CLUSTER', 'mt1');
+        $host = (string) env('PUSHER_HOST', '');
+        $scheme = (string) env('PUSHER_SCHEME', 'https');
+
+        $host = $host !== '' ? $host : 'ws-'.$cluster.'.pusher.com';
+
+        return ($scheme === 'https' ? 'wss://' : 'ws://').$host;
     }
 }

@@ -1,15 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { usePlaybackSync } from "@/Hooks/use-playback-sync";
+import { createFakeEcho, type FakeEcho } from "./helpers/fake-echo";
 
 const mockGet = vi.fn();
 const mockPatch = vi.fn();
+
+const echoHolder = vi.hoisted(() => ({ instance: null as FakeEcho | null }));
 
 vi.mock("@/lib/api", () => ({
     default: {
         get: (...args: unknown[]) => mockGet(...args),
         patch: (...args: unknown[]) => mockPatch(...args),
     },
+}));
+
+vi.mock("@/lib/echo", () => ({
+    getEcho: () => echoHolder.instance,
 }));
 
 function makeResponse(overrides: Record<string, unknown> = {}) {
@@ -556,5 +563,106 @@ describe("usePlaybackSync", () => {
         });
 
         expect(result.current.state.stateVersion).toBeGreaterThan(0);
+    });
+});
+
+describe("usePlaybackSync (Pusher push transport)", () => {
+    let fakeEcho: FakeEcho;
+
+    beforeEach(() => {
+        fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+        mockGet.mockReset();
+        mockPatch.mockReset();
+        mockGet.mockResolvedValue({ data: makeResponse() });
+    });
+
+    afterEach(() => {
+        echoHolder.instance = null;
+    });
+
+    it("joins the presence channel and applies a broadcast snapshot", async () => {
+        const onRemoteChange = vi.fn();
+
+        renderHook(() => usePlaybackSync({ roomId: 1, onRemoteChange }));
+
+        expect(fakeEcho.joinedChannels).toContain("room.1");
+        expect(fakeEcho.listening(".playback.state.changed")).toBe(true);
+
+        const payload = makeResponse({
+            state_version: 2,
+            is_playing: true,
+            position_seconds: 42,
+        });
+
+        await act(async () => {
+            fakeEcho.emit(".playback.state.changed", payload);
+        });
+
+        expect(onRemoteChange).toHaveBeenCalledWith(
+            expect.objectContaining({ stateVersion: 2, isPlaying: true }),
+        );
+    });
+
+    it("ignores stale broadcasts whose state_version is not newer", async () => {
+        const onRemoteChange = vi.fn();
+
+        renderHook(() => usePlaybackSync({ roomId: 1, onRemoteChange }));
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({ state_version: 1 }),
+            );
+        });
+
+        // Initial GET already applied version 1; the duplicate must be dropped.
+        expect(onRemoteChange).toHaveBeenCalledTimes(1);
+    });
+
+    it("re-seeds from the authoritative GET when the socket reconnects", async () => {
+        renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+        mockGet.mockClear();
+        mockGet.mockResolvedValue({
+            data: makeResponse({ state_version: 3 }),
+        });
+
+        await act(async () => {
+            fakeEcho.fireConnected();
+        });
+
+        expect(mockGet).toHaveBeenCalled();
+    });
+
+    it("does not poll continuously while push is active", async () => {
+        vi.useFakeTimers();
+
+        try {
+            renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            expect(mockGet).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(30000);
+            });
+
+            // Push mode must not schedule the tiered polling loop.
+            expect(mockGet).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("leaves the channel on unmount", async () => {
+        const { unmount } = renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+        unmount();
+
+        expect(fakeEcho.leftChannels).toContain("room.1");
     });
 });

@@ -167,8 +167,10 @@ resources/
 │   │   │   ├── room-settings.tsx
 │   │   │   ├── subtitle-overlay.tsx
 │   │   │   ├── subtitle-settings.tsx
-│   │   │   ├── toast.tsx
-│   │   │   └── video-player.tsx
+│   │   │   └── toast.tsx
+│   │   ├── Player/                 # Playback surface (Video.js v10)
+│   │   │   ├── VideoJsPlayer.tsx
+│   │   │   └── SyncedVideoJsPlayer.tsx
 │   │   └── ui/                     # Primitive components (custom, Tailwind-styled)
 │   │       ├── button.tsx
 │   │       ├── card.tsx
