@@ -401,18 +401,23 @@ test.describe("Playback sync drift + out-of-order PATCH guard", () => {
             await route.continue(); // forward to the real server
         });
 
-        // Trigger two rapid syncImmediate actions via the host UI. The first is held;
-        // the second is forwarded and bumps the real server version.
-        const playBtn = host.locator("button.media-button--play");
-        await playBtn.evaluate((el) => (el as HTMLButtonElement).click());
-        await host.waitForTimeout(400);
+        // Trigger a seek via the host UI (ArrowRight on the seek slider). A
+        // seek's handleSeeked ALWAYS emits a PATCH (it does not consult the
+        // applyingRef gesture guard, unlike handlePlay/handlePause), so this is
+        // a reliable source of PATCH #1 to hold. We avoid using the play/pause
+        // button here: when ensurePlaying already has the video playing, that
+        // click pauses it, and its sync can be swallowed by the applyingRef
+        // guard if a poll-driven apply lands in the same 100ms window — leaving
+        // the video paused with no timeupdate, so no second PATCH ever fires.
         await host.getByRole("slider", { name: "جستجو" }).focus();
         await host.keyboard.press("ArrowRight");
 
+        // PATCH #1 is now held. The video is still playing, so the next
+        // throttled+debounced timeupdate sync fires PATCH #2, which is
+        // forwarded to the real server and bumps its state_version.
         await expect
             .poll(() => patchCount, { timeout: 15000 })
             .toBeGreaterThanOrEqual(2);
-        console.log(`2.3 patchCount=${patchCount}`);
 
         expect(heldReq).not.toBeNull();
 
@@ -423,7 +428,6 @@ test.describe("Playback sync drift + out-of-order PATCH guard", () => {
             contentType: "application/json",
             body: JSON.stringify({ status: "ok", state_version: 0 }),
         });
-        console.log("2.3 released stale response (state_version=0)");
 
         // The stale response must not have regressed the hook's version: the next
         // normal poll still applies, so playback keeps advancing (no freeze).

@@ -95,6 +95,81 @@ running (`php artisan schedule:list`; the single cron entry).
 - Debug logging is a **temporary tool**: remove `[debug:` call sites and
   `VITE_DEBUG` flags from the final diff (see `code-review-rules`).
 
+## Known Issues
+
+> A quick index of recurring, diagnosed bugs struck during development. If you
+> hit a symptom that matches a row, read that row first — the root cause and
+> fix are already known, so you are fixing a regression or a variant, not
+> rediscovering it. Each entry deliberately omits line numbers because they
+> drift; locate the fix point by the code-area column and the surrounding
+> feature.
+>
+> Security/ops findings that went through the formal verification loop live in
+> the authoritative `docs/ai/ISSUE_REGISTER.md` (TAM-*) — do not copy those
+> into the table; cross-reference by TAM ID instead. Deployment/ops items are
+> TAM-006, TAM-008.
+
+Check this skill when:
+
+- E2E test fails intermittently (flake)
+- CI/GitHub Actions fails (especially on ubuntu-latest but passes locally)
+- Sync behavior unexpected (feedback loop, drift, reset)
+- UI state lost (tab switch, refresh, unmount)
+- CSP/security errors in production-like config
+- CSRF/beacon failures
+- Proxy/streaming timeouts or SSRF concerns
+- Dark mode/theme inconsistencies
+- Email uniqueness collisions in tests
+- Node.js deprecation warnings in CI
+- Gitleaks or security scan failures
+- Build/asset failures in CI but not locally
+
+| ID | Symptom | Root Cause | Fix | Where |
+|---|---|---|---|---|
+| KI-001 | Host/guest sync feedback loop, currentTime resets | sourceUrl change remounted `<video>`, resetting position | Video.js v10 `store.loadSource()` mutates same `<video>` element; listeners bind once | `VideoJsPlayer.tsx`, `lib/player-source.ts` |
+| KI-002 | Chat messages vanish on tab switch | Component-local state lost on conditional unmount | Both panels stay mounted; switch via CSS `hidden`/`h-full` | `Pages/Rooms/Show.tsx`, `room-chat.tsx` |
+| KI-003 | Dark mode toggle needs two clicks first time | Store defaulted `dark: true` but never applied class on load | Apply `document.documentElement.classList.toggle("dark", ...)` on module init | `stores/theme.ts` |
+| KI-004 | E2E setup-verified-room fails intermittently | Faker `unique()->safeEmail()` resets per PHP process reboot | Use `test_helper_user_email() = 'e2e-' . Str::random(12) . '@example.com'` | `routes/test-helpers.php` |
+| KI-005 | Presence-moments leave missing in E2E | `.first()` matched owner's reconnect, not guest's join | Gate leave on guest's named join moment via `waitForGuestOnline` | `tests/e2e/presence-moments.spec.ts` |
+| KI-006 | CSP blocks Ziggy routes script | `@routes()` had no nonce in strict CSP | `@routes(nonce: $cspNonce ?? null)` | `resources/views/app.blade.php`, `SecurityHeadersMiddleware.php` |
+| KI-007 | `sendBeacon` CSRF failure on leave | Beacon sent no body/headers/token | Send `_token` via multipart `FormData` body | `use-presence.ts` |
+| KI-008 | Long proxy streams timeout | `set_time_limit` not reset per chunk | `resetTimeLimit()` inside per-chunk relay loop | `VideoProxyService.php` |
+| KI-009 | SSRF via proxy redirects | Auto-followed redirects bypassed validation | Manual redirect loop with per-hop `validateVideoUrl` | `VideoProxyService.php` |
+| KI-010 | CI: Inertia page path casing failure | Windows (NTFS case-insensitive) vs ubuntu-latest (ext4 case-sensitive) | Publish `config/inertia.php` with exact repo casing `js/Pages` | `config/inertia.php` |
+| KI-011 | CI: Gitleaks scan fails on multi-commit push | `actions/checkout` default `fetch-depth: 1` omits base commit | Set `fetch-depth: 0` on checkout step | `.github/workflows/ci.yml` |
+| KI-012 | CI: Node.js deprecation warnings | GitHub Actions using Node 20 (deprecated) | Upgrade to `actions/checkout@v6`, `actions/setup-node@v6` with `node-version: 24` | `.github/workflows/ci.yml` |
+| KI-013 | CI: Font loading warning (Vazirmatn) | Font file in `public/fonts/` missing on CI | Bundle as Vite asset (`resources/fonts/`) + preload via `Vite::asset()` | `resources/css/fonts.css`, `resources/views/app.blade.php` |
+| KI-014 | CI: React Compiler warning | ESLint disable directive causes Compiler bailout | Replace directive with module helper function | `Hooks/use-presence.ts` |
+| KI-015 | CI: npm audit vulnerabilities | Transitive dependencies (brace-expansion, postcss, vite) | Patch lockfile surgically; major upgrades deferred if breaking | `package-lock.json` |
+
+### CI-Specific complex bugs
+
+**KI-010 — Inertia page path casing (cross-platform)**
+Symptom: `Inertia page component file [Rooms/Show] does not exist` — passes on
+Windows, fails on ubuntu-latest CI. Root cause: Inertia's default config uses
+`resource_path('js/pages')` (lowercase); the repo stores components under
+`resources/js/Pages` (uppercase). Windows NTFS is case-insensitive → matches;
+Linux ext4 is case-sensitive → no match. Fix: publish `config/inertia.php` with
+`pages.paths = resource_path('js/Pages')` (exact casing). Verify with an
+exact-case simulation: the default fails on Linux, the corrected path resolves.
+
+**KI-011 — Gitleaks multi-commit push failure**
+Symptom: `failed to scan Git repository error="stderr is not empty"` on
+multi-commit pushes only. Root cause: gitleaks scans
+`--log-opts=baseRef^..headRef` when refs differ; `actions/checkout` default
+`fetch-depth: 1` omits the base commit so the range fails. Single-commit pushes
+scan `HEAD` (no range) → pass. Fix: `fetch-depth: 0` on the checkout step.
+Verify: `git clone --depth 1` + range-scan reproduces the failure.
+
+### Going forward
+
+Any future confirmed bug fix must add a one-line entry to the table (ID
+auto-incrementing from KI-016). CI-specific issues are marked with a `CI:`
+prefix in the Symptom column. If the bug is a regression of an existing
+row, append to that row instead of creating a new one. Prefer linking a new
+row to its TASK.md record rather than inlining prolonged prose — the table
+should stay scannable, not become a changelog.
+
 ## Checklist
 
 - Reproduced with a focused test before changing code.

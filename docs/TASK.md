@@ -2,6 +2,11 @@
 
 ## Completed
 
+### E2E flake fix: playback-sync 2.3 out-of-order PATCH guard (2026-08-08)
+- [x] **Root cause of the 2.3 flake (intermittent 50% failure under `--repeat-each`).** The test's first UI action was clicking the play/pause button. When `ensurePlaying` had already left the video playing, that click *pauses* it, and `handlePause`'s `syncImmediate` can be **swallowed by the `applyingRef` gesture guard** (`SyncedVideoJsPlayer.tsx:166-173`, guard window 100 ms) if a poll-driven apply lands in the same window. Result: no PATCH from the click, the video is paused, and the only PATCH to fire is the ArrowRight seek — which gets held. A paused video emits no `timeupdate`, so `patchCount` stays 1 and the test times out at `toBeGreaterThanOrEqual(2)`. Debug logging (added during diagnosis, removed after) confirmed: failing runs held the seek PATCH (`is_playing:true, position 5.99`) while the video was `paused:true`; passing runs held the toggle's pause PATCH and got the seek + timeupdate PATCHes afterwards.
+- [x] **Fix (`tests/e2e/playback-sync-verification.spec.ts`).** The test no longer relies on a play/pause toggle producing a PATCH (guard-raced). It now seeks first via the slider (`ArrowRight`) — `handleSeeked` **never** consults `applyingRef`, so PATCH #1 (held) is reliable — and lets the still-playing video's throttled+debounced `timeupdate` sync emit PATCH #2 (forwarded, bumps server `state_version`). The stale synthesized response (`state_version: 0`) is then released and asserted ignored, as before. All temporary `console.log` debug lines removed.
+- [x] **Verification** — test 2.3 `--repeat-each=8` **8/8** (was 3/6); full `playback-sync-verification.spec.ts` **4/4** (second clean run; the one drift failure in the first run was test 2.1's cold-start timing at 34s, unrelated — 2/2 in isolation, ~6s drift). `npm run type-check`, `npm run lint`, `npm run format:check` all clean. Nothing committed/pushed.
+
 ### Step 3 — Pusher Real-Time Sync: Polling Integration Point Inventory (2026-08-07)
 
 **Purpose.** This section inventories every polling integration point BEFORE converting to Pusher push (Step 3). It records what triggers updates, the expected data shapes, and how the frontend hooks consume them, so the push rewrite (and the eventual Reverb migration) can be verified feature-for-feature.

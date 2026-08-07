@@ -87,3 +87,6 @@ yarn-error.log*
 
 # ─── TypeScript ───────────────────────────────────────────────────────────
 *.tsbuildinfo
+.freebuff/desktop-v2.db
+.freebuff/desktop-v2.db-shm
+.freebuff/desktop-v2.db-wal
