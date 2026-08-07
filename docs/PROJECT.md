@@ -306,6 +306,14 @@ php artisan db:seed
 # * * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1
 ```
 
+## Deployment Notes
+
+### cPanel PHP Configuration
+
+- If you see `JIT is incompatible with third party extensions...` on the cPanel PHP logs, set `opcache.jit = off` or `opcache.jit_buffer_size = 0` in php.ini.
+- Common conflicting extensions: ionCube Loader, SourceGuardian, Xdebug.
+- Performance impact: negligible for Laravel (I/O-bound, not CPU-bound).
+
 ## Current Status
 
 Framework initialization complete.
