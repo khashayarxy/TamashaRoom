@@ -138,7 +138,7 @@ Check this skill when:
 | KI-010 | CI: Inertia page path casing failure | Windows (NTFS case-insensitive) vs ubuntu-latest (ext4 case-sensitive) | Publish `config/inertia.php` with exact repo casing `js/Pages` | `config/inertia.php` |
 | KI-011 | CI: Gitleaks scan fails on multi-commit push | `actions/checkout` default `fetch-depth: 1` omits base commit | Set `fetch-depth: 0` on checkout step | `.github/workflows/ci.yml` |
 | KI-012 | CI: Node.js deprecation warnings | GitHub Actions using Node 20 (deprecated) | Upgrade to `actions/checkout@v6`, `actions/setup-node@v6` with `node-version: 24` | `.github/workflows/ci.yml` |
-| KI-013 | CI: Font loading warning (Vazirmatn) | Font file in `public/fonts/` missing on CI | Bundle as Vite asset (`resources/fonts/`) + preload via `Vite::asset()` | `resources/css/fonts.css`, `resources/views/app.blade.php` |
+| KI-013 | CI: Font loading warning (Vazirmatn) | Font file in `resources/fonts/` missing on CI | Bundle as Vite asset (`resources/fonts/`) + preload via `Vite::asset()` | `resources/css/fonts.css`, `resources/views/app.blade.php` |
 | KI-014 | CI: React Compiler warning | ESLint disable directive causes Compiler bailout | Replace directive with module helper function | `Hooks/use-presence.ts` |
 | KI-015 | CI: npm audit vulnerabilities | Transitive dependencies (brace-expansion, postcss, vite) | Patch lockfile surgically; major upgrades deferred if breaking | `package-lock.json` |
 
