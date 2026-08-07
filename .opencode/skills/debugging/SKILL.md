@@ -34,12 +34,12 @@ test. Full detail: `docs/SYSTEM.md` for the relevant subsystems.
 
 | Mechanic | Interval | File |
 |---|---|---|
-| Playback sync (active) | 3,000 ms | `use-playback-sync.ts:13` |
-| Playback sync (idle/paused) | 10,000 ms | `use-playback-sync.ts:14` |
-| Presence heartbeat | 30,000 ms | `use-presence.ts:21` |
-| Presence member list poll | 5,000 ms | `use-presence.ts:22` |
+| Playback sync (active) | 3,000 ms | `use-playback-sync.ts:14` |
+| Playback sync (idle/paused) | 10,000 ms | `use-playback-sync.ts:15` |
+| Presence heartbeat | 30,000 ms | `use-presence.ts:23` |
+| Presence member list poll | 5,000 ms | `use-presence.ts:24` |
 | Presence timeout (stale→offline) | 90 s | `PresenceService` |
-| Presence reconnect backoff | 30s → 60s → … → 5min max | `use-presence.ts:23` |
+| Presence reconnect backoff | 30s → 60s → … → 5min max | `use-presence.ts:25` |
 
 "Playback doesn't sync" → check the poll is running (network tab), then the
 `GET /playback/{room}/state` response, then `state_version` increments.

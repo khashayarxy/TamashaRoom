@@ -229,11 +229,11 @@ if (fs.existsSync(debugSkill)) {
 
     // Polling timings table: file:line must contain the expected interval value.
     const timingRows = [
-        { file: "use-playback-sync.ts", line: 13, expect: "3000" },
-        { file: "use-playback-sync.ts", line: 14, expect: "10000" },
-        { file: "use-presence.ts", line: 21, expect: "30000" },
-        { file: "use-presence.ts", line: 22, expect: "5000" },
-        { file: "use-presence.ts", line: 23, expect: "300000" },
+        { file: "use-playback-sync.ts", line: 14, expect: "3000" },
+        { file: "use-playback-sync.ts", line: 15, expect: "10000" },
+        { file: "use-presence.ts", line: 23, expect: "30000" },
+        { file: "use-presence.ts", line: 24, expect: "5000" },
+        { file: "use-presence.ts", line: 25, expect: "300000" },
     ];
     for (const row of timingRows) {
         const hit = walk(path.join(ROOT, "resources")).find(
