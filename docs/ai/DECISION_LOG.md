@@ -440,3 +440,17 @@ as done above for DECISION-002.
   stability is needed.
 - **Source:** config/broadcasting.php, resources/js/lib/echo.ts, .env.example,
   docs/TASK.md "Pusher Push Transport: broadcast delivery for E2E".
+
+---
+
+## DECISION-016 - Resend transport for email verification
+
+- **ID:** DECISION-016
+- **Title:** Resend as the transactional mail transport; verified accounts enforced via `MustVerifyEmail` with guest exemption
+- **Date:** 2026-08-08
+- **Status:** ACCEPTED (implemented; real `RESEND_KEY` not committed by design)
+- **Context:** TamashaRoom needs to verify real registered users' email addresses. The deployment target is shared cPanel hosting with PHP 8.4 and no persistent workers, so any per-user transactional mail must go through a hosted API transport rather than a locally-run SMTP daemon. Guest accounts (`is_guest = true`) use synthetic email addresses (`guest-{uuid}@tamasharoom.local`) and must never be forced through the verification gate.
+- **Decision:** Use Resend via Laravel's built-in `resend` mail transport (the `resend/resend-php` SDK installed via Composer), `MAIL_MAILER=resend` with `RESEND_KEY` from env. User model implements `Illuminate\Contracts\Auth\MustVerifyEmail`; `verified` middleware already guards the app's main route group (`routes/web.php`). `hasVerifiedEmail()` is overridden to short-circuit `true` for guest accounts so their synthetic emails never trip the gate. The verification email is a custom Persian `App\Notifications\VerifyEmail` extending the framework's signed-URL notification.
+- **Reason:** Resend is a first-class Laravel mail transport (no third-party driver package or facade fork needed) and fits the shared-hosting budget better than running a mail stack locally. Guarding with the framework's own `verified` middleware + signed-URL mechanics keeps the flow standard; the guest exemption lives in one documented override rather than scatter checks across controllers.
+- **Consequences:** Real unverified users are redirected to the verification prompt and cannot reach the gated app routes until they verify; guests bypass verification entirely. The `verified` middleware now has real effect on routes that previously were behind an inert middleware. `MAIL_MAILER` remains `array` in tests. Production requires the real `RESEND_KEY` in the environment; `.env.example` carries blank placeholders only.
+- **Source:** app/Models/User.php, app/Notifications/VerifyEmail.php, config/services.php, .env.example, tests/Feature/Auth/EmailVerificationTest.php.
