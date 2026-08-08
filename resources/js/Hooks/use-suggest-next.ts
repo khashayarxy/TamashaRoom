@@ -1,6 +1,6 @@
 import api from "@/lib/api";
-import { toast } from "@/Hooks/use-toast";
 import { useCallback } from "react";
+import { toast } from "sonner";
 
 const SUGGEST_BODY = "پیشنهاد بعدی: بیایید ویدیوی بعدی را تماشا کنیم";
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useSuggestNext } from "@/Hooks/use-suggest-next";
-import { toast } from "@/Hooks/use-toast";
+import { toast } from "sonner";
 
 const mockPost = vi.fn();
 
@@ -11,7 +11,7 @@ vi.mock("@/lib/api", () => ({
     },
 }));
 
-vi.mock("@/Hooks/use-toast", () => ({
+vi.mock("sonner", () => ({
     toast: {
         error: vi.fn(),
         success: vi.fn(),

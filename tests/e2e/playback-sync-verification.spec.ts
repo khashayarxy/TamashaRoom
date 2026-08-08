@@ -412,14 +412,29 @@ test.describe("Playback sync drift + out-of-order PATCH guard", () => {
         await host.getByRole("slider", { name: "جستجو" }).focus();
         await host.keyboard.press("ArrowRight");
 
-        // PATCH #1 is now held. The video is still playing, so the next
-        // throttled+debounced timeupdate sync fires PATCH #2, which is
-        // forwarded to the real server and bumps its state_version.
+        // Wait for the intercept to catch and hold the first PATCH BEFORE
+        // issuing the second seek. If the two seeks overlap, the media element
+        // coalesces them into a single `seeked` (one PATCH); spacing them by a
+        // full second (>> local-file seek latency) guarantees each produces its
+        // own seeked event and thus its own PATCH.
+        await expect
+            .poll(() => patchCount, { timeout: 15000 })
+            .toBeGreaterThanOrEqual(1);
+        expect(heldReq).not.toBeNull();
+
+        // PATCH #1 is now held as an OLDER request. Issue a second, spaced seek
+        // to produce PATCH #2 DETERMINISTICALLY — the seeked path always emits a
+        // PATCH, unlike the throttled+debounced timeupdate sync (which only
+        // fires while `timeupdate` events keep coming and can stall if the
+        // media pauses while buffering). The second PATCH is forwarded to the
+        // real server and bumps its state_version, so PATCH #1's later stale
+        // response (state_version: 0) proves the version guard works.
+        await host.waitForTimeout(1200);
+        await host.getByRole("slider", { name: "جستجو" }).focus();
+        await host.keyboard.press("ArrowRight");
         await expect
             .poll(() => patchCount, { timeout: 15000 })
             .toBeGreaterThanOrEqual(2);
-
-        expect(heldReq).not.toBeNull();
 
         // Release the stale (first) PATCH with a guaranteed-old version. The hook
         // must ignore it because a newer version was already applied.

@@ -51,7 +51,7 @@ Playback sync is the product's core mechanic, and it is normally built on WebSoc
 | Compiler | React Compiler | stable | Automatic memoization, wired through Vite's React plugin |
 | Database | MySQL/MariaDB | 8.x/10.x | Primary data store |
 | Styling | Tailwind CSS | 4.x | Utility-first CSS; logical properties for RTL |
-| UI Components | Headless UI (@headlessui/react) | 2.x | Accessible primitives; Modal, Dropdown, Transition |
+| UI Components | Headless UI (@headlessui/react) + shadcn-style primitives (`resources/js/Components/ui/`, built on @radix-ui/*) | 2.x / — | Accessible primitives: legacy modals/menus use Headless UI; new composable primitives (dialog, popover, select, switch, tabs, tooltip, sonner toast, emoji picker) are shadcn-style on Radix. No third headless library beyond these two. |
 | State (Client) | Zustand | 5.x | Local UI state only (`theme`, `room-ui`, `subtitle`) |
 | Forms | Inertia `useForm` | built-in | Form state, pending, and server-validated errors |
 | Validation (Server) | Laravel Form Requests | built-in | Authoritative validation and authorization |
@@ -152,8 +152,8 @@ database/
 
 resources/
 ├── css/
-│   ├── app.css                     # Tailwind imports
-│   └── fonts.css                   # @font-face — Vazirmatn
+│   ├── app.css                     # Tailwind imports + theme tokens (dark indigo/rose palette)
+│   └── fonts.css                   # @font-face — Vazirmatn + Inter Variable (Latin fallback)
 ├── js/
 │   ├── __tests__/                  # Component and unit tests (Vitest)
 │   ├── app.tsx                     # Inertia entry point

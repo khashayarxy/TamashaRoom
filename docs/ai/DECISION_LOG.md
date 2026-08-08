@@ -454,3 +454,29 @@ as done above for DECISION-002.
 - **Reason:** Resend is a first-class Laravel mail transport (no third-party driver package or facade fork needed) and fits the shared-hosting budget better than running a mail stack locally. Guarding with the framework's own `verified` middleware + signed-URL mechanics keeps the flow standard; the guest exemption lives in one documented override rather than scatter checks across controllers.
 - **Consequences:** Real unverified users are redirected to the verification prompt and cannot reach the gated app routes until they verify; guests bypass verification entirely. The `verified` middleware now has real effect on routes that previously were behind an inert middleware. `MAIL_MAILER` remains `array` in tests. Production requires the real `RESEND_KEY` in the environment; `.env.example` carries blank placeholders only.
 - **Source:** app/Models/User.php, app/Notifications/VerifyEmail.php, config/services.php, .env.example, tests/Feature/Auth/EmailVerificationTest.php.
+
+---
+
+## DECISION-017 - shadcn-style UI primitives; Magic UI deferred for MVP
+
+- **ID:** DECISION-017
+- **Title:** Adopt shadcn/ui-style primitives (Radix + CVA) for new composable UI; skip Magic UI for MVP
+- **Date:** 2026-08-08
+- **Status:** ACCEPTED (implemented)
+- **Context:** The emoji picker (Frimousse) needs an anchored popover, the async feedback surface needed a reliable global toast, and the `Input/Button/Card/Dialog` family was hand-rolled one file at a time. The pre-existing DESIGN.md mandated Headless UI only and "do not introduce Radix"; the task directive overrode that for the new primitive set.
+- **Decision:** Add a `resources/js/Components/ui/` shadcn-convention layer built on `@radix-ui/*` (`dialog`, `popover`, `select`, `switch`, `tabs`, `tooltip`, `avatar`, `label`, `slot`, `separator`) + `class-variance-authority` + `tailwind-merge` (via the existing `cn()`). Replace the whole toast system with **Sonner** (`ui/sonner.tsx`, mounted globally in `app.tsx`), and build the emoji picker with **Frimousse** (`ui/emoji-picker.tsx`, headless — no UI opinion) in the room-chat composer. Existing shipped Headless UI / native `<dialog>` modals stay untouched. **Magic UI (magicui.design) is explicitly NOT adopted for MVP** — its components are decorated/motion-first, add bundle weight and animation cost, and fail the scope firewall for a watch-party MVP; recorded as a future candidate when the product needs a promotional landing treatment, not today.
+- **Reason:** shadcn/ui conventions give typed, theme-token-driven primitives without owning a dependency framework, and Radix handles a11y (focus trapping, arrow-key nav, portals) that Headless UI does not expose for popovers/toasts as cleanly. Skip Magic UI: the same primitives as shadcn-style classes keep bundle and motion budgets intact.
+- **Consequences:** Two headless libraries coexist (Headless UI for legacy modals, Radix for new primitives) — a deliberate, documented boundary, not drift. `toast.tsx`/`use-toast.ts` deleted; all 6 call sites import `toast` from `sonner`. Type-check, lint, Prettier, Vitest, chat E2E, and a11y all pass.
+- **Source:** package.json, resources/js/Components/ui/{sonner.tsx, popover.tsx, emoji-picker.tsx}, resources/js/Components/composite/room-chat.tsx, resources/js/app.tsx.
+
+## DECISION-018 — Dark indigo/rose palette + Vazirmatn/Inter fonts
+
+- **ID:** DECISION-018
+- **Title:** Replace the warm amber/charcoal palette with a dark indigo-first palette (#0A0A0F / #6366F1 / #F43F5E) and pair Vazirmatn with Inter for Latin glyphs
+- **Date:** 2026-08-08
+- **Status:** ACCEPTED (implemented)
+- **Context:** DESIGN.md's warm amber palette (HSL(40,...) family) from 2026-08-05 was the previous authority; the task directed a new dark indigo/rose palette with near-black backgrounds and a Latin-font companion for Vazirmatn.
+- **Decision:** Rework `@theme` + `:root` + `.dark` tokens in `resources/css/app.css`: near-black indigo background `#0A0A0F` (dark), indigo primary, rose destructive, cool indigo-tinted grays, and `--ring: hsl(239 84% 67%)` (`#6366F1`) with `#6366F1`/`#F43F5E` reserved for focus rings, info, and tinted decorations. Solid button fills use the AA-safe 600-level shades (`#4F46E5`, `#E11D48`), because #6366F1's luminance (≈0.185) lands at 4.47:1 vs white — just under the 4.5:1 small-text threshold. Fonts: keep Vazirmatn as the Persian primary (its `unicode-range` already excludes Latin) and add **Inter Variable** (`@fontsource-variable/inter`) as the Latin fallback in the stack. Updated the theme-color meta, error pages (404/500), logo SVG, and Inertia progress bar off the old amber.
+- **Reason:** Indigo-on-near-black reads as the shared-evening cinematic mood without the amber palette's light/dark primary split; one AA-safe fill per mode instead of that split. Inter replaces the generic system-ui fallback for the Latin glyphs Vazirmatn intentionally does not cover.
+- **Consequences:** A real contrast fix: the landing invite-code chip previously used `bg-primary-foreground/20` and now `bg-black/20` to hold ≥4.5:1 in both modes. DESIGN.md, PROJECT.md, and quality-report.md updated to the new palette. a11y suite: welcome + 9 others pass; the pre-existing `auth-a11y` "Verify email" registration test still fails (unrelated — a registration redirect timeout).
+- **Source:** resources/css/app.css, resources/css/fonts.css, resources/views/app.blade.php, resources/views/errors/{404,500}.blade.php, resources/js/{app.tsx, Components/ApplicationLogo.tsx, Pages/Welcome.tsx}, design-systems/tamasharoom/DESIGN.md.

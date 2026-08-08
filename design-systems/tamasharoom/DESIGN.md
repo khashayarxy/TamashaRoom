@@ -37,7 +37,7 @@ These are explicitly forbidden — they contradict the brand's taste and constra
 | Anti-pattern | Why |
 |---|---|
 | Purple-to-pink gradients | Overused in social/entertainment; reads as generic "startup branding" |
-| Inter as everything | Inter has poor Persian glyph support — Vazirmatn replaces it for UI |
+| Latin-primary type stacks | Latin-only typefaces have poor Persian glyph support — Vazirmatn is the primary typeface for all UI text; Inter is limited to the Latin glyphs that Vazirmatn's `unicode-range` deliberately excludes (SQL, invite codes, timestamps) |
 | Logo-left / links-center / CTA-right nav | The default corporate nav pattern; تماشاروم should feel warmer |
 | Icon-tile feature grids | "Feature boxes with rounded corners and an icon above text" — generic SaaS |
 | Centered-everything layouts | No visual hierarchy, hard to scan. Use asymmetric, content-led layouts |
@@ -135,22 +135,23 @@ The library should also provide a formatter that outputs Jalali month names (ف�
 
 ### Face Selection
 
-Override SYSTEM.md §11.02 (which recommended Inter): **Vazirmatn is the new primary typeface for all UI, body, and heading text.** Inter does not support Persian script properly, and تماشاروم's audience is Persian-speaking.
+Override SYSTEM.md §11.02 (which recommended Inter): **Vazirmatn is the primary typeface for all UI, body, and heading text.** Inter does not support Persian script properly, and تماشاروم's audience is Persian-speaking. Inter's role is strictly the Latin fallback for glyphs Vazirmatn deliberately excludes (see the Latin fallback row below).
 
 | Role | Typeface | Rationale |
 |---|---|---|
 | **Body & UI** | Vazirmatn (variable) | Excellent Persian glyph coverage, variable format (100–900 weight), open source, designed for screen reading. Feels native to the script, not a Latin typeface forcing Persian glyphs. |
 | **Display / Headings** | Vazirmatn (same variable file, heavier weights) | One typeface is sufficient for MVP — Vazirmatn's heavier cuts (700–900) provide enough contrast with body weight to create hierarchy without a second face. |
+| **Latin fallback** | Inter (variable, `@fontsource-variable/inter`) | Vazirmatn's `@font-face` declares a `unicode-range` limited to Persian scripts, so Latin glyphs (SQL, invite codes, numeric timestamps in `dir="ltr"` spans) fall through to the next family in the stack. Inter Variable fills that role, replacing the generic system-ui fallback. It is never used for Persian text — Vazirmatn always wins the Persian code points. |
 | **Monospace / Codes** | JetBrains Mono or Geist Mono | For invite codes, debug data, timestamps rendered as monospace. Not used in general UI. |
 
 No decorative or third typeface. Vazirmatn variable covers every weight need (100–900) from a single `woff2` file.
 
 ### Font Loading
 
-- Self-hosted Vite asset: `resources/fonts/vazirmatn-var.woff2`, declared in `resources/css/fonts.css` and preloaded through `Vite::asset()` in the root Blade template.
+- Self-hosted Vite asset: `resources/fonts/vazirmatn-var.woff2` (declared in `resources/css/fonts.css` and preloaded through `Vite::asset()` in the root Blade template) plus `@fontsource-variable/inter` for Latin fallback.
 - `font-display: swap` — text is never invisible
 - `font-weight: 100 900` — variable access to all weights
-- Fallback stack: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+- Fallback stack: `'Vazirmatn', 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
 
 ### Type Scale
 
@@ -177,127 +178,131 @@ Max 4–5 distinct sizes per screen. Vazirmatn at heavier weights (700+) will be
 
 ### Directional Shift
 
-SYSTEM.md §12 defines cool grays (blue undertone) and a generic blue primary. This document overrides that with a **warm palette** — amber/mustard yellow primary, warm dark backgrounds — because:
+SYSTEM.md §12 defines cool grays (blue undertone) and a generic blue primary. A later revision (2026-08-05) moved to a warm amber/charcoal palette. This document now overrides both with a **dark indigo-first palette** — near-black backgrounds with an indigo primary and a rose destructive:
 
-1. Warm tones evoke the nostalgia and intimacy the brand needs.
-2. Video playback demands a dark backdrop for contrast — warm dark (not pure black or cool gray) makes the surrounding UI feel cohesive with the content being watched.
+1. Indigo and rose on near-black evoke the shared evening cinematic mood the brand needs.
+2. Video playback demands a dark backdrop for contrast — near-black `#0A0A0F` (not pure black, not cool gray) keeps the surrounding UI cohesive with the content being watched.
+3. The brand hues (`#6366F1` indigo, `#F43F5E` rose) appear at full strength in `--ring`, `--info`, tints, and the landing page's accents; solid fills use the AA-safe 600-level shades so small text always clears WCAG 2.2.
 
 ### Base Palette
 
 ```
-Primary accent (dark mode):     Amber / Mustard yellow   —  HSL(40, 90%, 50%)        #E8A817
-Primary accent (light mode):    Deep warm amber          —  HSL(40, 85%, 30%)        #8E620B
-Warm dark bg:     Deep warm charcoal        —  HSL(30, 10%, 10%)        #1C1815
-Warm surface:     Slightly lighter warm     —  HSL(30, 8%, 16%)         #29231E
-Warm border:      Subtle warm divider       —  HSL(30, 6%, 25%)         #403A34
+Brand primary hue:       Indigo-500   —  HSL(239, 84%, 67%)        #6366F1
+Brand destructive hue:   Rose-500     —  HSL(350, 89%, 60%)        #F43F5E
+Solid primary fill:      Indigo-600   —  HSL(243, 75%, 59%)        #4F46E5
+Solid destructive fill:  Rose-600     —  HSL(347, 77%, 50%)        #E11D48
+Dark bg:      Near-black indigo  —  HSL(240, 20%, 5%)      #0A0A0F
+Dark surface: Slightly lighter  —  HSL(240, 15%, 8%)       #14141F
+Dark border:  Subtle divider    —  HSL(240, 15%, 18%)      #262630
 ```
 
 ### Semantic Tokens (CSS custom properties)
 
-These follow the same semantic role structure from SYSTEM.md §12.02, with warm-toned values:
+These follow the same semantic role structure from SYSTEM.md §12.02:
 
 ```css
-/* Light mode (default — warm, not cool) */
+/* Light mode */
 :root {
-  --primary:         40, 85%, 30%;       /* #8E620B — darkened amber for ≥4.5:1 on light bg */
-  --primary-foreground: 40, 10%, 93%;   /* #EFEBE3 — light text on dark amber */
+  --primary:         243, 75%, 59%;        /* #4F46E5 — indigo-600, AA-safe fill */
+  --primary-foreground: 0, 0%, 100%;       /* white text on indigo fill */
 
-  --background:      40, 20%, 96%;       /* #F5F0EA — warm off-white */
-  --foreground:      30, 15%, 10%;       /* #1C1815 — warm black text */
+  --background:      240, 25%, 98%;        /* near-white indigo-tinted */
+  --foreground:      240, 20%, 8%;         /* indigo-near-black text */
 
-  --card:            40, 15%, 93%;       /* #EBE5DD — card bg */
-  --card-foreground: 30, 15%, 10%;
+  --card:            240, 25%, 99%;        /* card bg */
+  --card-foreground: 240, 20%, 8%;
 
-  --muted:           40, 10%, 88%;       /* #E0D9D0 */
-  --muted-foreground: 30, 12%, 21%;     /* #3B342E — darkened for 4.5:1 on background */
+  --muted:           240, 15%, 92%;
+  --muted-foreground: 240, 10%, 45%;       /* darkened for 4.5:1 on background */
 
-  --border:          40, 10%, 50%;       /* #8C8273 — darkened for ≥3:1 non-text contrast */
-  --ring:            40, 85%, 30%;       /* focus ring — matches primary */
+  --border:          240, 15%, 88%;
+  --input:           240, 15%, 86%;
+  --ring:            239, 84%, 67%;        /* #6366F1 — brand indigo focus ring */
 
-  --secondary:       40, 8%, 85%;        /* #DBD2C6 */
-  --secondary-foreground: 30, 15%, 10%;
+  --secondary:       240, 15%, 92%;
+  --secondary-foreground: 240, 20%, 12%;
 
-  --destructive:     0, 70%, 50%;        /* #D9534F — red, same hue regardless of temp */
-  --destructive-foreground: 0, 0%, 96%;
+  --accent:          243, 60%, 94%;
+  --accent-foreground: 243, 60%, 35%;
 
-  --success:         140, 50%, 45%;      /* #3B8C4E — green */
+  --destructive:     347, 77%, 50%;        /* #E11D48 — rose-600 fill */
+  --destructive-foreground: 0, 0%, 100%;
+
+  --success:         152, 60%, 42%;        /* #3B8C4E — green */
   --success-foreground: 0, 0%, 96%;
-
-  --warning:         45, 90%, 50%;       /* #E8A817 */
+  --warning:         38, 92%, 50%;         /* amber — kept for semantic severity */
   --warning-foreground: 30, 15%, 10%;
+  --info:            239, 84%, 67%;        /* #6366F1 */
 }
 
-/* Dark mode — warm dark, not pure black */
+/* Dark mode — near-black indigo, not pure black */
 .dark {
-  --background:      30, 10%, 10%;       /* #1C1815 */
-  --foreground:      40, 10%, 90%;       /* #E8E0D6 */
+  --background:      240, 20%, 5%;         /* #0A0A0F */
+  --foreground:      240, 20%, 96%;        /* near-white indigo-tinted */
 
-  --card:            30, 8%, 16%;        /* #29231E */
-  --card-foreground: 40, 10%, 90%;
+  --card:            240, 15%, 8%;         /* #14141F */
+  --card-foreground: 240, 20%, 96%;
 
-  --muted:           30, 6%, 20%;        /* #342E28 */
-  --muted-foreground: 40, 5%, 60%;
+  --muted:           240, 12%, 14%;
+  --muted-foreground: 240, 10%, 62%;
 
-  --border:          30, 6%, 25%;        /* #403A34 */
-  --ring:            40, 90%, 50%;
+  --border:          240, 15%, 18%;        /* #262630 */
+  --input:           240, 15%, 20%;
+  --ring:            239, 84%, 67%;        /* #6366F1 */
 
-  --secondary:       30, 5%, 22%;        /* #38322C */
-  --secondary-foreground: 40, 10%, 90%;
+  --secondary:       240, 12%, 14%;
+  --secondary-foreground: 240, 15%, 92%;
 
-  --primary:         40, 90%, 50%;       /* #E8A817 — original amber, safe in dark */
-  --primary-foreground: 40, 10%, 8%;
+  --accent:          243, 60%, 22%;
+  --accent-foreground: 243, 80%, 88%;
 
-  /* destructive, success, warning — same as light mode */
+  --primary:         243, 75%, 59%;        /* #4F46E5 — indigo-600 fill */
+  --primary-foreground: 0, 0%, 100%;
+
+  --destructive:         347, 77%, 50%;    /* #E11D48 */
+  --destructive-foreground: 0, 0%, 100%;
+
+  --success:         152, 60%, 50%;
+  --success-foreground: 0, 0%, 96%;
+  --warning:         38, 92%, 55%;
+  --warning-foreground: 30, 15%, 10%;
+  --info:            239, 84%, 67%;        /* #6366F1 */
 }
 ```
 
-### Why Light and Dark Mode Use Different Primary Values
+### Why Both Mode Share One Primary Fill
 
-The original amber `--primary: hsl(40, 90%, 50%)` (#E8A817) — while visually appealing and retained in dark mode — cannot satisfy both of these WCAG 2.2 AA contrast requirements simultaneously in light mode:
+The brand indigo `#6366F1` (relative luminance ≈ 0.185) sits just under the 4.5:1 small-text threshold against white (≈ 4.47:1), so it cannot host white small text (`text-primary-foreground` on solid `bg-primary`) or serve as small `text-primary` on light backgrounds. It is reserved for `--ring`, `--info`, and tinted decorations where ≥3:1 (UI component) is the requirement.
 
-1. **`text-primary` on `bg-background` (#F5F0EB)** — small text requires ≥ 4.5:1.  
-   For #E8A817 (relative luminance ≈ 0.464) on #F5F0EB (L ≈ 0.877), the ratio is **1.80:1** — far below the threshold. To reach 4.5:1, the primary's luminance must be **≤ 0.156** (roughly 30% HSL lightness at this hue).
+Solid fills use the one-step-darker 600-level shades in both modes — `--primary: #4F46E5` (~6.3:1 vs white) and `--destructive: #E11D48` (~4.9:1 vs white) — so every button clears WCAG 2.2 AA with a pure-white foreground. This removes the amber palette's light/dark primary split: one indigo fill, one rose fill, both modes.
 
-2. **`text-primary-foreground` on `bg-primary`** — the foreground must also meet ≥ 4.5:1 against the new darker background. With the original `--primary-foreground: hsl(40, 10%, 8%)` (#16140F, L ≈ 0.006) on a 30%-lightness primary (L ≈ 0.155), the ratio would drop to **3.0:1** — below the small-text threshold.
-
-These are competing constraints: constraint 1 demands darkening the primary, which then forces the foreground toward the opposite end of the luminance scale. A single hex value cannot satisfy both when the background is light (mode 1) and when the same primary acts as a button background (mode 2).
-
-**Solution — mode‑specific tokens:**
-
-| Mode | `--primary` (hex) | `--primary-foreground` (hex) | Rationale |
-|---|---|---|---|
-| Light | **#8E620B** (L ≈ 0.145) | **#EFEBE3** (L ≈ 0.857) | Dark primary passes 4.5:1 on light bg (4.75:1); light foreground passes 4.5:1 on dark primary (4.65:1) |
-| Dark | **#E8A817** (L ≈ 0.464, original amber) | **#16140F** (L ≈ 0.006) | On dark bg (#1C1815, L ≈ 0.020), amber text passes 7.34:1; on amber button bg, dark text passes 9.17:1 |
-
-The amber brand color is preserved in dark mode and in all `bg-primary/10`, `bg-primary/20` tinted-surface uses. It is only the light-mode solid `bg-primary` and `text-primary` tokens that differ — an intentional, mathematically necessary divergence.
-
-> Do not attempt to "fix" this by reverting to a single shared value across modes. A single value cannot satisfy both contrast regimes. The current split is intentional and tested.
+> Do not lighten `--primary` back to #6366F1 for solid fills or small text — it fails WCAG 2.2 AA (4.47:1 < 4.5:1). Keep #6366F1 for ring, info, and tinted decorations only.
 
 ### Accent Restraint
 
-The amber (`--primary`) must read as an accent — not a surface color.
+The indigo (`--primary`) must read as an accent — not a surface color.
 
-- **CTA buttons, brand marks, highlights, focus rings, active states** — these own the amber.
-- **Never** use amber as a background for large surface areas (cards, sidebars, full-screen sections). The one exception is the hero section on the landing page, where it may be used sparingly as a directional color block.
-- Follow the 70-20-10 rule: ~70% neutral (warm grays/charcoals), ~20% secondary (muted surfaces), ~10% accent (amber, green, red, etc.).
-- Dark mode's primary default is the warm background, not the amber. The amber should be even more sparing in Operate mode (in-room) than Persuade mode (landing).
+- **CTA buttons, brand marks, highlights, focus rings, active states** — these own the indigo.
+- **Never** use indigo as a background for large surface areas (cards, sidebars, full-screen sections). The one exception is the hero section on the landing page, where it may be used sparingly as a directional color block.
+- Follow the 70-20-10 rule: ~70% neutral (near-black indigo-tinted grays), ~20% secondary (muted surfaces), ~10% accent (indigo, rose, green, etc.).
+- The in-room Operate mode keeps indigo below the video itself; it is restricted to the sidebar, the controls bar, and chat badges — never overlaid on the video frame.
 
-### The Gray Scale (Warm)
+### The Gray Scale (Indigo-Tinted)
 
-All grays carry a warm (amber-based) undertone, replacing the cool grays from SYSTEM.md:
+All grays carry a cool, indigo-based undertone that matches the brand backgrounds:
 
 | Token | Light | Dark | Usage |
 |---|---|---|---|
-| gray-50 | #F7F4EF | — | Page bg |
-| gray-100 | #EDE8E0 | — | Card bg |
-| gray-200 | #E0D9D0 | — | Borders |
-| gray-300 | #CCC3B8 | — | Disabled borders |
-| gray-400 | #A69B8E | — | Placeholder, disabled |
-| gray-500 | #7D7367 | — | Secondary text |
-| gray-600 | #5E564C | — | Body text (dark) |
-| gray-700 | #423B33 | — | Headings (dark) |
-| gray-800 | #2B2621 | — | Strong heading (dark) |
-| gray-900 | #1C1815 | — | Page bg (dark) |
+| gray-50 | #F7F7FB | — | Page bg |
+| gray-100 | #EDEDF6 | — | Card bg |
+| gray-200 | #DFE0EC | — | Borders |
+| gray-300 | #C6C8DD | — | Disabled borders |
+| gray-400 | #A3A6C4 | — | Placeholder, disabled |
+| gray-500 | #7C7FA3 | — | Secondary text |
+| gray-600 | #565973 | — | Body text (dark) |
+| gray-700 | #3C3E54 | — | Headings (dark) |
+| gray-800 | #262838 | — | Strong heading (dark) |
+| gray-900 | #0A0A0F | — | Page bg (dark) |
 
 ### Semantic Token Usage
 
@@ -329,7 +334,7 @@ All grays carry a warm (amber-based) undertone, replacing the cool grays from SY
 - **One clear CTA.** The primary action (register / create room) is visually dominant. There is exactly one of those per viewport.
 - **Minimal UI chrome.** No sidebar, no complex navigation. A simple header with brand mark, one or two links, and a register button.
 - **Persian-first copy.** The tagline, value prop, and calls-to-action are written in warm Persian — not translated from English.
-- **Color: amber is allowed in slightly larger doses** (as a background accent strip, a hero color block) but never as a dominant surface.
+- **Color: indigo is allowed in slightly larger doses** (as a background accent strip, a hero color block) but never as a dominant surface.
 
 **Layout principle:** Content-led asymmetry. Not centered. Not grid-locked. Let the message dictate the layout, not the other way around.
 
@@ -422,10 +427,10 @@ All tokens above must be defined using Tailwind CSS 4's `@theme` directive (CSS-
 @import "tailwindcss";
 
 @theme {
-  --color-primary: hsl(40 90% 50%);
-  --color-primary-foreground: hsl(40 10% 8%);
-  --color-background: hsl(40 20% 96%);
-  --color-foreground: hsl(30 15% 10%);
+  --color-primary: hsl(243 75% 59%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-background: hsl(240 25% 98%);
+  --color-foreground: hsl(240 20% 8%);
   /* ... etc for every semantic token above */
 }
 ```
@@ -433,7 +438,7 @@ All tokens above must be defined using Tailwind CSS 4's `@theme` directive (CSS-
 ### Existing Utility Compatibility
 
 - Use the existing `cn()` helper for conditional class merging.
-- Use Headless UI components (already in the project) for dialogs, listboxes, menus — do not introduce Radix or another headless library.
+- Interactive primitives come in two tiers: (1) the project's shadcn-style `resources/js/Components/ui/` primitives (built on `@radix-ui/*` — dialog, popover, select, switch, tabs, tooltip) for new, complex, composable behaviors; and (2) existing Headless UI / native `<dialog>` modal patterns that are already shipped untouched. Do not introduce a third headless library.
 - Follow existing component categories (composite, primitives, widgets, layouts, pages) established in `docs/SYSTEM.md` §04.
 
 ### Dark Mode
@@ -450,8 +455,8 @@ All tokens above must be defined using Tailwind CSS 4's `@theme` directive (CSS-
 
 | Page | Mode | Key Design Decisions |
 |---|---|---|---|
-| **Landing (Welcome)** | Persuade | Hero with Vazirmatn display weight, warm dark section, single CTA. No feature grid. |
+| **Landing (Welcome)** | Persuade | Hero with Vazirmatn display weight, near-black indigo-tinted section, single CTA. No feature grid. |
 | **Dashboard** | Operate | Compact room information cards without poster thumbnails, minimal chrome, dark default. Room list timestamps use Persian digits (e.g. "created ۱۵ تیر ۱۴۰۵") and Persian relative time (e.g. "۳ روز پیش"). |
 | **Room Show (in-room)** | Operate | Video ≥70% viewport. Fading overlay controls. Sidebar (chat/members/subtitles tabs). Invite code is displayed with `dir="ltr"` and stays in Latin characters — not converted to Persian digits. |
-| **Login / Register** | Persuade | Warm card on off-white. Minimal visual weight. No illustration — just form + brand mark. |
+| **Login / Register** | Persuade | Card on indigo-tinted off-white. Minimal visual weight. No illustration — just form + brand mark. |
 | **Profile** | Operate | Simple inline form. Dark card layout. No avatars, no settings sections yet. |

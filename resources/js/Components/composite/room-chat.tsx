@@ -1,11 +1,25 @@
+import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
+import { EmojiPicker } from "@/Components/ui/emoji-picker";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/Components/ui/popover";
 import api from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
 import { chatMessagesSchema } from "@/lib/validation";
 import { usePage } from "@inertiajs/react";
-import { Send, Trash2, User, UserMinus, UserPlus, WifiOff } from "lucide-react";
+import {
+    Smile,
+    Send,
+    Trash2,
+    User,
+    UserMinus,
+    UserPlus,
+    WifiOff,
+} from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
-import { toast } from "@/Hooks/use-toast";
+import { toast } from "sonner";
 import type { PresenceMoment } from "@/lib/presence-moments";
 
 interface Message {
@@ -44,6 +58,19 @@ export function RoomChat({
     const lastSeenIdRef = useRef<number | null>(
         initialMessages.reduce((max, m) => Math.max(max, m.id), 0) || null,
     );
+    const [emojiPopoverOpen, setEmojiPopoverOpen] = useState(false);
+
+    const insertEmoji = (emoji: string) => {
+        setBody((prev) => {
+            const el = document.activeElement;
+            if (el instanceof HTMLInputElement && el.value === prev) {
+                const start = el.selectionStart ?? prev.length;
+                const end = el.selectionEnd ?? prev.length;
+                return prev.slice(0, start) + emoji + prev.slice(end);
+            }
+            return prev + emoji;
+        });
+    };
 
     const markAllSeen = useCallback(() => {
         lastSeenIdRef.current =
@@ -267,6 +294,35 @@ export function RoomChat({
                 >
                     <Send className="h-4 w-4" />
                 </button>
+
+                <Popover
+                    open={emojiPopoverOpen}
+                    onOpenChange={setEmojiPopoverOpen}
+                >
+                    <PopoverTrigger asChild>
+                        <button
+                            type="button"
+                            className="h-9 w-9 rounded-xl border border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center justify-center"
+                            aria-label="افزودن شکلک"
+                            aria-expanded={emojiPopoverOpen}
+                            aria-haspopup="true"
+                        >
+                            <Smile className="h-4 w-4" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        align="end"
+                        side="top"
+                        className="w-fit p-0 border-border"
+                    >
+                        <EmojiPicker
+                            onEmojiSelect={(emoji) => {
+                                insertEmoji(emoji);
+                                setEmojiPopoverOpen(false);
+                            }}
+                        />
+                    </PopoverContent>
+                </Popover>
             </form>
 
             <ConfirmDialog

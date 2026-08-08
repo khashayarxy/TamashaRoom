@@ -1,6 +1,7 @@
 import "../css/app.css";
 import "./bootstrap";
 
+import { Toaster } from "@/Components/ui/sonner";
 import { ErrorBoundary } from "@/Components/ui/error-boundary";
 import { createInertiaApp } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
@@ -21,10 +22,11 @@ createInertiaApp({
         root.render(
             <ErrorBoundary>
                 <App {...props} />
+                <Toaster />
             </ErrorBoundary>,
         );
     },
     progress: {
-        color: "#E8A817",
+        color: "#6366F1",
     },
 });

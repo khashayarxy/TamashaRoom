@@ -5,7 +5,6 @@ import { RoomOnboarding } from "@/Components/composite/room-onboarding";
 import { RoomSettingsDialog } from "@/Components/composite/room-settings";
 import { useSubtitleSettings } from "@/Components/composite/subtitle-overlay";
 import { SubtitleSettingsDialog } from "@/Components/composite/subtitle-settings";
-import { ToastContainer } from "@/Components/composite/toast";
 import { SyncedVideoJsPlayer } from "@/Components/Player/SyncedVideoJsPlayer";
 import { Button } from "@/Components/ui/button";
 import { Card, CardContent } from "@/Components/ui/card";
@@ -14,7 +13,6 @@ import { usePresence } from "@/Hooks/use-presence";
 import { useRoomOwnership } from "@/Hooks/use-room-ownership";
 import { useSuggestNext } from "@/Hooks/use-suggest-next";
 import { useSubtitles } from "@/Hooks/use-subtitles";
-import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
 import { safeCopyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
@@ -31,6 +29,7 @@ import {
     X,
 } from "lucide-react";
 import { router, usePage } from "@inertiajs/react";
+import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 
 interface ChatMessage {
@@ -568,8 +567,6 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 confirmVariant="destructive"
                 loading={deletingTrack}
             />
-
-            <ToastContainer />
         </div>
     );
 }

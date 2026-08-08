@@ -155,7 +155,7 @@ export default function Welcome({ auth }: PageProps) {
                                     </span>
                                     <span
                                         dir="ltr"
-                                        className="rounded-md bg-primary-foreground/20 px-2 py-0.5 font-mono text-xs"
+                                        className="rounded-md bg-black/20 px-2 py-0.5 font-mono text-xs"
                                     >
                                         TR-7K2M
                                     </span>

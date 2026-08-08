@@ -1,6 +1,6 @@
 import type { PresenceMember } from "@/Hooks/use-presence";
-import { toast } from "@/Hooks/use-toast";
 import api from "@/lib/api";
+import { toast } from "sonner";
 import {
     Crown,
     LogOut,

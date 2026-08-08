@@ -12,10 +12,11 @@ vi.mock("@/lib/api", () => ({
     },
 }));
 
-vi.mock("@/Hooks/use-toast", () => ({
+vi.mock("sonner", () => ({
     toast: {
         success: vi.fn(),
         error: vi.fn(),
+        info: vi.fn(),
     },
 }));
 

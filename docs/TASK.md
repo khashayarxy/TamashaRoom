@@ -2,6 +2,42 @@
 
 ## Completed
 
+### UI primitives batch: shadcn-style `ui/` layer, Sonner toasts, Frimousse emoji picker + dark indigo palette (2026-08-08)
+
+**Batch scope:** STEP 1 (E2E flake), STEP 2 (rtl-i18n-policy skill), STEP 3a/3b/3c (UI primitives + palette), STEP 4 (docs drift).
+
+**STEP 1 — E2E 2.3 flake fixed** (see the dedicated entry below; recorded there).
+
+**STEP 2 — rtl-i18n-policy skill.** `.opencode/skills/rtl-i18n-policy/SKILL.md` created exactly as specified; not yet entered in the AGENTS.md skill table (outside this batch's listed scope).
+
+**STEP 3a — Frimousse emoji picker in chat.**
+- New `resources/js/Components/ui/emoji-picker.tsx` (headless Frimousse render-prop, LTR/neutral per rtl-i18n-policy) and `resources/js/Components/ui/popover.tsx` (Radix anchored popover, theme tokens).
+- `room-chat.tsx`: new `Smile` trigger button (aria-label "افزودن شکلک") + popover inserting the selected emoji at the cursor position and closing; composer otherwise unchanged.
+- Verified: type-check, lint, Prettier clean; Vitest 231/231; chat E2E 3/3.
+
+**STEP 3b — Toast system replaced with Sonner.**
+- Deleted `resources/js/Hooks/use-toast.ts` and `resources/js/Components/composite/toast.tsx`; new `resources/js/Components/ui/sonner.tsx` (theme-token styled, RTL container) mounted **globally** in `app.tsx` inside `ErrorBoundary` — also fixes the old per-Page mount gap on Profile/Auth/Welcome.
+- All 6 call sites (member-list, room-settings, Show, Dashboard, etc.) now `import { toast } from "sonner"`; both unit-test mocks updated.
+- Verified: type-check, lint, Prettier clean; Vitest 231/231.
+
+**STEP 3c — shadcn-style primitives + dark indigo/rose palette + Inter.**
+- Radix primitives + CVA installed (`@radix-ui/react-*` ×10, `class-variance-authority`, `tailwind-merge` already present); `ui/` layer expanded with shadcn conventions.
+- **Magic UI explicitly deferred for MVP** (decorative/motion-first components fail the scope firewall) — recorded in DECISION-017.
+- Palette reworked in `resources/css/app.css` (`@theme` + `:root` + `.dark`): **#0A0A0F** near-black bg (dark), indigo primary #6366F1 at full strength only in `--ring`/`--info`/tints; solid fills use AA-safe 600-level #4F46E5 / #E11D48 (white text ≥4.5:1 both modes). Cool indigo-tinted grays; `warning` keeps amber. `--radius`, z-scale unchanged.
+- Fonts: Vazirmatn stays the Persian primary; **Inter Variable (`@fontsource-variable/inter`)** added as the Latin-glyph fallback (`fonts.css` imported before; stack `'Vazirmatn','Inter Variable',…` in `@theme` + `html`). Preload unchanged.
+- Propagated brand color off amber: `app.blade.php` theme-color → `#0A0A0F`; error pages 404/500 → `#0a0a0f`/`#6366f1`/`#f43f5e`; `ApplicationLogo` rect fill → `var(--color-primary,…)` fallback `#4F46E5`, text → `var(--color-primary-foreground)`; Inertia `progress.color` → `#6366F1`.
+- **Real contrast fix on the landing page:** invite-code chip `bg-primary-foreground/20` → `bg-black/20` (white text needs ≥4.5:1 on indigo; the previous tint produced 4.11:1).
+- Verified: build OK (Inter woff2 bundles included), type-check, lint, Prettier clean; Vitest **231/231**; backend `php artisan test` **262/262** (1942 assertions); E2E **22/22** (4.7m); a11y **10/11** — the 1 failure is the **pre-existing** `auth-a11y` "Verify email" registration test (waitForURL timeout on the registration redirect, unrelated to this batch; fails on a clean checkout too). Welcome a11y (previously broken by the palette at 4.11:1) now passes.
+
+**STEP 4 — docs drift reconciled.**
+- `design-systems/tamasharoom/DESIGN.md` rewritten: typography (Inter = Latin loader companion, not "everything" anti-pattern); color system → dark indigo/rose with the AA fill rationale (600-level fills, brand hues reserved for ring/info), indigo-tinted gray scale, Persuade/Operate color notes, Implementation Constraints now document the two-tier primitive policy (shadcn/ui Radix layer for new primitives; Headless UI/native dialog for legacy modals).
+- `docs/PROJECT.md`: UI Components row now documents Headless UI + shadcn-style `ui/` layer; fonts.css line updated.
+- `docs/quality-report.md`: palette/architecture summary lines corrected.
+- `docs/ai/DECISION_LOG.md`: DECISION-017 (shadcn-style primitives + Sonner + Frimousse; Magic UI deferred) and DECISION-018 (dark indigo/rose palette + Vazirmatn/Inter).
+- `npm run check:docs` clean (47 files). Nothing committed/pushed.
+
+**Known issue (tracked, not part of this batch):** the `auth-a11y` "Verify email page" failure (registration redirect timeout) is tracked as **TAM-010** in `docs/ai/ISSUE_REGISTER.md` (OPEN, CONFIRMED, P3). It is pre-existing, reproduced on a clean checkout, and is intentionally excluded from this batch to be fixed in its own unit of work.
+
 ### Email verification with Resend (2026-08-08)
 - [x] **Resend transport.** Laravel's built-in `resend` `MAIL_MAILER` driver used; `resend/resend-php` SDK added (`composer.json` pins `1.0`). `.env.example` mail block updated to `MAIL_MAILER=resend`, `RESEND_KEY=` (blank placeholder — real key intentionally never written), `MAIL_FROM_ADDRESS="noreply@tamasharoom.ir"`, `MAIL_FROM_NAME="TamashaRoom"`. `config/services.php` `resend.key` reads `RESEND_KEY`.
 - [x] **Gate real accounts only.** `app/Models/User.php` implements `Illuminate\Contracts\Auth\MustVerifyEmail` (was commented out); `hasVerifiedEmail()` overridden to `$this->isGuest() || parent::hasVerifiedEmail()` so guest accounts (`guest-{uuid}@tamasharoom.local` synthetic emails, never verified) stay exempt. The existing `['auth','verified']` middleware on the main app route group (`routes/web.php:30`) now actually enforces: unverified real users are redirected to the verification prompt until they verify.
@@ -12,8 +48,8 @@
 
 ### E2E flake fix: playback-sync 2.3 out-of-order PATCH guard (2026-08-08)
 - [x] **Root cause of the 2.3 flake (intermittent 50% failure under `--repeat-each`).** The test's first UI action was clicking the play/pause button. When `ensurePlaying` had already left the video playing, that click *pauses* it, and `handlePause`'s `syncImmediate` can be **swallowed by the `applyingRef` gesture guard** (`SyncedVideoJsPlayer.tsx:166-173`, guard window 100 ms) if a poll-driven apply lands in the same window. Result: no PATCH from the click, the video is paused, and the only PATCH to fire is the ArrowRight seek — which gets held. A paused video emits no `timeupdate`, so `patchCount` stays 1 and the test times out at `toBeGreaterThanOrEqual(2)`. Debug logging (added during diagnosis, removed after) confirmed: failing runs held the seek PATCH (`is_playing:true, position 5.99`) while the video was `paused:true`; passing runs held the toggle's pause PATCH and got the seek + timeupdate PATCHes afterwards.
-- [x] **Fix (`tests/e2e/playback-sync-verification.spec.ts`).** The test no longer relies on a play/pause toggle producing a PATCH (guard-raced). It now seeks first via the slider (`ArrowRight`) — `handleSeeked` **never** consults `applyingRef`, so PATCH #1 (held) is reliable — and lets the still-playing video's throttled+debounced `timeupdate` sync emit PATCH #2 (forwarded, bumps server `state_version`). The stale synthesized response (`state_version: 0`) is then released and asserted ignored, as before. All temporary `console.log` debug lines removed.
-- [x] **Verification** — test 2.3 `--repeat-each=8` **8/8** (was 3/6); full `playback-sync-verification.spec.ts` **4/4** (second clean run; the one drift failure in the first run was test 2.1's cold-start timing at 34s, unrelated — 2/2 in isolation, ~6s drift). `npm run type-check`, `npm run lint`, `npm run format:check` all clean. Nothing committed/pushed.
+- [x] **Fix (`tests/e2e/playback-sync-verification.spec.ts`).** The test no longer relies on a play/pause toggle producing a PATCH (guard-raced). It seeks first via the slider (`ArrowRight`) — `handleSeeked` **never** consults `applyingRef`, so PATCH #1 (held) is reliable — then waits for the first PATCH to be confirmed held (`patchCount >= 1` + `heldReq` non-null) and issues a **second, spaced seek after a 1.2s margin** so PATCH #2 is produced DETERMINISTICALLY. The seeked path always emits a PATCH, unlike the throttled+debounced `timeupdate` sync, which only fires while `timeupdate` events keep coming and can stall if the media pauses while buffering (a paused video emits no `timeupdate`, so `patchCount` could stay 1 and the test would time out at `toBeGreaterThanOrEqual(2)`). The spacing prevents the media element from coalescing the two quick seeks into a single `seeked`/PATCH. PATCH #2 forwards to the real server and bumps `state_version`; the stale synthesized response (`state_version: 0`) is then released and asserted ignored, as before. All temporary `console.log` debug lines removed.
+- [x] **Verification** — test 2.3 `--repeat-each=5` **5/5**; full `playback-sync-verification.spec.ts` **4/4** (2.6m). `npm run lint`, `npm run type-check`, `npx prettier --check tests/e2e/playback-sync-verification.spec.ts` all clean. Nothing committed/pushed.
 
 ### Step 3 — Pusher Real-Time Sync: Polling Integration Point Inventory (2026-08-07)
 

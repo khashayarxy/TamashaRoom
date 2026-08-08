@@ -8,7 +8,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: system-ui, -apple-system, sans-serif;
-            background: #0f172a;
+            background: #0a0a0f;
             color: #e2e8f0;
             display: flex;
             align-items: center;
@@ -17,12 +17,12 @@
             direction: rtl;
         }
         .container { text-align: center; padding: 2rem; }
-        h1 { font-size: 6rem; font-weight: 800; color: #ef4444; line-height: 1; }
+        h1 { font-size: 6rem; font-weight: 800; color: #f43f5e; line-height: 1; }
         p { font-size: 1.125rem; margin: 1rem 0 2rem; color: #94a3b8; }
         a {
             display: inline-block;
             padding: 0.75rem 1.5rem;
-            background: #3b82f6;
+            background: #6366f1;
             color: #fff;
             border-radius: 0.75rem;
             text-decoration: none;

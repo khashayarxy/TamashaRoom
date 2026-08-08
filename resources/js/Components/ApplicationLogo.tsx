@@ -7,13 +7,13 @@ export default function ApplicationLogo(props: SVGAttributes<SVGElement>) {
                 width="60"
                 height="60"
                 rx="12"
-                fill="var(--color-primary, #E8A817)"
+                fill="var(--color-primary, #4F46E5)"
             />
             <text
                 x="30"
                 y="38"
                 textAnchor="middle"
-                fill="#1C1815"
+                fill="var(--color-primary-foreground, #FFFFFF)"
                 fontFamily="Vazirmatn, sans-serif"
                 fontSize="28"
                 fontWeight="700"

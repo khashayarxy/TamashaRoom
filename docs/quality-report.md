@@ -154,8 +154,8 @@
 ### Layouts
 | File | Status |
 |---|---|
-| `resources/js/Layouts/GuestLayout.tsx` | ✅ Warm dark bg, centered card, amber accent bar |
-| `resources/js/Layouts/AuthenticatedLayout.tsx` | ✅ Warm palette, theme tokens, Persian |
+| `resources/js/Layouts/GuestLayout.tsx` | ✅ Dark near-black bg, centered card, indigo accent bar |
+| `resources/js/Layouts/AuthenticatedLayout.tsx` | ✅ Palette tokens (dark indigo/rose), theme tokens, Persian |
 | `resources/js/Layouts/AppLayout.tsx` | ✅ Sidebar, header, main content slot |
 
 ### Stores (4 Zustand)
@@ -215,5 +215,5 @@
 ### Code Quality Summary (from last verified build: July 24, 5:30 PM)
 - **npm run build:** ✅ Zero errors — 2840 modules transformed, 25 assets, 60.7 KB CSS, all 11 page chunks + 9 shared chunks
 - **TypeScript:** Strict mode enabled, no `.tsbuildinfo` (Vite isolates module compilation)
-- **Design system:** Warm amber/charcoal palette, Vazirmatn font, RTL logical properties, Persian digits
-- **Architecture:** No React Query, no WebSockets, no CVA, no Radix UI — Zustand stores, Inertia props, polling-based sync
+- **Design system:** Dark indigo/rose palette (near-black #0A0A0F bg, indigo #6366F1 primary, rose #F43F5E destructive), Vazirmatn + Inter (Latin fallback), RTL logical properties, Persian digits
+- **Architecture:** No React Query, no WebSockets — Zustand stores, Inertia props, polling-based sync (shadcn-style `ui/` primitives on Radix + Sonner toast added 2026-08-08)

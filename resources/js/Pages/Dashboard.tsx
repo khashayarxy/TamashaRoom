@@ -2,13 +2,12 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Head, router, usePage } from "@inertiajs/react";
 
 import { Link2, Plus, Tv } from "lucide-react";
+import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { RoomCard, type RoomCardRoom } from "@/Components/composite/room-card";
-import { ToastContainer } from "@/Components/composite/toast";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
-import { toast } from "@/Hooks/use-toast";
 import AppLayout from "@/Layouts/AppLayout";
 import {
     CREATE_ROOM_INTENT_KEY,
@@ -291,8 +290,6 @@ export default function Dashboard({ rooms }: { rooms: RoomCardRoom[] }) {
                 confirmVariant="destructive"
                 loading={deleting}
             />
-
-            <ToastContainer />
         </div>
     );
 }

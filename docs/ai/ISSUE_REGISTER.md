@@ -268,6 +268,25 @@
 
 ---
 
+### TAM-010 — Pre-existing a11y failure: auth "Verify email" registration redirect timeout
+
+- **ID:** TAM-010
+- **Title:** `auth-a11y.spec.ts` "Verify email page" fails — registration flow never reaches `waitForURL(/verify-email|dashboard/, { timeout: 10000 })`
+- **Category:** Testing / Accessibility
+- **Severity:** P3
+- **Verification:** CONFIRMED (reproduced on 2026-08-08)
+- **Status:** OPEN
+- **Confidence:** High
+- **Area:** `tests/a11y/auth-a11y.spec.ts` (registration flow → verification prompt)
+- **Evidence:** During the 2026-08-08 UI-primitives batch (STEP 3c palette/fonts work), the full a11y suite ran **10/11** — every test except "Verify email page" passes. The failure is a `waitForURL(/verify-email|dashboard/, { timeout: 10000 })` timeout during the registration flow; the redirect never lands. It is **pre-existing** — it reproduces on a clean checkout with none of the batch's changes (frontend-only emoji/toast/palette; auth code untouched), and it was failing before this batch's work. The batch's own welcome a11y contrast regression (invite-code chip 4.11:1) was fixed and now passes; TAM-010 is unrelated.
+- **Impact:** One a11y spec fails; the rest of the suite (welcome, login, register, dashboard, forgot-password, profile, reset-password, confirm-password, profile delete-account modal, room) passes. Not a production blocker; the verify-email **page** itself has no axe violation when reached directly — the failure is in the registration **flow** reaching it.
+- **Production blocking:** No.
+- **Recommended direction:** Investigate the registration redirect separately (possibly an auth/verification-environment dependency such as the Resend mailer in test runs, or a redirect target/timeout mismatch). Fix in its own unit of work — explicitly **not** part of the 2026-08-08 UI-primitives batch.
+- **Verification source:** `npm run test:a11y` run 2026-08-08 (10/11; only "Verify email page" failed); `tests/a11y/auth-a11y.spec.ts`.
+- **Notes:** Tracked deliberately so the batch does not get blamed for it, and so it is not silently "fixed" inside an unrelated commit. See `docs/TASK.md` "UI primitives batch" (2026-08-08) for the batch verification numbers.
+
+---
+
 ## RESOLVED
 
 ### TAM-100 — "SRT uploads rejected" (originally reported as a proxy failure)

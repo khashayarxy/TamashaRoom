@@ -9,10 +9,10 @@ import {
 } from "@/Components/ui/dialog";
 import { Input } from "@/Components/ui/input";
 import { copyToClipboard } from "@/lib/utils";
-import { toast } from "@/Hooks/use-toast";
 import api from "@/lib/api";
 import { Copy, Key, LinkIcon, Loader2, Lock, Unlock } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface RoomSettingsProps {
     open: boolean;
