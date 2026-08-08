@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 /**
@@ -161,5 +162,21 @@ Route::middleware('web')->group(function () {
             'user_id' => $user->id,
             'room_id' => $room->id,
         ]);
+    });
+
+    Route::get('/__test/verification-url', function (Request $request) {
+        abort_if(! app()->environment('local', 'testing'), 404);
+
+        $request->validate(['email' => 'required|email']);
+
+        $user = User::where('email', $request->email)->firstOrFail();
+
+        $url = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->getEmailForVerification())]
+        );
+
+        return response()->json(['url' => $url]);
     });
 });

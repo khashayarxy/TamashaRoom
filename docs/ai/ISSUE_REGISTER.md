@@ -266,7 +266,7 @@
 - **Notes:** Previously tracked as WONT_FIX when verification was a deliberate
   disabled choice; the Batch 1 proxy rewrite superseded that decision.
 
----
+## RESOLVED
 
 ### TAM-010 — Pre-existing a11y failure: auth "Verify email" registration redirect timeout
 
@@ -275,19 +275,19 @@
 - **Category:** Testing / Accessibility
 - **Severity:** P3
 - **Verification:** CONFIRMED (reproduced on 2026-08-08)
-- **Status:** OPEN
+- **Status:** RESOLVED (2026-08-08)
 - **Confidence:** High
-- **Area:** `tests/a11y/auth-a11y.spec.ts` (registration flow → verification prompt)
-- **Evidence:** During the 2026-08-08 UI-primitives batch (STEP 3c palette/fonts work), the full a11y suite ran **10/11** — every test except "Verify email page" passes. The failure is a `waitForURL(/verify-email|dashboard/, { timeout: 10000 })` timeout during the registration flow; the redirect never lands. It is **pre-existing** — it reproduces on a clean checkout with none of the batch's changes (frontend-only emoji/toast/palette; auth code untouched), and it was failing before this batch's work. The batch's own welcome a11y contrast regression (invite-code chip 4.11:1) was fixed and now passes; TAM-010 is unrelated.
-- **Impact:** One a11y spec fails; the rest of the suite (welcome, login, register, dashboard, forgot-password, profile, reset-password, confirm-password, profile delete-account modal, room) passes. Not a production blocker; the verify-email **page** itself has no axe violation when reached directly — the failure is in the registration **flow** reaching it.
+- **Area:** `tests/a11y/auth-a11y.spec.ts` (registration flow → verification prompt), `tests/a11y/playwright.config.ts`, `tests/e2e/playwright.config.ts`, `routes/test-helpers.php`, `resources/js/Components/ui/inertia-progress.tsx`
+- **Evidence:** During the 2026-08-08 UI-primitives batch (STEP 3c palette/fonts work), the full a11y suite ran **10/11** — every test except "Verify email page" passes. The failure was a `waitForURL(/verify-email|dashboard/, { timeout: 10000 })` timeout during the registration flow; the redirect never landed. It was **pre-existing** — reproduced on a clean checkout with none of the batch's changes.
+  **Root cause:** the Playwright `webServer` boots `php artisan serve` against the local `.env` where `MAIL_MAILER=resend` with a real key. Registration fires the `Registered` event → `User::sendEmailVerificationNotification()` → the `VerifyEmail` notification (extends the framework base, not `ShouldQueue`) sends synchronously → Resend rejects `@example.com` test addresses (`Invalid "to" field…`, `ResendTransport.php:118`) → `TransportException` → **500 on POST /register** → redirect never happens → timeout. `phpunit.xml` already sets `MAIL_MAILER=array` (PHPUnit never hit Resend); there is no `.env.testing`; the culprit was only the Playwright boot.
+  **Fix (test-server scoped; local/production `.env` untouched):** `MAIL_MAILER: "array"` added to `webServer.env` in both `tests/a11y/playwright.config.ts` and `tests/e2e/playwright.config.ts`. Because `Notification::fake()`/`Mail::fake()` are PHPUnit-only, the browser test reads the real signed URL via a new test-only route `GET /__test/verification-url?email=…` in `routes/test-helpers.php` (returns `URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $user->id, 'hash' => sha1($user->getEmailForVerification())])`). The spec then `page.goto()`s that URL and asserts it lands on the verified-only `/dashboard` (verification proof). Note the redirect resolves via the session `intended` URL (`/dashboard`) because the unverified-dashboard redirect stored it, so the `?verified=1` fallback is not asserted.
+  **Surfaced a real product defect:** once the registration flow succeeded, axe flagged Inertia's bundled NProgress markup `<div class="bar" role="bar">` — `role="bar"` is not a valid ARIA role (critical). Fixed by disabling the default (`progress: false` in `resources/js/app.tsx`) and rendering a custom `Components/ui/inertia-progress.tsx` — a thin `role="progressbar"` with `aria-valuemin/max/now` driven by `router.on('start'|'progress'|'finish')`, styled with `bg-primary`.
+  **Verification:** `-g "Verify email" --repeat-each=5` → 5/5; full a11y suite **11/11**; full E2E suite **22/22** (one transient 2.1 sync-error-banner flake on the first run, green on re-run); `php artisan test` 262/262; Vitest 231/231; lint / type-check / Pint / Prettier clean.
+- **Impact:** Resolved — the full a11y suite is green (11/11) and the app's top navigation progress bar now carries a valid `progressbar` role instead of the invalid `bar` role.
 - **Production blocking:** No.
-- **Recommended direction:** Investigate the registration redirect separately (possibly an auth/verification-environment dependency such as the Resend mailer in test runs, or a redirect target/timeout mismatch). Fix in its own unit of work — explicitly **not** part of the 2026-08-08 UI-primitives batch.
-- **Verification source:** `npm run test:a11y` run 2026-08-08 (10/11; only "Verify email page" failed); `tests/a11y/auth-a11y.spec.ts`.
-- **Notes:** Tracked deliberately so the batch does not get blamed for it, and so it is not silently "fixed" inside an unrelated commit. See `docs/TASK.md` "UI primitives batch" (2026-08-08) for the batch verification numbers.
-
----
-
-## RESOLVED
+- **Recommended direction:** None — resolved. If the E2E `2.1` sync-error-banner flake recurs, treat it as the documented single-worker load flake, not a regression.
+- **Verification source:** `npm run test:a11y` runs 2026-08-08 (11/11 after fix; 10/11 before); `tests/a11y/auth-a11y.spec.ts`; `tests/a11y/playwright.config.ts`; `tests/e2e/playwright.config.ts`; `routes/test-helpers.php`; `resources/js/Components/ui/inertia-progress.tsx`; `resources/js/app.tsx`.
+- **Notes:** Tracked deliberately so the batch did not get blamed for it, and so it was not silently "fixed" inside an unrelated commit — it is fixed in its own unit of work. The `register` rate limiter (`perMinute(5)->by(ip)`, `app/Providers/AppServiceProvider.php`) persists in the database cache; repeated registration tests within the same minute trip a 429 — clear the throttle key between runs (`php artisan cache:forget throttle:register:127.0.0.1`) or let the window elapse.
 
 ### TAM-100 — "SRT uploads rejected" (originally reported as a proxy failure)
 
@@ -378,7 +378,8 @@ Order by severity × verification confidence × production impact:
 2. **TAM-001 (P2, WONT_FIX for MVP)** — Keep tracked; implement the stream-context
    IP check when time allows or pre-VPS migration.
 3. **Resolved in prior batches** — TAM-002 (migration count, Batch 2A),
-   TAM-003 (subtitle sanitization test, Batch 2B), TAM-005 (ownership transfer
-   UX, Batch 2C), TAM-004 (a11y coverage, Batch 2D), TAM-008 (SESSION_SECURE_COOKIE
-   in .env.example), TAM-009 (TLS verification enabled, Batch 1), TAM-200 (a11y
-   count verified).
+    TAM-003 (subtitle sanitization test, Batch 2B), TAM-005 (ownership transfer
+    UX, Batch 2C), TAM-004 (a11y coverage, Batch 2D), TAM-008 (SESSION_SECURE_COOKIE
+    in .env.example), TAM-009 (TLS verification enabled, Batch 1), TAM-010 (a11y
+    "Verify email" registration flow + invalid `role="bar"` progress markup),
+    TAM-200 (a11y count verified).

@@ -1,6 +1,7 @@
 import "../css/app.css";
 import "./bootstrap";
 
+import { InertiaProgress } from "@/Components/ui/inertia-progress";
 import { Toaster } from "@/Components/ui/sonner";
 import { ErrorBoundary } from "@/Components/ui/error-boundary";
 import { createInertiaApp } from "@inertiajs/react";
@@ -22,11 +23,10 @@ createInertiaApp({
         root.render(
             <ErrorBoundary>
                 <App {...props} />
+                <InertiaProgress />
                 <Toaster />
             </ErrorBoundary>,
         );
     },
-    progress: {
-        color: "#6366F1",
-    },
+    progress: false,
 });
