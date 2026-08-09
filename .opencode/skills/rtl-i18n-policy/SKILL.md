@@ -23,12 +23,19 @@ labels, both, or stay as-is (LTR/English)?" Do not assume.
 ## Requires asking first
 - Applying dir="rtl" or mirroring CSS to any component.
 - Reversing icon order, control positions, or visual flow.
-- Anything inside the video player, progress bars, sliders, numeric/timer displays.
+- Anything inside the media player (Video.js v10 via `@videojs/react` —
+  `resources/js/Components/Player/VideoJsPlayer.tsx`), progress bars, sliders,
+  numeric/timer displays.
 - Any component shared across multiple pages.
 
 ## Never do without explicit instruction
-- Do not apply RTL to: the video player, icons, numeric/time displays, or any
-  universal/language-neutral element — regardless of the page being Persian/RTL.
+- Do not apply RTL to: the media player (Video.js v10 via `@videojs/react`),
+  icons, numeric/time displays, or any universal/language-neutral element —
+  regardless of the page being Persian/RTL.
+- Persian UI text inside the player is handled by Video.js's own i18n, not by
+  mirroring the layout: `VideoJsPlayer.tsx` wraps the player in
+  `I18nProvider locale="fa"` (with the fa locale registered). The player chrome
+  stays LTR; never re-implement Persian labels by flipping the layout.
 - Do not assume "the site is Persian" means "every component should be RTL."
 
 ## When in doubt

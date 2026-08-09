@@ -102,12 +102,20 @@ public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse
 }
 ```
 
-- **Now**: `BROADCAST_CONNECTION=null` — broadcasting is a no-op; the frontend
-  polls the room's current state on a tiered cadence — 3 seconds while playing,
-  10 seconds while paused/idle (see `use-playback-sync.ts`). Expect ~3s sync
-  drift while actively playing.
+- **Now** (local/production): `BROADCAST_CONNECTION=pusher` — broadcasting
+  pushes over Pusher Channels, with polling as the tiered-cadence fallback —
+  3s while playing, 10s while paused/idle (see `use-playback-sync.ts`); expect
+  ~3s sync drift while actively playing.
+- **CI**: `BROADCAST_CONNECTION=null` — broadcasting is a no-op **there only**;
+  the frontend polls on the same tiered cadence.
+- **Intermediate** (when Pusher's connection limit is hit):
+  `BROADCAST_CONNECTION=apinator` (plus `VITE_BROADCAST_CONNECTION=apinator`) —
+  Apinator is a Pusher-compatible hosted endpoint, configured but dormant in
+  `config/broadcasting.php`; the same `pusher-js` + `laravel-echo` client and
+  `broadcast(...)` call keep working with no client rework. Full detail:
+  DECISION-015.
 - **Later** (on a VPS): `BROADCAST_CONNECTION=reverb` — the same
-  `broadcast(...)` call now pushes over a WebSocket.
+  `broadcast(...)` call now pushes over a self-hosted Reverb WebSocket.
 - The frontend hides the transport behind one hook
   (`resources/js/Hooks/use-playback-sync.ts`) so components never know which
   transport is active. The future migration is a config change plus a hook
