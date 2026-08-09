@@ -2,6 +2,9 @@
 
 ## Completed
 
+### Windows dev-server env-var known issue documented (2026-08-10)
+- [x] Diagnosed + documented a Windows-only quirk in the `debugging` skill (KI-016): Laravel's `php artisan serve` (13.20.0) passes only `$passthroughVariables`-whitelisted env vars to the child server process on Windows, so Playwright's `webServer.env: { MAIL_MAILER: "array" }` never reaches the test server — it falls back to `.env`'s `MAIL_MAILER=resend`, the synchronous `VerifyEmail` notification hits Resend, rejects `@example.com`, and `POST /register` 500s (the "Verify email" a11y test times out). On Linux/CI the canonical config works (TAM-010). Verified workarounds: (a) temporarily set `MAIL_MAILER=array` in `.env` and restore after (full a11y **17/17**); (b) `php artisan serve --no-reload` passes shell env through (`POST /register` → 302 → `/verify-email`, no Resend call); (c) a direct `php -S` server inherits the parent's env vars. Committed as a docs-only commit.
+
 ### UI primitives batch: shadcn-style `ui/` layer, Sonner toasts, Frimousse emoji picker + dark indigo palette (2026-08-08)
 
 **Batch scope:** STEP 1 (E2E flake), STEP 2 (rtl-i18n-policy skill), STEP 3a/3b/3c (UI primitives + palette), STEP 4 (docs drift).

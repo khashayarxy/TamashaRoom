@@ -123,6 +123,7 @@ Check this skill when:
 - Node.js deprecation warnings in CI
 - Gitleaks or security scan failures
 - Build/asset failures in CI but not locally
+- Playwright a11y/E2E fails on Windows but passes on Linux/CI (often mail/registration-related)
 
 | ID | Symptom | Root Cause | Fix | Where |
 |---|---|---|---|---|
@@ -141,6 +142,7 @@ Check this skill when:
 | KI-013 | CI: Font loading warning (Vazirmatn) | Font file in `resources/fonts/` missing on CI | Bundle as Vite asset (`resources/fonts/`) + preload via `Vite::asset()` | `resources/css/fonts.css`, `resources/views/app.blade.php` |
 | KI-014 | CI: React Compiler warning | ESLint disable directive causes Compiler bailout | Replace directive with module helper function | `Hooks/use-presence.ts` |
 | KI-015 | CI: npm audit vulnerabilities | Transitive dependencies (brace-expansion, postcss, vite) | Patch lockfile surgically; major upgrades deferred if breaking | `package-lock.json` |
+| KI-016 | Windows: "Verify email" a11y test fails — POST /register 500 (Resend) | `php artisan serve` on Windows passes only whitelisted env vars to the child server; `MAIL_MAILER` isn't whitelisted, so `webServer.env` override never lands and `.env`'s `resend` is used | Serve with `php artisan serve --no-reload` (shell env passes through), or temporarily set `MAIL_MAILER=array` in `.env` and restore | `tests/a11y/playwright.config.ts`, `tests/e2e/playwright.config.ts`, Laravel `ServeCommand` |
 
 ### CI-Specific complex bugs
 
@@ -160,6 +162,33 @@ multi-commit pushes only. Root cause: gitleaks scans
 `fetch-depth: 1` omits the base commit so the range fails. Single-commit pushes
 scan `HEAD` (no range) → pass. Fix: `fetch-depth: 0` on the checkout step.
 Verify: `git clone --depth 1` + range-scan reproduces the failure.
+
+### Windows-specific dev-server quirks
+
+**KI-016 — `php artisan serve` drops test env overrides on Windows**
+Symptom: `auth-a11y.spec.ts` "Verify email page" (or any Playwright test that
+relies on the `webServer.env` `MAIL_MAILER: "array"` override) fails locally on
+Windows: `POST /register` returns 500 (Resend `TransportException`, "Invalid
+`to` field … example.com") and `waitForURL(/verify-email/)` times out. The
+same suite is green on Linux/CI, where that `webServer.env` config is the
+canonical fix (TAM-010).
+Root cause (framework 13.20.0): Laravel's `ServeCommand` starts the real server
+with only a fixed allow-list of env vars from `$_ENV`
+(`static::$passthroughVariables` — `APP_ENV`, `PATH`, `XDEBUG_*`, `HERD_*`, …)
+when spawning the child `php -S` process. `MAIL_MAILER` is not in the list, so
+Playwright's `webServer.env` override never reaches the test server; the child
+falls back to `.env`'s real `MAIL_MAILER=resend`, the synchronous `VerifyEmail`
+notification hits the Resend API, and `@example.com` test addresses are
+rejected → 500.
+Workarounds (both verified on a Windows box):
+1. `php artisan serve --no-reload` — the `--no-reload` path passes the full env
+   through, so a shell-set `MAIL_MAILER=array` (e.g. `$env:MAIL_MAILER="array"`
+   in PowerShell before starting) reaches the child. Verified: `POST /register`
+   → 302 → `/verify-email`, no Resend call.
+2. Temporarily set `MAIL_MAILER=array` in `.env`, run the suite (full a11y
+   17/17), then restore `.env` to `resend`.
+Also verified: a direct `php -S` server (no `artisan serve`) inherits the
+parent's env vars, so serving the app directly is another escape hatch.
 
 ### Going forward
 
