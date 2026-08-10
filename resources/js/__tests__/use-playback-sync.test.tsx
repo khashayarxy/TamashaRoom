@@ -109,6 +109,76 @@ describe("usePlaybackSync", () => {
         );
     });
 
+    it("omits video_url from a routine position sync", async () => {
+        mockPatch.mockResolvedValue({
+            data: { status: "ok", state_version: 2, server_timestamp: 2000 },
+        });
+
+        const { result } = renderHook(() =>
+            usePlaybackSync({ roomId: 1, isHost: true }),
+        );
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        act(() => {
+            result.current.sync({ isPlaying: true, positionSeconds: 50 });
+        });
+
+        await waitFor(() => expect(mockPatch).toHaveBeenCalled(), {
+            timeout: 3000,
+        });
+
+        // A position-only sync must never carry the host's (possibly stale)
+        // local videoUrl. Sending it would make the server treat that PATCH as
+        // an authoritative video change and revert a newly set video.
+        expect(mockPatch).toHaveBeenCalledWith(
+            "/playback/1",
+            expect.not.objectContaining({
+                video_url: expect.anything(),
+            }),
+        );
+    });
+
+    it("refetches authoritative state when refreshKey changes", async () => {
+        const { result, rerender } = renderHook(
+            ({ refreshKey }: { refreshKey: number }) =>
+                usePlaybackSync({ roomId: 1, refreshKey }),
+            { initialProps: { refreshKey: 0 } },
+        );
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(mockGet).toHaveBeenCalledTimes(1);
+
+        mockGet.mockResolvedValue({
+            data: makeResponse({
+                state_version: 2,
+                video_url: "https://x.com/new.mp4",
+            }),
+        });
+
+        rerender({ refreshKey: 1 });
+
+        await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+            expect(result.current.state.videoUrl).toBe("https://x.com/new.mp4"),
+        );
+    });
+
+    it("does not refetch when refreshKey is unchanged", async () => {
+        const { rerender } = renderHook(
+            ({ refreshKey }: { refreshKey: number }) =>
+                usePlaybackSync({ roomId: 1, refreshKey }),
+            { initialProps: { refreshKey: 0 } },
+        );
+
+        await waitFor(() => expect(mockGet).toHaveBeenCalled());
+        expect(mockGet).toHaveBeenCalledTimes(1);
+
+        rerender({ refreshKey: 0 });
+
+        expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+
     it("syncImmediate calls patch then refetches state", async () => {
         mockPatch.mockResolvedValue({
             data: { status: "ok", state_version: 3, server_timestamp: 3000 },

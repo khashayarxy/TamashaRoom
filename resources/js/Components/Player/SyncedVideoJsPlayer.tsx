@@ -27,6 +27,12 @@ interface SyncedVideoJsPlayerProps {
     className?: string;
     onSuggestNext?: () => void;
     subtitles?: SyncedVideoJsPlayerSubtitles;
+    /**
+     * Bumped after a video mutation (set/remove) so the host reconciles its
+     * playback state from the authoritative GET instead of waiting on a
+     * broadcast that may be delayed or undelivered.
+     */
+    refreshKey?: number;
 }
 
 function proxyUrl(roomId: number): string {
@@ -40,10 +46,12 @@ export function SyncedVideoJsPlayer({
     className,
     onSuggestNext,
     subtitles,
+    refreshKey,
 }: SyncedVideoJsPlayerProps) {
     const { state, sync, syncImmediate, loading, error } = usePlaybackSync({
         roomId,
         isHost: canControl,
+        refreshKey,
     });
     const playerRef = useRef<VideoJsPlayerHandle>(null);
     const lastTimeupdateSyncRef = useRef(0);

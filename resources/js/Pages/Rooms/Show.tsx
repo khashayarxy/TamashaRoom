@@ -86,6 +86,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
     const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
     const [settingVideo, setSettingVideo] = useState(false);
+    const [videoRefreshKey, setVideoRefreshKey] = useState(0);
     const [chatUnread, setChatUnread] = useState(0);
     const [showOnboarding, setShowOnboarding] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,6 +165,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             });
             setShowSetVideo(false);
             setVideoUrl("");
+            setVideoRefreshKey((key) => key + 1);
             toast.success("ویدیو تنظیم شد.");
         } catch {
             toast.error("تنظیم ویدیو ناموفق بود. لطفاً دوباره تلاش کنید.");
@@ -245,6 +247,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         initialVideoUrl={room.video_url}
                         className="h-full"
                         onSuggestNext={suggestNext}
+                        refreshKey={videoRefreshKey}
                         subtitles={{
                             cues,
                             settings,

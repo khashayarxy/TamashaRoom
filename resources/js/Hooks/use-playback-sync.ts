@@ -19,6 +19,12 @@ interface SyncOptions {
     roomId: number;
     isHost?: boolean;
     onRemoteChange?: (state: PlaybackState) => void;
+    /**
+     * Bump to force an authoritative GET refetch (applied when the value
+     * changes). Lets the host reconcile its local state immediately after
+     * setting or removing a video instead of waiting on a broadcast.
+     */
+    refreshKey?: number;
 }
 
 /**
@@ -40,6 +46,7 @@ export function usePlaybackSync({
     roomId,
     isHost = false,
     onRemoteChange,
+    refreshKey,
 }: SyncOptions) {
     const [state, setState] = useState<PlaybackState>({
         isPlaying: false,
@@ -69,6 +76,7 @@ export function usePlaybackSync({
     );
     const pushEnabledRef = useRef(false);
     const channelRef = useRef<EchoPresenceChannel | null>(null);
+    const appliedRefreshKeyRef = useRef(refreshKey);
     const reconnectCleanupRef = useRef<{
         pusher: { connection: { unbind: (e: string, c: () => void) => void } };
         onConnected: () => void;
@@ -181,6 +189,15 @@ export function usePlaybackSync({
     }, [applySnapshot]);
 
     useEffect(() => {
+        if (refreshKey === undefined) return;
+        if (refreshKey === appliedRefreshKeyRef.current) return;
+        appliedRefreshKeyRef.current = refreshKey;
+        if (!cancelledRef.current) {
+            void fetchStateRef.current();
+        }
+    }, [refreshKey]);
+
+    useEffect(() => {
         cancelledRef.current = false;
         const echo = getEcho();
         pushEnabledRef.current = echo !== null;
@@ -249,11 +266,15 @@ export function usePlaybackSync({
                 duration_seconds:
                     partial.durationSeconds ?? prev.durationSeconds,
                 playback_rate: partial.playbackRate ?? prev.playbackRate,
-                video_url:
-                    partial.videoUrl !== undefined
-                        ? partial.videoUrl
-                        : prev.videoUrl,
                 client_timestamp: Date.now() / 1000,
+                // Position syncs must never carry a video_url: the host's local
+                // copy can be stale (a video was just set or removed), and the
+                // server treats a PATCHed URL as an authoritative change that
+                // would revert the room's current video. Only an explicit
+                // video change from the caller sends video_url.
+                ...(partial.videoUrl !== undefined
+                    ? { video_url: partial.videoUrl }
+                    : {}),
             } as const;
 
             try {

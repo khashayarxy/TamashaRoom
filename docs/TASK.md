@@ -2,6 +2,16 @@
 
 ## Completed
 
+### Room-player video bugs: stale `video_url` reverts + host never reconciles after set-video (2026-08-11)
+
+**Batch scope:** two confirmed root causes behind "replacing the video mid-playback keeps the old one" and "the submitted video never appears". Evidence-based; each fixed with a failing test first. Nothing committed/pushed.
+
+- [x] **Root cause #1 (replace keeps old video): routine position syncs carried the host's stale `video_url`.** `use-playback-sync`'s `sync()` always sent `video_url: prev.videoUrl` on every host PATCH (`use-playback-sync.ts:252`), so after `set-video` bumped the room to the new URL the host's **next** play/pause/seek/timeupdate PATCH sent its old local URL. `PlaybackController::update` legitimately honors a PATCHed `video_url` (documented by `test_host_can_update_video_url_via_sync`), so the server "reverted" the just-set video — deterministically whenever the host acted before a poll/broadcast caught it up, and permanently in push mode (see #2). **Fix:** `sync()` now omits `video_url` unless the caller explicitly passes it (spread-gated payload); only `set-video` and intentional URL syncs change the video.
+- [x] **Root cause #2 (video never appears): the host never reconciled its sync state after set-video.** `Show.tsx` posted `set-video` and ignored the response; `use-playback-sync` only re-seeds on mount/visibility/socket-reconnect. In push mode the host (and every guest downstream of it) waited on the queued `PlaybackStateChanged` broadcast, which on `QUEUE_CONNECTION=database` rides the cron `queue:work --stop-when-empty --max-time=30` drain (≤~60s, or never locally without a worker) — the driver for "sometimes never appears". **Fix:** new optional `refreshKey` option on `use-playback-sync` forces an authoritative `GET /playback/{room}/state` when it changes (deduplicated, so an unchanged key does not refetch); threaded through `SyncedVideoJsPlayer` and bumped in `Show.tsx` on `set-video` success, so the host reloads the new video immediately and its own subsequent broadcasts propagate it.
+- [x] **Regression tests (3 new, all failing before the fix):** "omits `video_url` from a routine position sync"; "refetches authoritative state when `refreshKey` changes"; "does not refetch when `refreshKey` is unchanged" (`resources/js/__tests__/use-playback-sync.test.tsx`).
+- [x] **Verification.** Vitest **234/234**; `npm run lint` (ESLint) and `npm run type-check` (`tsc --noEmit`) clean; `php artisan test` **262/262** (1942 assertions) — the documented PATCH-can-change-video contract is untouched; Pint clean.
+- [x] **Docs.** This entry added to `docs/TASK.md`.
+
 ### Herd HTTPS base-URL priority for Playwright + machine-local Edge fallback (2026-08-11)
 
 **Batch scope:** Playwright suites now prefer the local Herd HTTPS domain (`https://tamasharoom.test`) as base URL when reachable, falling back to the `php artisan serve` dev server; added a never-committed system-Edge fallback config; hardened the one a11y test that depended on the webServer-only `MAIL_MAILER=array`.
