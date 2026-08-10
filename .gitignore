@@ -72,6 +72,12 @@ coverage/
 Homestead.json
 Homestead.yaml
 
+# Machine-local Playwright configs (system-Chrome/MS-Edge workaround where the
+# bundled Chromium CDN download is blocked). Never committed; see
+# docs/ai/ISSUE_REGISTER.md.
+playwright.chrome.config.ts
+playwright.edge.config.ts
+
 # ─── Debug Artifacts ──────────────────────────────────────────────────────
 *-probe.cjs
 debug-*.cjs
