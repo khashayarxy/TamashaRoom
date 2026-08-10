@@ -27,25 +27,19 @@ test.describe("Accessibility audit — auth pages", () => {
     test("Verify email page has no critical or serious a11y violations", async ({
         page,
     }) => {
-        const email = `a11y-test-${Date.now()}@example.com`;
+        // Set up an unverified, logged-in user through the test helper instead
+        // of going through POST /register. Registration triggers the email
+        // verification notification synchronously; that send only succeeds with
+        // the webServer's MAIL_MAILER=array override, which does NOT apply when
+        // the base URL resolves to the local Herd domain (real resend mailer
+        // rejects @example.com). The helper keeps this audit green under either
+        // base URL while still exercising the real /verify-email prompt page.
+        const setup = await page.request
+            .get("/__test/setup-unverified-user")
+            .then((r) => r.json());
 
-        await page.goto("/register");
-        await page.waitForLoadState("networkidle");
-
-        // Registration runs against the Playwright web server (MAIL_MAILER=array),
-        // so the verification notification is captured in memory — no real Resend call,
-        // no inbox involved.
-        await page.fill("#name", "Test User");
-        await page.fill("#email", email);
-        await page.fill("#password", "Password123!");
-        await page.fill("#password_confirmation", "Password123!");
-        await page.click('button[type="submit"]');
-
-        // An unverified user is redirected to the verification prompt page.
-        // 30s accounts for a busy single-worker CI runner: register POST +
-        // array-mailer notification capture + session redirect can exceed 10s
-        // when the server is shared with the rest of the suite.
-        await page.waitForURL(/verify-email/, { timeout: 30000 });
+        // An unverified user is shown the verification prompt page.
+        await page.goto("/verify-email");
         await page.waitForLoadState("networkidle");
 
         const results = await new AxeBuilder({ page })
@@ -67,7 +61,7 @@ test.describe("Accessibility audit — auth pages", () => {
         // array-captured notification would have contained (rendered by the test-only
         // __test/verification-url helper), instead of expecting an email to arrive.
         const { url } = await page.request
-            .get(`/__test/verification-url?email=${encodeURIComponent(email)}`)
+            .get(`/__test/verification-url?email=${encodeURIComponent(setup.email)}`)
             .then((r) => r.json());
         await page.goto(url);
 

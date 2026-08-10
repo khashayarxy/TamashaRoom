@@ -131,6 +131,21 @@ Route::middleware('web')->group(function () {
         ]);
     });
 
+    Route::match(['get', 'post'], '/__test/setup-unverified-user', function (Request $request) {
+        abort_if(! app()->environment('local', 'testing'), 404);
+
+        $user = User::factory()->create([
+            'email' => test_helper_user_email(),
+        ]);
+
+        Auth::login($user);
+
+        return response()->json([
+            'user_id' => $user->id,
+            'email' => $user->email,
+        ]);
+    });
+
     Route::post('/__test/join-room', function (Request $request) {
         abort_if(! app()->environment('local', 'testing'), 404);
 
