@@ -2,7 +2,13 @@ import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "url";
 import path from "path";
 
+import { resolveBaseUrl } from "../playwright-base-url.mjs";
+
 const configDir = path.dirname(fileURLToPath(import.meta.url));
+
+// https://tamasharoom.test when Herd is reachable (real HTTPS via Herd's local
+// CA), else the php artisan serve fallback — see tests/playwright-base-url.mjs.
+const baseURL = await resolveBaseUrl();
 
 export default defineConfig({
     testDir: ".",
@@ -11,8 +17,11 @@ export default defineConfig({
     workers: 1,
     reporter: "list",
     use: {
-        baseURL: "http://127.0.0.1:8000",
+        baseURL,
         headless: true,
+        // page.request runs on Node's TLS stack, which does not trust Herd's
+        // local CA (the browser does) — see tests/a11y/playwright.config.ts.
+        ignoreHTTPSErrors: true,
         launchOptions: {
             args: ["--no-sandbox", "--disable-setuid-sandbox"],
         },
