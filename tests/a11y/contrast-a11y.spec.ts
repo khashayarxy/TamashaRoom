@@ -231,6 +231,13 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
     test("Room dialogs (settings + subtitle settings + confirm)", async ({
         page,
     }) => {
+        // This test performs 8 full-page color-contrast scans across 4 dialog
+        // states x both themes, with a fresh room setup per theme (2 rooms).
+        // Measured ~10s on system Chrome; CI's single-core bundled headless
+        // Chromium routinely exceeds the 30s default budget, so the چت wait in
+        // the second gotoRoom runs out of clock. The scans are irreplaceable
+        // coverage, so scope the budget to this one test instead of retrying.
+        test.setTimeout(60_000);
         const params = new URLSearchParams({
             with_video: "1",
             with_chat: "1",

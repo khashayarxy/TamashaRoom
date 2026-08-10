@@ -25,6 +25,12 @@ export default defineConfig({
         // HTTPS base URL. This keeps the connection encrypted; the browser is
         // never the one bypassing validation.
         ignoreHTTPSErrors: true,
+        // Bundled headless Chromium (CI) does not auto-grant the Clipboard API.
+        // Without clipboard-write, the invite-link copy shows the error toast
+        // instead of "لینک دعوت کپی شد.", breaking contrast-a11y "Room open
+        // states". System Chrome (local) grants it implicitly on secure
+        // contexts, which is why this only surfaced in CI.
+        permissions: ["clipboard-read", "clipboard-write"],
         launchOptions: {
             args: ["--no-sandbox", "--disable-setuid-sandbox"],
         },
