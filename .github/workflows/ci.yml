@@ -63,6 +63,13 @@ jobs:
         run: php artisan serve --port=8000 &
         env:
           SESSION_SECURE_COOKIE: false
+          # Mirrors the a11y/E2E Playwright webServer env. Playwright reuses this
+          # already-running server (reuseExistingServer: true), so the Playwright
+          # config's own env override never applies in CI. Without array mailer,
+          # registration (auth-a11y "Verify email") hits real Resend and 500s on
+          # the @example.com test address -- the server must carry the override.
+          MAIL_MAILER: array
+          PHP_CLI_SERVER_WORKERS: "4"
 
       - name: Wait for Server to be Ready
         run: sleep 3

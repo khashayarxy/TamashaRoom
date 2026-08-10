@@ -26,10 +26,21 @@ type Violation = {
 };
 
 async function setTheme(page: Page, dark: boolean): Promise<void> {
+    await disableTransitions(page);
     await page.evaluate((isDark) => {
         localStorage.setItem("theme", isDark ? "dark" : "light");
         document.documentElement.classList.toggle("dark", isDark);
     }, dark);
+    // The app collapses theme transitions to 0.01ms under reduced motion, but
+    // under suite load axe can still sample colors while style recalculation
+    // from the class toggle settles, producing false mid-transition ratios.
+    // Force the recompute and wait two frames so the scan sees settled tokens.
+    await page.evaluate(() => {
+        void document.documentElement.offsetHeight;
+        return new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+    });
 }
 
 async function contrastViolations(page: Page): Promise<Violation[]> {
@@ -62,6 +73,18 @@ function formatViolations(violations: Violation[]): string {
         .join("\n\n");
 }
 
+/**
+ * Deterministic room-page readiness. A room page with a video + live polling
+ * never reaches `networkidle` (media fetches, playback-sync polls, presence
+ * heartbeats), so the old `waitForLoadState("networkidle")` after navigation
+ * was load-dependent and could time out before the tab-bar buttons render.
+ * The tab bar ("چت"/"اعضا") is part of the first paint, so waiting on it is the
+ * correct barrier — axe scans the DOM, it does not need the network settled.
+ */
+async function waitForRoom(page: Page): Promise<void> {
+    await page.getByRole("button", { name: "چت" }).waitFor();
+}
+
 async function expectBothThemesContrastSafe(page: Page): Promise<void> {
     for (const [theme, dark] of [
         ["dark", true],
@@ -77,11 +100,19 @@ async function expectBothThemesContrastSafe(page: Page): Promise<void> {
 }
 
 // Disable CSS transitions while toggling themes: button/tab transitions
-// (transition-all/transition-colors) interpolate colors for ~200ms, which axe
-// can sample mid-flight and report as a false contrast failure. Reduced motion
-// collapses those to settled values (the app already does this under
-// prefers-reduced-motion: reduce).
+// (transition-all/transition-colors) interpolate colors for ~150ms, which axe can
+// sample mid-flight and report as a false contrast failure. Preferring to rely on
+// PREFERS-REDUCED-MOTION (Playwright's `reducedMotion`) does not hold on every
+// browser channel (e.g. `channel: "chrome"` does not emulate the media query), so
+// setTheme injects a stylesheet that hard-disables transitions and animations.
+// The scan values are then always settled tokens.
 test.use({ reducedMotion: "reduce" });
+
+async function disableTransitions(page: Page): Promise<void> {
+    await page.addStyleTag({
+        content: "*{transition:none !important;animation:none !important}",
+    });
+}
 
 test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
     test("Welcome landing page", async ({ page }) => {
@@ -139,7 +170,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
         const roomUrl = new URL(data.room_url).pathname;
 
         await page.goto(roomUrl);
-        await page.waitForLoadState("networkidle");
+        await waitForRoom(page);
 
         await expectBothThemesContrastSafe(page);
 
@@ -163,7 +194,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             );
             const roomUrl = new URL(data.room_url).pathname;
             await page.goto(roomUrl);
-            await page.waitForLoadState("networkidle");
+            await waitForRoom(page);
         };
 
         for (const [theme, dark] of [
@@ -215,7 +246,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             );
             const roomUrl = new URL(data.room_url).pathname;
             await page.goto(roomUrl);
-            await page.waitForLoadState("networkidle");
+            await waitForRoom(page);
         };
 
         for (const [theme, dark] of [

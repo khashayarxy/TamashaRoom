@@ -17,7 +17,10 @@ test.describe("Room page accessibility", () => {
     const room_url = new URL(data.room_url).pathname;
 
     await page.goto(room_url);
-    await page.waitForLoadState("networkidle");
+    // A room page with a video + live polling never reaches `networkidle`
+    // (media fetches, playback-sync polls, presence heartbeats). The tab bar is
+    // part of first paint, so waiting on it is the deterministic barrier.
+    await page.getByRole("button", { name: "چت" }).waitFor();
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])

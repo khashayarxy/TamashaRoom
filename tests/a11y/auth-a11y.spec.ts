@@ -42,7 +42,10 @@ test.describe("Accessibility audit — auth pages", () => {
         await page.click('button[type="submit"]');
 
         // An unverified user is redirected to the verification prompt page.
-        await page.waitForURL(/verify-email/, { timeout: 10000 });
+        // 30s accounts for a busy single-worker CI runner: register POST +
+        // array-mailer notification capture + session redirect can exceed 10s
+        // when the server is shared with the rest of the suite.
+        await page.waitForURL(/verify-email/, { timeout: 30000 });
         await page.waitForLoadState("networkidle");
 
         const results = await new AxeBuilder({ page })
@@ -73,7 +76,7 @@ test.describe("Accessibility audit — auth pages", () => {
         // verification succeeded. The redirect may resolve from the session
         // `intended` URL (/dashboard) — the `?verified=1` fallback applies only
         // when no intended URL is stored — so assert on /dashboard, not the query.
-        await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+        await page.waitForURL(/\/dashboard/, { timeout: 30000 });
         expect(page.url()).toContain("/dashboard");
     });
 
