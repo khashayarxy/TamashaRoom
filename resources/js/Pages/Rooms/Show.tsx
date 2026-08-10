@@ -200,9 +200,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         <p className="text-sm text-muted-foreground">
                             ساخته شده توسط {room.owner.name}
                             {roomIsLocked && (
-                                <span className="ms-2 text-yellow-500">
-                                    (قفل)
-                                </span>
+                                <span className="ms-2 text-warning">(قفل)</span>
                             )}
                         </p>
                     </div>
@@ -345,7 +343,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                         onClick={() => selectTrack(null)}
                                         className={`w-full text-end px-3 py-1.5 rounded-lg text-sm transition-colors ${
                                             activeTrackId === null
-                                                ? "bg-primary/20 text-primary"
+                                                ? "bg-primary/20 text-accent-foreground"
                                                 : "text-muted-foreground hover:bg-secondary"
                                         }`}
                                     >
@@ -358,7 +356,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                                 className={`w-full text-end px-3 py-1.5 rounded-lg text-sm transition-colors ${
                                                     activeTrackId ===
                                                     roomDefaultId
-                                                        ? "bg-primary/20 text-primary"
+                                                        ? "bg-primary/20 text-accent-foreground"
                                                         : "text-muted-foreground hover:bg-secondary"
                                                 }`}
                                             >
@@ -370,7 +368,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                             key={track.id}
                                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                                                 activeTrackId === track.id
-                                                    ? "bg-primary/20 text-primary"
+                                                    ? "bg-primary/20 text-accent-foreground"
                                                     : "text-muted-foreground hover:bg-secondary"
                                             }`}
                                         >
@@ -385,7 +383,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                                     .{track.original_extension}
                                                 </span>
                                                 {roomDefaultId === track.id && (
-                                                    <span className="text-xs text-primary ms-1">
+                                                    <span className="text-xs text-accent-foreground ms-1">
                                                         (پیش‌فرض)
                                                     </span>
                                                 )}
@@ -436,7 +434,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                 </div>
                             )}
                             {tracksError && tracks.length === 0 && (
-                                <p className="text-xs text-destructive w-full px-1">
+                                <p className="text-xs text-destructive-text w-full px-1">
                                     خطا در دریافت لیست زیرنویس‌ها
                                 </p>
                             )}

@@ -13,6 +13,7 @@
   --color-secondary-foreground: hsl(var(--secondary-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-text: hsl(var(--destructive-text));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-accent: hsl(var(--accent));
@@ -50,8 +51,9 @@
   --secondary-foreground: 240, 20%, 12%;
   --destructive: 347, 77%, 50%;
   --destructive-foreground: 0, 0%, 100%;
+  --destructive-text: 347, 77%, 45%;
   --muted: 240, 15%, 92%;
-  --muted-foreground: 240, 10%, 45%;
+  --muted-foreground: 240, 10%, 43%;
   --accent: 243, 60%, 94%;
   --accent-foreground: 243, 60%, 35%;
   --card: 240, 25%, 99%;
@@ -59,8 +61,8 @@
   --border: 240, 15%, 88%;
   --input: 240, 15%, 86%;
   --ring: 239, 84%, 67%;
-  --success: 152, 60%, 42%;
-  --warning: 38, 92%, 50%;
+  --success: 152, 60%, 31%;
+  --warning: 38, 92%, 32%;
   --info: 239, 84%, 67%;
 }
 
@@ -73,6 +75,7 @@
   --secondary-foreground: 240, 15%, 92%;
   --destructive: 347, 77%, 50%;
   --destructive-foreground: 0, 0%, 100%;
+  --destructive-text: 347, 77%, 62%;
   --muted: 240, 12%, 14%;
   --muted-foreground: 240, 10%, 62%;
   --accent: 243, 60%, 22%;

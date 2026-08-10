@@ -20,7 +20,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
             <Head title="فراموشی رمز عبور" />
 
             <div className="mb-6 text-center">
-                <p className="text-sm font-medium text-primary">
+                <p className="text-sm font-medium text-primary dark:text-accent-foreground">
                     به تماشاروم خوش آمدید
                 </p>
                 <h2 className="mt-1 text-xl font-bold">بازیابی رمز عبور</h2>

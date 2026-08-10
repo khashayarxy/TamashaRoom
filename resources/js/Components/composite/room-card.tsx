@@ -42,7 +42,7 @@ export function RoomCard({ room, onCopyInvite, onDelete }: RoomCardProps) {
                             {room.name}
                         </CardTitle>
                         {room.is_playing ? (
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary dark:text-accent-foreground">
                                 <Play className="h-3 w-3" />
                                 در حال پخش
                             </span>
@@ -80,7 +80,7 @@ export function RoomCard({ room, onCopyInvite, onDelete }: RoomCardProps) {
                     </div>
 
                     {room.video_url && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary dark:text-accent-foreground">
                             <RotateCcw className="h-3 w-3" />
                             دوباره ببینیم
                         </span>
@@ -101,7 +101,7 @@ export function RoomCard({ room, onCopyInvite, onDelete }: RoomCardProps) {
                         <button
                             type="button"
                             onClick={() => onCopyInvite(room.invite_code)}
-                            className="pointer-events-auto relative z-10 inline-flex min-h-[24px] items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="pointer-events-auto relative z-10 inline-flex min-h-[24px] items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:text-primary dark:hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                             <Copy className="h-3.5 w-3.5" />
                             کپی

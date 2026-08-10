@@ -142,7 +142,7 @@ export function SubtitleSettingsDialog({
                                 <button
                                     type="button"
                                     onClick={() => update({ offset: 0 })}
-                                    className="text-xs text-primary underline underline-offset-2"
+                                    className="text-xs text-primary underline underline-offset-2 dark:text-accent-foreground"
                                 >
                                     بازنشانی
                                 </button>

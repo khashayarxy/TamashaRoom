@@ -138,12 +138,12 @@ export function MemberList({
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     {connected ? (
                         <>
-                            <Wifi className="h-3 w-3 text-green-500" />
+                            <Wifi className="h-3 w-3 text-success" />
                             <span>{onlineCount} آنلاین</span>
                         </>
                     ) : (
                         <>
-                            <WifiOff className="h-3 w-3 text-red-500" />
+                            <WifiOff className="h-3 w-3 text-destructive" />
                             <span>قطع ارتباط</span>
                         </>
                     )}
@@ -158,7 +158,7 @@ export function MemberList({
                     <Settings className="h-4 w-4" />
                     تنظیمات اتاق
                     {isLocked && (
-                        <ShieldAlert className="h-3.5 w-3.5 text-yellow-500 me-auto" />
+                        <ShieldAlert className="h-3.5 w-3.5 text-warning me-auto" />
                     )}
                 </button>
             )}
@@ -176,7 +176,7 @@ export function MemberList({
                             <div className="text-sm font-medium truncate flex items-center gap-1">
                                 {member.name}
                                 {member.is_owner && (
-                                    <Crown className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+                                    <Crown className="h-3.5 w-3.5 text-warning shrink-0" />
                                 )}
                             </div>
                             {member.presence_status === "offline" && (

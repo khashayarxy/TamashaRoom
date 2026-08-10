@@ -171,7 +171,7 @@ export function SubtitleOverlay({
                     className,
                 )}
             >
-                <div className="bg-red-900/70 text-red-200 text-sm rounded-lg px-3 py-1.5 backdrop-blur-sm">
+                <div className="bg-red-900/80 text-red-100 text-sm rounded-lg px-3 py-1.5 backdrop-blur-sm">
                     {error}
                 </div>
             </div>
@@ -186,7 +186,7 @@ export function SubtitleOverlay({
                     className,
                 )}
             >
-                <div className="bg-black/40 text-white/60 text-sm rounded-lg px-3 py-1.5 backdrop-blur-sm">
+                <div className="bg-black/60 text-white/85 text-sm rounded-lg px-3 py-1.5 backdrop-blur-sm">
                     در حال بارگذاری زیرنویس...
                 </div>
             </div>

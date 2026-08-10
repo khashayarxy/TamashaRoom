@@ -212,7 +212,7 @@ export function RoomChat({
             <div ref={listRef} className="flex-1 overflow-y-auto space-y-3 p-4">
                 {pollError && (
                     <div role="status" className="flex justify-center py-1">
-                        <span className="inline-flex items-center gap-1.5 text-xs text-destructive">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-destructive-text">
                             <WifiOff className="h-3.5 w-3.5" />
                             در حال اتصال مجدد...
                         </span>

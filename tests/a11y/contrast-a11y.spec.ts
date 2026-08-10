@@ -107,6 +107,23 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
         await expectBothThemesContrastSafe(page);
     });
 
+    test("Responsive nav (mobile viewport, menu open)", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("/__test/setup-verified-room");
+        await page.waitForLoadState("networkidle");
+        await page.goto("/profile");
+        await page.waitForLoadState("networkidle");
+        expect(page.url()).toContain("/profile");
+
+        // AuthenticatedLayout is the only layout rendering ResponsiveNavLink;
+        // its hamburger is the only visible <button> in <nav> at this width.
+        await page.locator("nav button:visible").click();
+        await page
+            .getByRole("link", { name: "داشبورد" })
+            .waitFor({ state: "visible" });
+        await expectBothThemesContrastSafe(page);
+    });
+
     test("Populated room page (chat + members tabs)", async ({ page }) => {
         const params = new URLSearchParams({
             with_video: "1",
@@ -241,6 +258,24 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 violations,
                 `subtitle settings dialog (${theme}):\n${formatViolations(violations)}`,
             ).toEqual([]);
+
+            // Non-zero sync offset reveals the "بازنشانی" reset link. Scope to
+            // the open dialog: the room page's video player exposes its own
+            // range/seekbar controls outside the dialog.
+            const offsetSlider = page.locator(
+                'dialog[open] input[type="range"][max="5000"]',
+            );
+            await offsetSlider.focus();
+            await page.keyboard.press("ArrowRight");
+            await page
+                .getByRole("button", { name: "بازنشانی" })
+                .waitFor();
+            violations = await contrastViolations(page);
+            expect(
+                violations,
+                `subtitle settings reset link (${theme}):\n${formatViolations(violations)}`,
+            ).toEqual([]);
+
             await page.keyboard.press("Escape");
             await page.locator("dialog[open]").waitFor({ state: "hidden" });
 

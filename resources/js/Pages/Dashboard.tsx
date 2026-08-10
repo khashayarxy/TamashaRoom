@@ -157,7 +157,7 @@ export default function Dashboard({ rooms }: { rooms: RoomCardRoom[] }) {
                                         <p
                                             id="create-room-error"
                                             role="alert"
-                                            className="text-sm text-destructive"
+                                            className="text-sm text-destructive-text"
                                         >
                                             {errors.name}
                                         </p>
@@ -224,7 +224,7 @@ export default function Dashboard({ rooms }: { rooms: RoomCardRoom[] }) {
                                 <p
                                     id="join-error"
                                     role="alert"
-                                    className="text-sm text-destructive"
+                                    className="text-sm text-destructive-text"
                                 >
                                     {pageErrors.invite_code}
                                 </p>

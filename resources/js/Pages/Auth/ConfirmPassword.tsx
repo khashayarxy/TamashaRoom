@@ -22,7 +22,7 @@ export default function ConfirmPassword() {
             <Head title="تأیید رمز عبور" />
 
             <div className="mb-6 text-center">
-                <p className="text-sm font-medium text-primary">
+                <p className="text-sm font-medium text-primary dark:text-accent-foreground">
                     به تماشاروم خوش آمدید
                 </p>
                 <h2 className="mt-1 text-xl font-bold">تأیید هویت</h2>

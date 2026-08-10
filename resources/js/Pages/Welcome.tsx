@@ -186,7 +186,7 @@ export default function Welcome({ auth }: PageProps) {
                             aria-hidden="true"
                         />
                         <li className="relative flex gap-4 lg:block">
-                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary">
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary dark:text-accent-foreground">
                                 ۱
                             </span>
                             <div className="lg:mt-6">
@@ -200,7 +200,7 @@ export default function Welcome({ auth }: PageProps) {
                             </div>
                         </li>
                         <li className="relative flex gap-4 lg:block">
-                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary">
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary dark:text-accent-foreground">
                                 ۲
                             </span>
                             <div className="lg:mt-6">
@@ -214,7 +214,7 @@ export default function Welcome({ auth }: PageProps) {
                             </div>
                         </li>
                         <li className="relative flex gap-4 lg:block">
-                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary">
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary dark:text-accent-foreground">
                                 ۳
                             </span>
                             <div className="lg:mt-6">

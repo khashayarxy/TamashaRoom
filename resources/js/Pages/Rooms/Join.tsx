@@ -87,7 +87,7 @@ export default function JoinRoom({ room }: JoinRoomProps) {
                                 {errors.guest_name && (
                                     <p
                                         id="guest_name_error"
-                                        className="text-sm text-destructive"
+                                        className="text-sm text-destructive-text"
                                     >
                                         {errors.guest_name}
                                     </p>

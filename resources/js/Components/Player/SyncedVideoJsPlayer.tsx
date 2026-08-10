@@ -278,7 +278,7 @@ export function SyncedVideoJsPlayer({
                         <div className="text-center p-4">
                             {error ? (
                                 <>
-                                    <p className="text-destructive mb-2">
+                                    <p className="text-destructive-text mb-2">
                                         خطا در دریافت اطلاعات ویدیو
                                     </p>
                                     <p className="text-muted-foreground text-sm">
