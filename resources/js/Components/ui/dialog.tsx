@@ -48,7 +48,7 @@ const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
                 ref={ref || innerRef}
                 className={cn(
                     "backdrop:bg-black/50 backdrop:backdrop-blur-sm",
-                    "rounded-2xl border border-border bg-card p-0 shadow-xl",
+                    "rounded-2xl border border-border bg-card text-foreground p-0 shadow-xl",
                     "open:animate-in open:fade-in-0 open:zoom-in-95",
                     "max-w-lg w-full",
                     className,
