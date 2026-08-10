@@ -2,6 +2,17 @@
 
 ## Completed
 
+### Herd HTTPS base-URL priority for Playwright + machine-local Edge fallback (2026-08-11)
+
+**Batch scope:** Playwright suites now prefer the local Herd HTTPS domain (`https://tamasharoom.test`) as base URL when reachable, falling back to the `php artisan serve` dev server; added a never-committed system-Edge fallback config; hardened the one a11y test that depended on the webServer-only `MAIL_MAILER=array`.
+
+- [x] **New `tests/playwright-base-url.mjs` helper** shared by all four configs. Priority: `PLAYWRIGHT_BASE_URL` env var (explicit override) → Herd domain if a quick reachability probe answers on 443 → `http://127.0.0.1:8000` fallback (matches every config's `webServer` command). Herd is preferred because it terminates **real HTTPS** via its own local CA — so `SESSION_SECURE_COOKIE` and other HTTPS-only behavior are exercised in tests instead of being silently bypassed on plain HTTP. The probe intentionally skips TLS validation (Node's cert bundle doesn't trust Herd's CA; the browser under test does).
+- [x] **Wired into `tests/a11y/playwright.config.ts`, `tests/e2e/playwright.config.ts`, and the two machine-local configs** via `const baseURL = await resolveBaseUrl()`. Added `ignoreHTTPSErrors: true` to every config's `use` block: `page.request` runs on Node's TLS stack, which does not trust Herd's CA, so `__test` helper calls would otherwise fail over the HTTPS base URL. The browser keeps full trust (Herd CA is in the OS store).
+- [x] **`setup-unverified-user` test-helper route added** (`routes/test-helpers.php`). Needed because the Verify-email a11y test registered via live UI, and registration triggers the `VerifyEmail` notification synchronously — that send only succeeds with the webServer's `MAIL_MAILER=array` override, which does **not** apply when base URL = Herd (real resend mailer rejects `@example.com`, so the `/verify-email` redirect never happened). The refactored `auth-a11y.spec.ts` test now creates an unverified logged-in user via the helper and navigates straight to `/verify-email`, staying green under either base URL while still exercising the real prompt page and signed-URL completion.
+- [x] **Machine-local Edge fallback** (`tests/a11y/playwright.edge.config.ts`) added behind `.gitignore`, with `test:a11y:edge` npm script — sibling to the existing gitignored Chrome config. Both machine-local configs use the same base-URL helper.
+- [x] **Verification.** Full a11y suite **19/19** against the Herd HTTPS base URL (system Chrome fallback, since bundled Chromium remains missing on this machine — CDN blocked, documented in ISSUE_REGISTER). `resolveBaseUrl()` verified three ways: env override wins, Herd probe defaults to `https://tamasharoom.test`, and the dev server is started normally by `webServer` regardless.
+- [x] **Docs.** This entry added to `docs/TASK.md`.
+
 ### CI a11y failure triage + suite hardening (2026-08-10)
 
 **Batch scope:** triaged 4 reported CI a11y failures against current code; fixed the 2 that genuinely reproduce (CI server env mismatch for the "Verify email" flow; load-dependent room-page navigation), made the contrast suite deterministic against mid-transition sampling, and documented the 2 stale/never-reproducing reports.
