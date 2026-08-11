@@ -82,7 +82,49 @@ function formatViolations(violations: Violation[]): string {
  * correct barrier — axe scans the DOM, it does not need the network settled.
  */
 async function waitForRoom(page: Page): Promise<void> {
-    await page.getByRole("button", { name: "چت" }).waitFor();
+    try {
+        await page.getByRole("button", { name: "چت" }).waitFor();
+    } catch (error) {
+        // TEMPORARY diagnostic (CI room-navigation investigation): surface what
+        // the browser is actually stuck on before rethrowing.
+        await dumpRoomPageState(page);
+        throw error;
+    }
+}
+
+/**
+ * TEMPORARY diagnostic: on waitForRoom timeout, log the page URL, the DOM
+ * state, and the server status for the current URL (cookies shared with the
+ * page, redirects not followed) so CI logs show what was actually served.
+ */
+async function dumpRoomPageState(page: Page): Promise<void> {
+    const state = await page
+        .evaluate(() => ({
+            url: window.location.href,
+            title: document.title,
+            readyState: document.readyState,
+            appHtmlLength: document.querySelector("#app")?.innerHTML.length ?? -1,
+            bodyText: document.body.innerText.replace(/\s+/g, " ").slice(0, 400),
+        }))
+        .catch(() => null);
+
+    let status = "n/a";
+    try {
+        const resp = await page.request.get(page.url(), { maxRedirects: 0 });
+        status = `${resp.status()} ${resp.statusText()}`;
+    } catch (error) {
+        status = `re-request failed: ${String(error)}`;
+    }
+
+    console.log(
+        "[waitForRoom] room page diagnostic\n" +
+            `  url: ${state?.url ?? "n/a"}\n` +
+            `  title: ${state?.title ?? "n/a"}\n` +
+            `  readyState: ${state?.readyState ?? "n/a"}\n` +
+            `  #app innerHTML length: ${state?.appHtmlLength ?? "n/a"}\n` +
+            `  nav status (re-request, no redirects): ${status}\n` +
+            `  body: ${state?.bodyText ?? "n/a"}`,
+    );
 }
 
 async function expectBothThemesContrastSafe(page: Page): Promise<void> {

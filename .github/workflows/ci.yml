@@ -106,6 +106,14 @@ jobs:
         env:
           APP_ENV: local
 
+      - name: Upload a11y test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-test-results
+          path: test-results/
+          if-no-files-found: warn
+
       - name: Run Playwright E2E tests
         run: npm run test:e2e
         env:
