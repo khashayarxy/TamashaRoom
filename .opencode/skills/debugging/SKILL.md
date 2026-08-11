@@ -113,6 +113,7 @@ Check this skill when:
 
 - E2E test fails intermittently (flake)
 - CI/GitHub Actions fails (especially on ubuntu-latest but passes locally)
+- Room-navigation test intermittently redirected to /login after setup (stale session-cookie race)
 - Sync behavior unexpected (feedback loop, drift, reset)
 - UI state lost (tab switch, refresh, unmount)
 - CSP/security errors in production-like config
@@ -143,6 +144,7 @@ Check this skill when:
 | KI-014 | CI: React Compiler warning | ESLint disable directive causes Compiler bailout | Replace directive with module helper function | `Hooks/use-presence.ts` |
 | KI-015 | CI: npm audit vulnerabilities | Transitive dependencies (brace-expansion, postcss, vite) | Patch lockfile surgically; major upgrades deferred if breaking | `package-lock.json` |
 | KI-016 | Windows: "Verify email" a11y test fails — POST /register 500 (Resend) | `php artisan serve` on Windows passes only whitelisted env vars to the child server; `MAIL_MAILER` isn't whitelisted, so `webServer.env` override never lands and `.env`'s `resend` is used | Serve with `php artisan serve --no-reload` (shell env passes through), or temporarily set `MAIL_MAILER=array` in `.env` and restore | `tests/a11y/playwright.config.ts`, `tests/e2e/playwright.config.ts`, Laravel `ServeCommand` |
+| KI-017 | CI: room-nav test intermittently 302s to /login right after the setup navigation | Stale-session overwrite race: an in-flight room poll carrying the pre-`Auth::login()` session ID is processed after the ID is regenerated, resurrecting the stale ID as an empty guest session whose Set-Cookie overwrites the browser's fresh authenticated cookie | Always enter a room through the shared `gotoRoom()` in `tests/a11y/room-nav.ts`, which retries the setup→nav flow once when it lands on `/login` (no room page is alive during the retry, so the race cannot repeat); never hand-roll setup→nav in a new spec | `tests/a11y/room-nav.ts` |
 
 ### CI-Specific complex bugs
 
@@ -162,6 +164,23 @@ multi-commit pushes only. Root cause: gitleaks scans
 `fetch-depth: 1` omits the base commit so the range fails. Single-commit pushes
 scan `HEAD` (no range) → pass. Fix: `fetch-depth: 0` on the checkout step.
 Verify: `git clone --depth 1` + range-scan reproduces the failure.
+
+**KI-017 — Room-nav 302 to /login after setup (stale-session cookie race)**
+Symptom: a test that navigates setup → room page intermittently ends up on
+`/login` in CI (or under full-suite load), failing the room wait; the same room
+URL loads fine on a manual second navigation. Root cause: `GET
+/__test/setup-verified-room` logs the test user in, and `Auth::login()`
+regenerates the session ID; a room page's in-flight playback-sync/presence poll
+carrying the pre-regeneration ID can be processed after that regeneration and
+resurrect the stale ID as an empty guest session — that response's `Set-Cookie`
+overwrites the browser's fresh authenticated session cookie, so the next room
+navigation is redirected to `/login`. Fix: enter every room page through the
+shared race-safe `gotoRoom(page, params)` in `tests/a11y/room-nav.ts`, which
+retries the setup-then-navigate flow once when the room nav lands on `/login`
+(no room page is alive to fire racing polls during the retry, so the retry is
+deterministic). This is a test-flow artifact, not an app defect — the app's
+transport design is untouched. Full diagnostic trail: `docs/TASK.md`
+(2026-08-12 batch).
 
 ### Windows-specific dev-server quirks
 

@@ -1,5 +1,6 @@
-import { test, expect, type Page, type Response } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { gotoRoom } from "./room-nav";
 
 /**
  * Dedicated WCAG 2.2 AA color-contrast audit.
@@ -71,118 +72,6 @@ function formatViolations(violations: Violation[]): string {
             return `  [${violation.impact ?? "n/a"}] ${violation.id} — ${violation.help}\n${nodes}`;
         })
         .join("\n\n");
-}
-
-/**
- * Deterministic room-page readiness. A room page with a video + live polling
- * never reaches `networkidle` (media fetches, playback-sync polls, presence
- * heartbeats), so the old `waitForLoadState("networkidle")` after navigation
- * was load-dependent and could time out before the tab-bar buttons render.
- * The tab bar ("چت"/"اعضا") is part of the first paint, so waiting on it is the
- * correct barrier — axe scans the DOM, it does not need the network settled.
- */
-async function waitForRoom(page: Page): Promise<void> {
-    try {
-        await page
-            .getByRole("button", { name: "چت" })
-            .waitFor({ timeout: 20_000 });
-    } catch (error) {
-        // TEMPORARY diagnostic (CI room-navigation investigation): surface what
-        // the browser is actually stuck on before rethrowing.
-        await dumpRoomPageState(page);
-        throw error;
-    }
-}
-
-/**
- * TEMPORARY diagnostic: on waitForRoom timeout, log the page URL, the DOM
- * state, the server status for the current URL (cookies shared with the
- * page, redirects not followed), and the actual cookies the browser holds for
- * the origin — so CI logs show what was actually served AND whether the
- * session cookie (Secure flag, HttpOnly) survived in the browser.
- */
-async function dumpRoomPageState(page: Page): Promise<void> {
-    const state = await page
-        .evaluate(() => ({
-            url: window.location.href,
-            title: document.title,
-            readyState: document.readyState,
-            appHtmlLength:
-                document.querySelector("#app")?.innerHTML.length ?? -1,
-            bodyText: document.body.innerText
-                .replace(/\s+/g, " ")
-                .slice(0, 400),
-        }))
-        .catch(() => null);
-
-    let status = "n/a";
-    let setCookie = "n/a";
-    try {
-        const resp = await page.request.get(page.url(), { maxRedirects: 0 });
-        status = `${resp.status()} ${resp.statusText()}`;
-        setCookie = resp.headers()["set-cookie"] ?? "(none)";
-    } catch (error) {
-        status = `re-request failed: ${String(error)}`;
-    }
-
-    let cookies = "n/a";
-    try {
-        cookies = (await page.context().cookies())
-            .map(
-                (c) =>
-                    `${c.name} secure=${c.secure} httpOnly=${c.httpOnly} path=${c.path}`,
-            )
-            .join(", ");
-    } catch (error) {
-        cookies = `cookie read failed: ${String(error)}`;
-    }
-
-    console.log(
-        "[waitForRoom] room page diagnostic\n" +
-            `  url: ${state?.url ?? "n/a"}\n` +
-            `  title: ${state?.title ?? "n/a"}\n` +
-            `  readyState: ${state?.readyState ?? "n/a"}\n` +
-            `  #app innerHTML length: ${state?.appHtmlLength ?? "n/a"}\n` +
-            `  nav status (re-request, no redirects): ${status}\n` +
-            `  nav re-request Set-Cookie: ${setCookie}\n` +
-            `  browser cookies: ${cookies}\n` +
-            `  body: ${state?.bodyText ?? "n/a"}`,
-    );
-}
-
-/**
- * TEMPORARY diagnostic: capture every response in the room navigation chain
- * (status, Location, Set-Cookie) via a response listener, so CI logs show
- * whether the room URL 302s to /login (auth middleware) and whether the
- * session cookie is served with Secure/HttpOnly. `page.goto` only returns the
- * FINAL response, so the intermediate 302 hop would otherwise be invisible.
- */
-async function captureRoomNavigation(
-    page: Page,
-    roomUrl: string,
-): Promise<void> {
-    const chain: string[] = [];
-    const onResponse = (response: Response) => {
-        if (!response.url().includes("/rooms/")) {
-            return;
-        }
-        const headers = response.headers();
-        chain.push(
-            `  ${response.status()} ${response.statusText()} ${response.url()} Location=${headers["location"] ?? "(none)"} Set-Cookie=${headers["set-cookie"] ?? "(none)"}`,
-        );
-    };
-    page.on("response", onResponse);
-    try {
-        await page.goto(roomUrl);
-    } finally {
-        page.off("response", onResponse);
-    }
-    console.log(
-        "[waitForRoom] room navigation\n" +
-            (chain.length
-                ? chain.join("\n")
-                : "  (no /rooms/ response captured)"),
-    );
 }
 
 async function expectBothThemesContrastSafe(page: Page): Promise<void> {
@@ -262,15 +151,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             with_subtitle: "1",
             with_guest: "1",
         });
-        await page.goto("/__test/setup-verified-room?" + params.toString());
-        await page.waitForLoadState("networkidle");
-        const data = JSON.parse(
-            await page.evaluate(() => document.body.innerText),
-        );
-        const roomUrl = new URL(data.room_url).pathname;
-
-        await page.goto(roomUrl);
-        await waitForRoom(page);
+        await gotoRoom(page, params);
 
         await expectBothThemesContrastSafe(page);
 
@@ -286,22 +167,11 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             with_guest: "1",
         });
 
-        const gotoRoom = async () => {
-            await page.goto("/__test/setup-verified-room?" + params.toString());
-            await page.waitForLoadState("networkidle");
-            const data = JSON.parse(
-                await page.evaluate(() => document.body.innerText),
-            );
-            const roomUrl = new URL(data.room_url).pathname;
-            await captureRoomNavigation(page, roomUrl);
-            await waitForRoom(page);
-        };
-
         for (const [theme, dark] of [
             ["dark", true],
             ["light", false],
         ] as const) {
-            await gotoRoom();
+            await gotoRoom(page, params);
             await setTheme(page, dark);
             await page.getByRole("button", { name: "زیرنویس" }).click();
             await page.getByRole("button", { name: "بدون زیرنویس" }).waitFor();
@@ -316,7 +186,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             ["dark", true],
             ["light", false],
         ] as const) {
-            await gotoRoom();
+            await gotoRoom(page, params);
             await setTheme(page, dark);
             await page.getByRole("button", { name: "کپی لینک دعوت" }).click();
             await page.getByText("لینک دعوت کپی شد.").waitFor();
@@ -345,23 +215,12 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             with_guest: "1",
         });
 
-        const gotoRoom = async () => {
-            await page.goto("/__test/setup-verified-room?" + params.toString());
-            await page.waitForLoadState("networkidle");
-            const data = JSON.parse(
-                await page.evaluate(() => document.body.innerText),
-            );
-            const roomUrl = new URL(data.room_url).pathname;
-            await captureRoomNavigation(page, roomUrl);
-            await waitForRoom(page);
-        };
-
         for (const [theme, dark] of [
             ["dark", true],
             ["light", false],
         ] as const) {
             // Room settings dialog (opened from the members tab)
-            await gotoRoom();
+            await gotoRoom(page, params);
             await setTheme(page, dark);
             await page.getByRole("button", { name: "اعضا" }).click();
             await page.getByRole("button", { name: "تنظیمات اتاق" }).click();

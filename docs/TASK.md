@@ -2,6 +2,15 @@
 
 ## Completed
 
+### CI room-nav 302s to /login: stale-session-cookie overwrite race in the room setup flow (2026-08-12)
+
+**Batch scope:** the contrast-a11y room tests ("Room open states", "Room dialogs") could still 302 to /login intermittently in CI after the 08-11 timeout batch. Evidence from response/cookie/session-DB logging shows the root cause is a test-flow artifact, not an app defect: the setup route logs the test user in, and `Auth::login()` regenerates the session ID; an in-flight room-page poll (playback-sync/presence) carrying the pre-regeneration ID can be processed after that regeneration and resurrect the stale ID as an empty guest session, and that response's Set-Cookie then overwrites the browser's fresh authenticated session cookie — so the next room navigation is redirected to /login. A single re-run of the setup-then-navigate flow always landed (confirmed across the logged runs). The app's transport design is untouched; the race lives entirely in the test's navigation pattern.
+
+- [x] **Test-side fix.** New shared `tests/a11y/room-nav.ts` exports one race-safe `gotoRoom(page, params)`, and **all six** room-navigating a11y tests route through it — the five contrast tests plus `room-a11y.spec.ts` (which had the same single-room-nav pattern): if the room navigation lands on `/login`, it re-runs the setup (fresh login + session regeneration replaces the stale cookie) and navigates to the new room. Because no room page is alive during the retry, no racing poll can repeat the overwrite — the retry is deterministic, so a single retry (not a while-loop) is used.
+- [x] **Temporary diagnostics removed.** `tests/a11y/contrast-a11y.spec.ts`: the `dumpRoomPageState` / `sessionCookieInfo` / `captureRoomNavFlow` helpers and the `waitForRoom` catch-wrapper are gone (`waitForRoom` moved into `room-nav.ts` as the plain tab-bar wait; the formerly unused `Response` import was dropped). Server side: `app/Http/Middleware/SessionDiagMiddleware.php` deleted, its registration removed from `bootstrap/app.php`, and the `SESSION-DIAG` log blocks in `routes/test-helpers.php` and `RoomController::show` removed.
+- [x] **Verification.** Full a11y suite **19/19** (53.5s) with the helper now shared; contrast spec **8/8** twice consecutively (32.7s / 32.5s); `tsc --noEmit` clean; ESLint clean; `php artisan test` **267/267**; Pint clean and `php -l` clean on all three touched PHP files. Test counts unchanged (diagnostics-only removal + shared-helper refactor).
+- [x] **Docs.** This entry added to `docs/TASK.md`. Nothing committed/pushed.
+
 ### Room-request diagnostics: playback-sync + video-proxy failure observability (2026-08-11)
 
 **Batch scope:** structured observability for room-scoped endpoints (playback sync + video proxy) so every failure is grep-able in production and, when a DSN is set, correlated in Sentry as an HTTP breadcrumb. Backend-only; no transport/sync-contract changes.
