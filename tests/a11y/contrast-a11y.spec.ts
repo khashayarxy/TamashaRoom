@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Response } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 /**
@@ -83,7 +83,9 @@ function formatViolations(violations: Violation[]): string {
  */
 async function waitForRoom(page: Page): Promise<void> {
     try {
-        await page.getByRole("button", { name: "چت" }).waitFor();
+        await page
+            .getByRole("button", { name: "چت" })
+            .waitFor({ timeout: 20_000 });
     } catch (error) {
         // TEMPORARY diagnostic (CI room-navigation investigation): surface what
         // the browser is actually stuck on before rethrowing.
@@ -94,8 +96,10 @@ async function waitForRoom(page: Page): Promise<void> {
 
 /**
  * TEMPORARY diagnostic: on waitForRoom timeout, log the page URL, the DOM
- * state, and the server status for the current URL (cookies shared with the
- * page, redirects not followed) so CI logs show what was actually served.
+ * state, the server status for the current URL (cookies shared with the
+ * page, redirects not followed), and the actual cookies the browser holds for
+ * the origin — so CI logs show what was actually served AND whether the
+ * session cookie (Secure flag, HttpOnly) survived in the browser.
  */
 async function dumpRoomPageState(page: Page): Promise<void> {
     const state = await page
@@ -103,17 +107,34 @@ async function dumpRoomPageState(page: Page): Promise<void> {
             url: window.location.href,
             title: document.title,
             readyState: document.readyState,
-            appHtmlLength: document.querySelector("#app")?.innerHTML.length ?? -1,
-            bodyText: document.body.innerText.replace(/\s+/g, " ").slice(0, 400),
+            appHtmlLength:
+                document.querySelector("#app")?.innerHTML.length ?? -1,
+            bodyText: document.body.innerText
+                .replace(/\s+/g, " ")
+                .slice(0, 400),
         }))
         .catch(() => null);
 
     let status = "n/a";
+    let setCookie = "n/a";
     try {
         const resp = await page.request.get(page.url(), { maxRedirects: 0 });
         status = `${resp.status()} ${resp.statusText()}`;
+        setCookie = resp.headers()["set-cookie"] ?? "(none)";
     } catch (error) {
         status = `re-request failed: ${String(error)}`;
+    }
+
+    let cookies = "n/a";
+    try {
+        cookies = (await page.context().cookies())
+            .map(
+                (c) =>
+                    `${c.name} secure=${c.secure} httpOnly=${c.httpOnly} path=${c.path}`,
+            )
+            .join(", ");
+    } catch (error) {
+        cookies = `cookie read failed: ${String(error)}`;
     }
 
     console.log(
@@ -123,7 +144,44 @@ async function dumpRoomPageState(page: Page): Promise<void> {
             `  readyState: ${state?.readyState ?? "n/a"}\n` +
             `  #app innerHTML length: ${state?.appHtmlLength ?? "n/a"}\n` +
             `  nav status (re-request, no redirects): ${status}\n` +
+            `  nav re-request Set-Cookie: ${setCookie}\n` +
+            `  browser cookies: ${cookies}\n` +
             `  body: ${state?.bodyText ?? "n/a"}`,
+    );
+}
+
+/**
+ * TEMPORARY diagnostic: capture every response in the room navigation chain
+ * (status, Location, Set-Cookie) via a response listener, so CI logs show
+ * whether the room URL 302s to /login (auth middleware) and whether the
+ * session cookie is served with Secure/HttpOnly. `page.goto` only returns the
+ * FINAL response, so the intermediate 302 hop would otherwise be invisible.
+ */
+async function captureRoomNavigation(
+    page: Page,
+    roomUrl: string,
+): Promise<void> {
+    const chain: string[] = [];
+    const onResponse = (response: Response) => {
+        if (!response.url().includes("/rooms/")) {
+            return;
+        }
+        const headers = response.headers();
+        chain.push(
+            `  ${response.status()} ${response.statusText()} ${response.url()} Location=${headers["location"] ?? "(none)"} Set-Cookie=${headers["set-cookie"] ?? "(none)"}`,
+        );
+    };
+    page.on("response", onResponse);
+    try {
+        await page.goto(roomUrl);
+    } finally {
+        page.off("response", onResponse);
+    }
+    console.log(
+        "[waitForRoom] room navigation\n" +
+            (chain.length
+                ? chain.join("\n")
+                : "  (no /rooms/ response captured)"),
     );
 }
 
@@ -235,7 +293,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 await page.evaluate(() => document.body.innerText),
             );
             const roomUrl = new URL(data.room_url).pathname;
-            await page.goto(roomUrl);
+            await captureRoomNavigation(page, roomUrl);
             await waitForRoom(page);
         };
 
@@ -294,7 +352,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 await page.evaluate(() => document.body.innerText),
             );
             const roomUrl = new URL(data.room_url).pathname;
-            await page.goto(roomUrl);
+            await captureRoomNavigation(page, roomUrl);
             await waitForRoom(page);
         };
 
@@ -307,9 +365,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             await setTheme(page, dark);
             await page.getByRole("button", { name: "اعضا" }).click();
             await page.getByRole("button", { name: "تنظیمات اتاق" }).click();
-            await page
-                .getByRole("heading", { name: "تنظیمات اتاق" })
-                .waitFor();
+            await page.getByRole("heading", { name: "تنظیمات اتاق" }).waitFor();
             let violations = await contrastViolations(page);
             expect(
                 violations,
@@ -347,9 +403,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             );
             await offsetSlider.focus();
             await page.keyboard.press("ArrowRight");
-            await page
-                .getByRole("button", { name: "بازنشانی" })
-                .waitFor();
+            await page.getByRole("button", { name: "بازنشانی" }).waitFor();
             violations = await contrastViolations(page);
             expect(
                 violations,
@@ -362,10 +416,10 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             // Confirm dialog (subtitle track delete)
             await page.getByRole("button", { name: "زیرنویس" }).click();
             await page.getByRole("button", { name: "بدون زیرنویس" }).waitFor();
-            await page.getByRole("button", { name: "حذف", exact: true }).click();
             await page
-                .getByRole("heading", { name: "حذف زیرنویس" })
-                .waitFor();
+                .getByRole("button", { name: "حذف", exact: true })
+                .click();
+            await page.getByRole("heading", { name: "حذف زیرنویس" }).waitFor();
             violations = await contrastViolations(page);
             expect(
                 violations,
