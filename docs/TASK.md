@@ -2,6 +2,18 @@
 
 ## Completed
 
+### Room-request diagnostics: playback-sync + video-proxy failure observability (2026-08-11)
+
+**Batch scope:** structured observability for room-scoped endpoints (playback sync + video proxy) so every failure is grep-able in production and, when a DSN is set, correlated in Sentry as an HTTP breadcrumb. Backend-only; no transport/sync-contract changes.
+
+- [x] **New `RoomRequestDiagnosticsService`** (`app/Services/RoomRequestDiagnosticsService.php`): maps route names to a category (`playback` / `proxy`; `null` for non-target routes) and records each failure as one `[diagnostics:{category}]` log line with full context — endpoint/method/path, `http_status`, `room_id`, `user_id`, timestamp, `rate_limited`, `failure_type` (429→rate_limit, 403→forbidden, 404→not_found, 422→validation, 502/504→upstream, other 5xx→server_error, else client_error), plus limiter name/limit/current-count/retry-after for 429s (cache key mirrors `ThrottleRequests` exactly). **5xx logs via `Log::error`; lower-severity failures (429/403/404/422) via `Log::warning`** — so the proxy's upstream 502 and any other 5xx are error-severity.
+- [x] **New `DiagnoseRoomRequest` middleware** (`app/Http/Middleware/`): records every rendered `>= 400` response on the routes it guards. Registered per-route on `playback.*` (category `playback`) and `proxy.video` (category `proxy`).
+- [x] **Middleware-order correctness for the `{room}` binding.** As route-level middleware, `DiagnoseRoomRequest` runs after the `web` group's `SubstituteBindings` (group middleware run outer), so `$request->route('room')` resolves to the bound `Room` model — not the raw id — in every recorded context.
+- [x] **Exception-driven failures (most importantly the throttle 429) recorded in `bootstrap/app.php`.** The throttle's `ThrottleRequestsException` is thrown OUTER to `DiagnoseRoomRequest`, so it never surfaces as a `>= 400` response to the middleware. A new `$exceptions->render` callback (registered before the generic debug JSON renderer) matches target routes, derives status/failure type from the exception (`ThrottleRequestsException`→429 + the category's named limiter, `ValidationException`→422, `HttpExceptionInterface`→its code, else 500), records it, and returns `null` so Laravel's own rendering is never altered. The two paths (in-middleware responses vs exception-driven) never double-record.
+- [x] **Tests.** New `tests/Feature/PlaybackDiagnosticsTest.php` (5 tests): playback 429 records with limiter limit/count/name; playback validation 422 records; proxy 404 records; proxy upstream 502 records via `Log::error` (not `warning`); proxy 429 records with limiter context. Both the middleware path and the exception path are covered via Log-spy assertions.
+- [x] **Verification.** `php artisan test` **267/267** (was 262; +5 new); Pint clean. Vitest, a11y, and E2E unaffected (backend-only change).
+- [x] **Docs.** This entry added to `docs/TASK.md`.
+
 ### Room-player video bugs: stale `video_url` reverts + host never reconciles after set-video (2026-08-11)
 
 **Batch scope:** two confirmed root causes behind "replacing the video mid-playback keeps the old one" and "the submitted video never appears". Evidence-based; each fixed with a failing test first. Nothing committed/pushed.

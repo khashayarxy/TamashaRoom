@@ -7,13 +7,16 @@ use App\Models\ChatMessage;
 use App\Models\Room;
 use App\Policies\ChatMessagePolicy;
 use App\Policies\RoomPolicy;
+use App\Services\RoomRequestDiagnosticsService;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -55,6 +58,40 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => 'error',
                 'message' => $e->getMessage(),
             ], 422);
+        });
+
+        // Room-request diagnostics: record exception-driven failures on playback
+        // sync and the video proxy (most importantly the throttle's 429, which is
+        // thrown OUTER to DiagnoseRoomRequest). Returns null so Laravel's own
+        // rendering is never altered.
+        $exceptions->render(function (Throwable $e, Request $request) {
+            $route = $request->route();
+
+            if ($route === null) {
+                return null;
+            }
+
+            $category = RoomRequestDiagnosticsService::categoryForRoute($route->getName() ?? '');
+
+            if ($category === null) {
+                return null;
+            }
+
+            $status = match (true) {
+                $e instanceof HttpExceptionInterface => $e->getStatusCode(),
+                $e instanceof ValidationException => 422,
+                default => 500,
+            };
+
+            app(RoomRequestDiagnosticsService::class)->record(
+                $request,
+                $category,
+                $status,
+                rateLimited: $e instanceof ThrottleRequestsException,
+                limiterName: $e instanceof ThrottleRequestsException ? $category : null,
+            );
+
+            return null;
         });
 
         $exceptions->render(function (Throwable $e, Request $request) {

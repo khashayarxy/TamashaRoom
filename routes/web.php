@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\SubtitleController;
 use App\Http\Controllers\VideoStreamController;
+use App\Http\Middleware\DiagnoseRoomRequest;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -42,7 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{room}/toggle-lock', [RoomController::class, 'toggleLock'])->name('toggle-lock');
     });
 
-    Route::prefix('playback/{room}')->name('playback.')->group(function () {
+    Route::prefix('playback/{room}')->name('playback.')->middleware(DiagnoseRoomRequest::class.':playback')->group(function () {
         Route::patch('/', [PlaybackController::class, 'update'])->middleware('throttle:playback')->name('update');
         Route::post('/set-video', [PlaybackController::class, 'setVideo'])->middleware('throttle:playback')->name('set-video');
         Route::get('/state', [PlaybackController::class, 'state'])->name('state');
@@ -54,7 +55,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/messages/{message}', [ChatController::class, 'destroy'])->name('destroy');
     });
 
-    Route::get('/proxy/video/{room}', VideoStreamController::class)->middleware('throttle:proxy')->name('proxy.video');
+    Route::get('/proxy/video/{room}', VideoStreamController::class)->middleware([DiagnoseRoomRequest::class.':proxy', 'throttle:proxy'])->name('proxy.video');
 
     Route::prefix('subtitles/{room}')->name('subtitles.')->group(function () {
         Route::get('/', [SubtitleController::class, 'index'])->name('index');
