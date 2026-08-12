@@ -62,6 +62,43 @@
 
 ---
 
+## DECISION-002a — Pusher push transport now primary; polling demoted to fallback
+
+- **ID:** DECISION-002a
+- **Title:** Upgrade real-time transport from polling-only to Pusher push (primary) with tiered polling fallback
+- **Date:** 2026-08-07 (from docs/TASK.md "Step 3 — Pusher Push Transport")
+- **Status:** ACCEPTED (implemented); supersedes DECISION-002's transport description
+- **Context:** DECISION-002 recorded polling as the only transport because the
+  shared cPanel hosting cannot run a WebSocket server. However, Pusher Channels
+  is a hosted push service that requires no server-side process — only an HTTP
+  API call from the Laravel queue worker (which already runs via the scheduled
+  `queue:work --stop-when-empty`). This makes push delivery compatible with
+  the hosting constraint.
+- **Decision:** `BROADCAST_CONNECTION=pusher` is now the primary real-time
+  transport. The frontend hooks (`usePlaybackSync`, `usePresence`) subscribe
+  to Pusher presence channels via Laravel Echo; server-side `broadcast()`
+  calls push state changes to connected clients. Tiered polling (3s playing,
+  10s idle) remains as a fallback when `BROADCAST_CONNECTION=null` (CI) or
+  when the push connection drops. Chat stays on polling only (explicit scope
+  decision — the `NewChatMessage` event exists on the same channel for a
+  future one-hook conversion). Apinator is configured as a dormant
+  Pusher-compatible backup driver (DECISION-015).
+- **Reason:** Push delivery eliminates the ~1–3s sync drift from polling for
+  connected clients while staying within the shared-hosting budget (no
+  persistent server process needed). The transport-agnostic Event pattern
+  from DECISION-003 made this a driver swap, not a feature rewrite.
+- **Consequences:** Broadcasts are queued (`QUEUE_CONNECTION=database`) and
+  drained by the scheduled cron tick, so push latency includes up to ~60s of
+  queue delay in the worst case. The frontend hooks detect push availability
+  and suppress the polling loop when push is active, falling back
+  transparently. The future Reverb migration path (DECISION-002 original)
+  remains unchanged — a config swap from `pusher` to `reverb`.
+- **Source:** docs/TASK.md "Step 3", `laravel-backend-rules` skill,
+  `use-playback-sync.ts`, `use-presence.ts`, `routes/channels.php`,
+  `config/broadcasting.php`.
+
+---
+
 ## DECISION-003 — Room-state reads always go through the Event (transport-agnostic)
 
 - **ID:** DECISION-003
