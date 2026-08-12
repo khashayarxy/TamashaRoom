@@ -2,6 +2,18 @@
 
 ## Completed
 
+### Multi-tab session preservation & presence reconnection fixes (2026-08-12)
+
+**Batch scope:** resolved two UX bug reports regarding multi-tab session handling and tab close/reopen room membership without weakening session security.
+1. **Multi-Tab Session Security Fix (Bug 1):** Reverted backend `$session->migrate(false)` back to secure `$destroy = true` defaults in `AuthenticatedSessionController`, `RegisteredUserController`, and `RoomController::join` to close the session fixation vulnerability. Division of responsibilities:
+   - **Cross-Tab Session Protection (Backend):** `SuppressAnonymousSessionCookie` middleware (prepended to `web` group) strips unauthenticated `Set-Cookie` headers on background API/XHR polling routes (`playback.*`, `presence.*`, `chat.*`, `proxy.*`). When Tab 2 logs in and regenerates the session ID, Tab 1's trailing background poll fails auth (401), but the middleware prevents a guest `Set-Cookie` from reaching the browser, leaving Tab 2's authenticated session cookie intact in the shared cookie jar.
+   - **Same-Tab Navigation Protection (Frontend):** `polling-controller.ts` & Axios interceptor in `api.ts` (checked by `usePlaybackSync`, `usePresence`, `RoomChat`, and Inertia navigation events) pause/cancel background polling before session-regenerating actions within the same browser tab.
+2. **Presence & Reconnection Fix (Bug 2):** Root cause confirmed as `use-presence.ts` `applySnapshot` firing `onRemoved()` (which redirected to `/dashboard` with "شما از اتاق حذف شده‌اید.") whenever a user's ID was absent from a presence list snapshot (e.g. Pusher presence channel `channel.here` which lists socket-connected users only). **Fix:** Removed the snapshot absence check from `use-presence.ts` so `onRemoved()` only triggers on explicit HTTP 403/404 server authorization errors (confirming database removal via owner kick). Room membership in `room_members` remains intact when tabs close (`presence_status = 'offline'`); reopening the tab or room URL directly seamlessly reconnects the member, restores presence to `'online'`, and syncs playback.
+- [x] **Backend Fix.** Reverted to secure `$destroy = true` session regeneration; added `SuppressAnonymousSessionCookie` middleware prepended to `web` group (cross-tab protection).
+- [x] **Frontend Fix.** Added `polling-controller.ts` interceptor, `isPollingSuspended()` checks in polling hooks, Inertia router event hooks (same-tab mitigation), and removed snapshot `myId` check in `use-presence.ts`.
+- [x] **Tests.** Added PHPUnit `MultiTabSessionTest.php` (3 tests, including session fixation prevention & cookie suppression) and Playwright E2E `multi-tab-reconnect.spec.ts` (2 tests).
+- [x] **Verification.** `php artisan test` **270/270** (2061 assertions); `npm run test` **234/234**; `npm run type-check` clean; ESLint clean; Pint clean.
+
 ### E2E room.spec "Playback state propagates" fails in Pusher mode: fake-URL revert race (2026-08-12)
 
 **Batch scope:** the E2E test "Playback state propagates from host to guest" (`tests/e2e/room.spec.ts:45`) failed locally under `BROADCAST_CONNECTION=pusher` (18/22) while passing in CI. Root cause is a test-design bug, not an app defect: the test set the room's video to an unplayable fake URL (`https://www.example.com/video.mp4`) via `set-video`, then PATCHed `is_playing:true` via the API. Under Push transport with a running queue worker (the E2E `globalSetup` drains the DB queue), the `PlaybackStateChanged` broadcast now actually reaches the host's live room page, whose player fails to load the fake URL and fires a native `pause` — `SyncedVideoJsPlayer.handlePause` (host = `canControl`) then PATCHes `is_playing:false` back, reverting the room (`state_version` went 3→4 in the DB) before the guest's first poll. CI never saw this because `.env.example` uses `BROADCAST_CONNECTION=null`, making `broadcast()` a no-op the host page never receives. The passing playback-sync/tap-to-play suites all use the real playable `local_video` fixture for exactly this reason.
@@ -326,9 +338,9 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **267** PHPUnit tests passing (2042 assertions) — verified by runtime run on 2026-08-12: `php artisan test` 267/267. No data providers — static count equals runtime count. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
+- [x] **269** PHPUnit tests passing (2058 assertions) — verified by runtime run on 2026-08-12: `php artisan test` 269/269. No data providers — static count equals runtime count. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
 - [x] **234** Frontend Vitest tests passing — verified by runtime run on 2026-08-11: `npm run test` 234/234. No parameterized tests — static count equals runtime count.
-- [x] **22** Playwright E2E tests passing — verified by runtime run on 2026-08-12: `npm run test:e2e` 22/22 (chat 3, keyboard-a11y 1, lock-kick-transfer 4, playback-sync-verification 4, presence-moments 1, room 3, subtitle 4, tap-to-play 2).
+- [x] **24** Playwright E2E tests passing — verified by runtime run on 2026-08-12: `npm run test:e2e` 24/24 (chat 3, keyboard-a11y 1, lock-kick-transfer 4, multi-tab-reconnect 2, playback-sync-verification 4, presence-moments 1, room 3, subtitle 4, tap-to-play 2).
 - [x] **19** axe accessibility tests passing — verified 2026-08-12: `npm run test:a11y` 19/19 (a11y 3, auth-a11y 6, contrast-a11y 8, room-a11y 1, welcome-a11y 1).
 - [x] Build verification (tsc + vite), `npm run check:docs`, Prettier `format:check`, Pint `--test`, `git diff --check` — all clean 2026-08-12.
 
