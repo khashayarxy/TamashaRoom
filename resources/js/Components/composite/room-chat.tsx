@@ -7,6 +7,7 @@ import {
 } from "@/Components/ui/popover";
 import api from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
+import { isPollingSuspended } from "@/lib/polling-controller";
 import { chatMessagesSchema } from "@/lib/validation";
 import { usePage } from "@inertiajs/react";
 import {
@@ -85,6 +86,7 @@ export function RoomChat({
     };
 
     const fetchMessages = useCallback(async () => {
+        if (isPollingSuspended()) return;
         try {
             const { data } = await api.get(`/chat/${roomId}/messages`);
             const incoming = chatMessagesSchema.parse(data);

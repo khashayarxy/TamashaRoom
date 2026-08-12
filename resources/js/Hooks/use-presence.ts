@@ -1,4 +1,4 @@
-import api from "@/lib/api";
+import api from "@/lib/api"; import { isPollingSuspended } from "@/lib/polling-controller";
 import { getEcho, type EchoPresenceChannel } from "@/lib/echo";
 import {
     buildPresenceBaseline,
@@ -118,14 +118,6 @@ export function usePresence(
     const applySnapshot = useCallback((list: PresenceMember[]) => {
         if (cancelledRef.current || removedRef.current) return;
 
-        const myId = currentUserIdRef.current;
-        if (myId !== null && !list.some((m) => m.user_id === myId)) {
-            removedRef.current = true;
-            setConnected(false);
-            onRemovedRef.current?.();
-            return;
-        }
-
         const derived = derivePresenceMoments(
             baselineRef.current,
             list,
@@ -155,7 +147,7 @@ export function usePresence(
         async function tick() {
             if (generationRef.current !== gen) return;
 
-            if (documentHiddenRef.current) {
+            if (documentHiddenRef.current || isPollingSuspended()) {
                 heartbeatTimerRef.current = setTimeout(tick, retryRef.current);
                 return;
             }
@@ -190,7 +182,7 @@ export function usePresence(
     }, []);
 
     const fetchPresence = useCallback(async () => {
-        if (!roomId || documentHiddenRef.current) return;
+        if (!roomId || documentHiddenRef.current || isPollingSuspended()) return;
         try {
             const { data } = await api.get<PresenceMember[]>(
                 `/presence/${roomId}`,
