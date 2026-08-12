@@ -126,6 +126,7 @@ reference them by name — just describe the task.
 | `react-rules` | Components, hooks, state, component architecture/categories, where state lives, React Compiler-aware performance |
 | `typescript-tailwind-rules` | Types, Zod schemas, Tailwind classes, `cn()`, dark mode |
 | `rtl-and-design-system` | Layout, typography, color, RTL/Persian-specific UI, motion |
+| `rtl-i18n-policy` | Any new UI feature/component — decide whether it should be RTL, Persian-labeled, both, or stay LTR/neutral before implementing |
 | `accessibility-rules` | Any interactive UI, forms, modals, WCAG 2.2 compliance |
 | `security-rules` | Auth, API routes, file uploads, SSRF, anything reachable from outside TamashaRoom's own UI |
 | `performance-rules` | Anything touching load time, bundle size, queries, the single-core CPU budget |
