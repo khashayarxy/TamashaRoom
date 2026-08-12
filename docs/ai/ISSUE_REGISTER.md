@@ -153,7 +153,7 @@
   verify-email a11y — pages uncovered."
 - **Impact:** Resolved — axe coverage added for `/reset-password/{token}`,
   `/confirm-password`, and the Profile delete-account modal open state; the full
-  a11y suite is 11/11 passing.
+  a11y suite is 19/19 passing (expanded from 11/11 in contrast pass).
 - **Production blocking:** No.
 - **Recommended direction:** None — coverage added (Batch 2D, TAM-004).
 - **Verification source:** `docs/TASK.md`.
@@ -289,6 +289,80 @@
 - **Verification source:** `npm run test:a11y` runs 2026-08-08 (11/11 after fix; 10/11 before); `tests/a11y/auth-a11y.spec.ts`; `tests/a11y/playwright.config.ts`; `tests/e2e/playwright.config.ts`; `routes/test-helpers.php`; `resources/js/Components/ui/inertia-progress.tsx`; `resources/js/app.tsx`.
 - **Notes:** Tracked deliberately so the batch did not get blamed for it, and so it was not silently "fixed" inside an unrelated commit — it is fixed in its own unit of work. The `register` rate limiter (`perMinute(5)->by(ip)`, `app/Providers/AppServiceProvider.php`) persists in the database cache; repeated registration tests within the same minute trip a 429 — clear the throttle key between runs (`php artisan cache:forget throttle:register:127.0.0.1`) or let the window elapse.
 
+---
+
+### TAM-011 — Room.spec fake-URL revert race under Pusher transport
+
+- **ID:** TAM-011
+- **Title:** `tests/e2e/room.spec.ts` "Playback state propagates" fails under Pusher push transport
+- **Category:** Testing / E2E
+- **Severity:** P3
+- **Verification:** CONFIRMED (reproduced 2026-08-12)
+- **Status:** RESOLVED (2026-08-12, commit `7bb146e`)
+- **Confidence:** High
+- **Area:** `tests/e2e/room.spec.ts`, `routes/test-helpers.php`
+- **Evidence:** The test set an unplayable fake URL (`https://www.example.com/video.mp4`) via `set-video`, then PATCHed `is_playing:true`. Under Pusher push transport with a running queue worker, the broadcast reached the host page whose player failed to load the fake URL and fired native `pause`, causing `SyncedVideoJsPlayer.handlePause` to PATCH `is_playing:false` back (reverting state) before the guest polled.
+- **Fix:** Switched test to use `?local_video=1` real same-origin fixture (`sample.mp4`, direct mode) and returned `video_url` in `setup-verified-room` helper response.
+- **Impact:** Resolved — full E2E suite 22/22 green under Pusher mode.
+- **Production blocking:** No.
+- **Verification source:** Commit `7bb146e`, `docs/TASK.md`.
+
+---
+
+### TAM-012 — CI clipboard permission gap in headless Chromium
+
+- **ID:** TAM-012
+- **Title:** Toast copy-link test times out in CI headless Chromium
+- **Category:** Testing / Environment
+- **Severity:** P3
+- **Verification:** CONFIRMED (reproduced 2026-08-11)
+- **Status:** RESOLVED (2026-08-11, commit `86784c5`)
+- **Confidence:** High
+- **Area:** `tests/a11y/playwright.config.ts`
+- **Evidence:** Bundled headless Chromium in CI does not auto-grant `clipboard-read`/`clipboard-write` permissions, causing `safeCopyToClipboard` to reject and show error toast instead of success toast (`لینک دعوت کپی شد.`).
+- **Fix:** Added `permissions: ["clipboard-read", "clipboard-write"]` to `tests/a11y/playwright.config.ts`.
+- **Impact:** Resolved — toast copy-link test passes reliably in CI.
+- **Production blocking:** No.
+- **Verification source:** Commit `86784c5`, `docs/TASK.md`.
+
+---
+
+### TAM-013 — CI wall-clock timeout for 8-scan contrast dialogs test
+
+- **ID:** TAM-013
+- **Title:** `contrast-a11y.spec.ts` dialogs test times out at default 30s budget on single-core CI
+- **Category:** Testing / Performance
+- **Severity:** P3
+- **Verification:** CONFIRMED (reproduced 2026-08-11)
+- **Status:** RESOLVED (2026-08-11, commit `86784c5`)
+- **Confidence:** High
+- **Area:** `tests/a11y/contrast-a11y.spec.ts`
+- **Evidence:** The test executes 8 full-page axe color-contrast scans across 4 dialog states × 2 themes plus room setups. Single-core CI runner CPU constraint pushed cumulative runtime past 30s.
+- **Fix:** Added scoped `test.setTimeout(60_000)` to `contrast-a11y.spec.ts` for the dialogs test.
+- **Impact:** Resolved — full a11y suite 19/19 green in CI.
+- **Production blocking:** No.
+- **Verification source:** Commit `86784c5`, `docs/TASK.md`.
+
+---
+
+### TAM-014 — Stale-session-cookie overwrite race in CI room navigation
+
+- **ID:** TAM-014
+- **Title:** Room navigation tests intermittently 302 to `/login` in CI
+- **Category:** Testing / Authentication
+- **Severity:** P3
+- **Verification:** CONFIRMED (reproduced 2026-08-12)
+- **Status:** RESOLVED (2026-08-12, commit `b5cde1a`)
+- **Confidence:** High
+- **Area:** `tests/a11y/room-nav.ts`, `tests/a11y/contrast-a11y.spec.ts`, `tests/a11y/room-a11y.spec.ts`
+- **Evidence:** `Auth::login()` in room setup route regenerates session ID. In-flight room-page polls carrying pre-regeneration ID resurrect stale ID as empty guest session, sending a `Set-Cookie` header that overwrites browser's fresh authenticated session cookie.
+- **Fix:** Created `tests/a11y/room-nav.ts` with race-safe `gotoRoom()` helper that detects redirect to `/login` and re-runs setup once to establish clean authenticated session.
+- **Impact:** Resolved — all room navigation tests pass deterministically (a11y 19/19).
+- **Production blocking:** No.
+- **Verification source:** Commit `b5cde1a`, `docs/TASK.md`.
+
+---
+
 ### TAM-100 — "SRT uploads rejected" (originally reported as a proxy failure)
 
 - **ID:** TAM-100
@@ -341,18 +415,14 @@
 - **Area:** Frontend a11y test suite
 - **Evidence:** Historical report: the a11y suite passing count was referenced as
   8/8 in working-session history; `docs/TASK.md` did not then state a passing
-  count. Current status (verified 2026-08-01): the full a11y suite is 11/11
-  passing — welcome, login, register, dashboard, forgot-password, verify-email,
-  profile, reset-password, confirm-password, profile delete-account modal, and
-  room. The increase reflects the axe coverage added for
-  `/reset-password/{token}`, `/confirm-password`, and the Profile delete-account
-  modal open state (Batch 2D, TAM-004).
+  count. Current status (verified 2026-08-12): the full a11y suite is **19/19**
+  passing across 5 spec files (`a11y`, `auth-a11y`, `contrast-a11y`, `room-a11y`,
+  `welcome-a11y`).
 - **Impact:** Resolved — the suite count is now verified directly.
 - **Production blocking:** No.
-- **Recommended direction:** None — count verified by test run on 2026-08-01.
-- **Verification source:** test run 2026-08-01, `tests/a11y/auth-a11y.spec.ts`.
-- **Notes:** The historical 8/8 figure is superseded by the current 11/11 count,
-  not contradictory with it — the three extra pages were added in Batch 2D.
+- **Recommended direction:** None — count verified by test run on 2026-08-12.
+- **Verification source:** test run 2026-08-12, `tests/a11y/*.spec.ts`.
+- **Notes:** Historical progression: 8/8 → 11/11 (Batch 2D) → 19/19 (Contrast & Auth pass).
 
 ---
 
@@ -382,4 +452,5 @@ Order by severity × verification confidence × production impact:
     UX, Batch 2C), TAM-004 (a11y coverage, Batch 2D), TAM-008 (SESSION_SECURE_COOKIE
     in .env.example), TAM-009 (TLS verification enabled, Batch 1), TAM-010 (a11y
     "Verify email" registration flow + invalid `role="bar"` progress markup),
-    TAM-200 (a11y count verified).
+    TAM-011 (fake-URL revert race), TAM-012 (CI clipboard permission), TAM-013 (CI contrast timeout),
+    TAM-014 (CI stale-session cookie race), TAM-200 (a11y count verified).

@@ -326,11 +326,11 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **254** PHPUnit tests passing (1927 assertions) — verified by runtime run on 2026-08-07: `./vendor/bin/phpunit` 254/254 (247 baseline + 8 new `GuestJoinTest` − 1 straggler count correction). No data providers — static count equals runtime count. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
-- [x] **230** Frontend Vitest tests passing — verified by runtime run on 2026-08-07: `npm run test` 230/230 (224 baseline + 6 new `video-player.test.tsx` keyboard/buffered tests). No parameterized tests — static count equals runtime count.
-- [x] **22** Playwright E2E tests passing — verified by runtime run on 2026-08-05: `npm run test:e2e` 22/22 (chat 2, lock-kick-transfer 4, room 3, subtitle 4, presence-moments 1, tap-to-play 2, playback-sync-verification 4, keyboard-a11y 1). Includes the `!canControl` host-gating + tap-to-play overlay fixes from the 2026-08-05 follow-up batch.
-- [x] **11** axe accessibility tests passing — verified 2026-08-05: `npm run test:a11y` 11/11.
-- [x] Build verification (tsc + vite), `npm run check:docs`, Prettier `format:check`, Pint `--test`, `git diff --check` — all clean 2026-08-05.
+- [x] **267** PHPUnit tests passing (2042 assertions) — verified by runtime run on 2026-08-12: `php artisan test` 267/267. No data providers — static count equals runtime count. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
+- [x] **234** Frontend Vitest tests passing — verified by runtime run on 2026-08-11: `npm run test` 234/234. No parameterized tests — static count equals runtime count.
+- [x] **22** Playwright E2E tests passing — verified by runtime run on 2026-08-12: `npm run test:e2e` 22/22 (chat 3, keyboard-a11y 1, lock-kick-transfer 4, playback-sync-verification 4, presence-moments 1, room 3, subtitle 4, tap-to-play 2).
+- [x] **19** axe accessibility tests passing — verified 2026-08-12: `npm run test:a11y` 19/19 (a11y 3, auth-a11y 6, contrast-a11y 8, room-a11y 1, welcome-a11y 1).
+- [x] Build verification (tsc + vite), `npm run check:docs`, Prettier `format:check`, Pint `--test`, `git diff --check` — all clean 2026-08-12.
 
 ### Security Hardening
 - [x] **SSRF Protection** — `UrlSecurityService` with DNS resolution, private IP blocking (RFC 1918, loopback, link-local, CGNAT), localhost hostname blocking, DNS rebinding protection
@@ -703,11 +703,11 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] **Add production error monitoring (Sentry)** — `sentry/sentry-laravel` v4.27 installed; `config/sentry.php` published; `.env.example` has `SENTRY_DSN` placeholder; disabled when DSN is empty
 
 ### Future Features
-- [ ] Room ownership transfer UX polish (update member list after transfer) — **fixed 2026-08-01 (Batch 2C, TAM-005)**: ownership state now derives from the reactive `room-ui` store via new `useRoomOwnership` hook; old owner loses owner-only controls immediately, new owner adopts ownership from presence data, failed transfers leave state untouched. See Completed section.
-- [ ] WebSocket migration for real-time events
+- [x] Room ownership transfer UX polish (update member list after transfer) — **fixed 2026-08-01 (Batch 2C, TAM-005)**: ownership state now derives from the reactive `room-ui` store via new `useRoomOwnership` hook; old owner loses owner-only controls immediately, new owner adopts ownership from presence data, failed transfers leave state untouched. See Completed section.
+- [ ] Self-hosted WebSocket migration (Laravel Reverb) for post-MVP VPS scaling (>500 concurrent) — Pusher Channels push delivery (primary) with tiered polling fallback was completed 2026-08-07 (DECISION-002a); self-hosted Reverb remains a post-MVP VPS roadmap item.
 - [ ] Chat/room moderation — report message, owner can delete any message (not just their own)
-- [ ] Cover profile, password-reset, verify-email pages with a11y audits — **done 2026-08-01 (Batch 2D, TAM-004)**: axe tests now cover `/reset-password/{token}`, `/confirm-password`, and the Profile delete-account modal open state; see Completed section
-- [ ] E2E tests for chat, subtitle, lock/kick, and transfer flows (now covered — 12 tests)
+- [x] Cover profile, password-reset, verify-email pages with a11y audits — **done 2026-08-01 (Batch 2D, TAM-004)**: axe tests now cover `/reset-password/{token}`, `/confirm-password`, and the Profile delete-account modal open state; expanded to 19 tests across 5 spec files. See Completed section.
+- [x] E2E tests for chat, subtitle, lock/kick, and transfer flows (now covered — 22 Playwright E2E tests across 8 spec files)
 
 ### Accepted MVP Limitations (tech debt)
 - [ ] **SSRF TOCTOU gap (partially closed 2026-08-01)** — `UrlSecurityService::validateVideoUrl()` runs DNS resolution and IP checks once at the top of `VideoProxyService::stream()`. Within a single request, a DNS rebinding attack could pass validation for a safe IP and then resolve to a different (internal) IP by the time the HEAD request runs. The window is microseconds and the proxy requires authentication, so the risk is accepted for MVP. Batch 1 closed the *redirect* half of this: redirects are no longer auto-followed — each hop is re-validated by `UrlSecurityService` (TAM-007) — and TLS verification is now enabled on all stream contexts (TAM-009). Post-MVP fix: resolve the hostname synchronously, compare the resolved IP against the blocklist inside every stream context (as a `stream_context_set_param` wrapper), and fail on mismatch.
