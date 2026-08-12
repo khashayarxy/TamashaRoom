@@ -3,6 +3,7 @@
 use App\Exceptions\VideoUrlValidationException;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeadersMiddleware;
+use App\Http\Middleware\SuppressAnonymousSessionCookie;
 use App\Models\ChatMessage;
 use App\Models\Room;
 use App\Policies\ChatMessagePolicy;
@@ -34,6 +35,9 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(prepend: [
+            SuppressAnonymousSessionCookie::class,
+        ]);
         $middleware->web(append: [
             SecurityHeadersMiddleware::class,
             HandleInertiaRequests::class,
