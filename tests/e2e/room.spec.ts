@@ -47,9 +47,11 @@ test.describe("Room creation and joining", () => {
 
     const hostCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
     const hostPage = await hostCtx.newPage();
-    const resp = await hostPage.request.post("/__test/setup-verified-room");
+    const resp = await hostPage.request.post(
+      "/__test/setup-verified-room?local_video=1",
+    );
     expect(resp.ok()).toBeTruthy();
-    const { room_url, room_id, invite_code } = await resp.json();
+    const { room_url, room_id, invite_code, video_url } = await resp.json();
 
     await hostPage.goto(room_url);
     await hostPage.waitForLoadState("networkidle");
@@ -66,12 +68,6 @@ test.describe("Room creation and joining", () => {
 
     // Establish the video URL via the host's session
     const xsrfToken = await getXsrfToken(hostPage);
-
-    const videoUrl = "https://www.example.com/video.mp4";
-    const setVideoResp = await hostPage.request.post(`/playback/${room_id}/set-video`, {
-      data: { video_url: videoUrl, duration_seconds: 120, _token: xsrfToken },
-    });
-    expect(setVideoResp.ok()).toBeTruthy();
 
     // Host changes playback state
     const patchResp = await hostPage.request.patch(`/playback/${room_id}`, {
@@ -96,7 +92,7 @@ test.describe("Room creation and joining", () => {
       if (guestState.is_playing === true) break;
     }
     expect(guestState.is_playing).toBe(true);
-    expect(guestState.video_url).toBe(videoUrl);
+    expect(guestState.video_url).toBe(video_url);
 
     await hostCtx.close();
     await guestCtx.close();

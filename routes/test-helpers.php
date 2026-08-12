@@ -128,6 +128,7 @@ Route::middleware('web')->group(function () {
             'room_id' => $room->id,
             'invite_code' => $room->invite_code,
             'room_url' => route('rooms.show', $room),
+            'video_url' => $room->video_url,
         ]);
     });
 
