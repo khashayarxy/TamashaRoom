@@ -13,7 +13,9 @@ const DEFAULT_SETTINGS: SubtitleSettings = {
     bgOpacity: 40,
     position: "bottom",
     offset: 0,
-    fontFamily: "Vazirmatn",
+    fontFamily: "Vazirmatn-Medium",
+    borderRadius: "rounded",
+    vOffset: 0,
 };
 
 function createMockVideo(currentTime = 0): HTMLVideoElement {
@@ -210,5 +212,43 @@ describe("SubtitleOverlay", () => {
         expect(container.innerHTML).not.toContain("<img");
         expect(screen.getByText(/سلام/)).toBeInTheDocument();
         expect(window).not.toHaveProperty("pwned");
+    });
+
+    it("portals subtitle overlay into document.fullscreenElement when in fullscreen mode", () => {
+        const fullscreenDiv = document.createElement("div");
+        fullscreenDiv.id = "mock-fullscreen-container";
+        document.body.appendChild(fullscreenDiv);
+
+        Object.defineProperty(document, "fullscreenElement", {
+            value: fullscreenDiv,
+            configurable: true,
+            writable: true,
+        });
+
+        const ref = { current: createMockVideo(2.5) };
+        const cues: SubtitleCue[] = [
+            { start: 1000, end: 4000, text: "زیرنویس حالت تمام‌صفحه" },
+        ];
+
+        render(
+            <SubtitleOverlay
+                videoRef={ref}
+                cues={cues}
+                settings={DEFAULT_SETTINGS}
+            />,
+        );
+
+        act(() => {
+            vi.advanceTimersByTime(100);
+        });
+
+        expect(fullscreenDiv.textContent).toContain("زیرنویس حالت تمام‌صفحه");
+
+        Object.defineProperty(document, "fullscreenElement", {
+            value: null,
+            configurable: true,
+            writable: true,
+        });
+        document.body.removeChild(fullscreenDiv);
     });
 });

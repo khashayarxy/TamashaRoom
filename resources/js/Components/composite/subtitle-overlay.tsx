@@ -1,121 +1,89 @@
-import { sanitizeText } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
 import { useSubtitleStore } from "@/stores/subtitle";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SubtitleCue, SubtitleSettings } from "@/lib/types/subtitle";
 
-export { type SubtitleCue, type SubtitleSettings };
+export type { SubtitleCue, SubtitleSettings };
 
-export const DEFAULT_SETTINGS: SubtitleSettings = {
-    size: 20,
-    color: "#ffffff",
-    enabled: true,
-    bgOpacity: 40,
-    position: "bottom",
-    offset: 0,
-    fontFamily: "Vazirmatn-Medium",
-};
-
-export function parseVtt(text: string): SubtitleCue[] {
-    const normalized = text.replace(/\r\n/g, "\n");
-    const lines = normalized.split("\n");
-    const cues: SubtitleCue[] = [];
-    let i = 0;
-
-    while (
-        i < lines.length &&
-        lines[i].trim() !== "WEBVTT" &&
-        lines[i].trim() !== ""
-    ) {
-        i++;
-    }
-    if (i < lines.length && lines[i].trim() === "WEBVTT") i++;
-
-    while (i < lines.length) {
-        const line = lines[i].trim();
-        if (line === "" || /^\d+$/.test(line)) {
-            i++;
-            continue;
-        }
-        const timeMatch = line.match(
-            /^(\d{2}:)?(\d{2}):(\d{2})[.,](\d{1,3})\s*-->\s*(\d{2}:)?(\d{2}):(\d{2})[.,](\d{1,3})/,
-        );
-        if (!timeMatch) {
-            i++;
-            continue;
-        }
-        const toMs = (h: string, m: string, s: string, ms: string) =>
-            (parseInt(h || "0") * 3600 + parseInt(m) * 60 + parseInt(s)) *
-                1000 +
-            parseInt(ms.padEnd(3, "0"));
-        const start = toMs(
-            timeMatch[1] || "00",
-            timeMatch[2],
-            timeMatch[3],
-            timeMatch[4],
-        );
-        const end = toMs(
-            timeMatch[5] || "00",
-            timeMatch[6],
-            timeMatch[7],
-            timeMatch[8],
-        );
-        i++;
-        const cueLines: string[] = [];
-        while (i < lines.length && lines[i].trim() !== "") {
-            if (!/^NOTE\s/.test(lines[i])) {
-                cueLines.push(sanitizeText(lines[i]));
-            }
-            i++;
-        }
-        if (cueLines.length > 0) {
-            cues.push({ start, end, text: cueLines.join("\n") });
-        }
-        i++;
-    }
-    return cues;
+export function sanitizeText(text: string): string {
+    return text
+        .replace(/<[^>]*>/g, "")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
 }
 
-export function parseSrt(text: string): SubtitleCue[] {
-    const normalized = text.replace(/\r\n/g, "\n");
-    const blocks = normalized.trim().split(/\n\n+/);
+/**
+ * Basic SRT parser: converts raw SRT string into array of SubtitleCue
+ */
+export function parseSrt(srtText: string): SubtitleCue[] {
+    const blocks = srtText.trim().replace(/\r\n/g, "\n").split("\n\n");
     const cues: SubtitleCue[] = [];
 
     for (const block of blocks) {
         const lines = block.split("\n");
         if (lines.length < 2) continue;
-        const timeLine = lines.find((l) => l.includes("-->"));
-        if (!timeLine) continue;
-        const timeMatch = timeLine.match(
-            /(\d{2}):(\d{2}):(\d{2})[.,](\d{1,3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[.,](\d{1,3})/,
-        );
-        if (!timeMatch) continue;
-        const toMs = (h: string, m: string, s: string, ms: string) =>
-            (parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(s)) * 1000 +
-            parseInt(ms.padEnd(3, "0"));
-        const start = toMs(
-            timeMatch[1],
-            timeMatch[2],
-            timeMatch[3],
-            timeMatch[4],
-        );
-        const end = toMs(
-            timeMatch[5],
-            timeMatch[6],
-            timeMatch[7],
-            timeMatch[8],
-        );
-        const textLines = lines.filter(
-            (l) => !l.includes("-->") && !/^\d+$/.test(l.trim()),
-        );
-        if (textLines.length > 0) {
-            cues.push({
-                start,
-                end,
-                text: textLines.map(sanitizeText).join("\n"),
-            });
+
+        let timeLineIdx = 1;
+        if (!lines[0].includes("-->") && lines[1] && lines[1].includes("-->")) {
+            timeLineIdx = 1;
+        } else if (lines[0].includes("-->")) {
+            timeLineIdx = 0;
+        } else {
+            continue;
+        }
+
+        const [startStr, endStr] = lines[timeLineIdx].split(" --> ");
+        if (!startStr || !endStr) continue;
+
+        const textLines = lines.slice(timeLineIdx + 1);
+        const rawText = textLines.join("\n").trim();
+        const text = sanitizeText(rawText);
+        if (!text) continue;
+
+        const start = parseTimestamp(startStr.trim());
+        const end = parseTimestamp(endStr.trim());
+
+        if (start !== null && end !== null && end > start) {
+            cues.push({ start, end, text });
         }
     }
+
     return cues;
+}
+
+/**
+ * Basic WebVTT parser: converts raw WebVTT string into array of SubtitleCue
+ */
+export function parseVtt(vttText: string): SubtitleCue[] {
+    const cleanText = vttText.replace(/^WEBVTT[^\n]*\n/, "").trim();
+    return parseSrt(cleanText);
+}
+
+function parseTimestamp(ts: string): number | null {
+    const normalized = ts.replace(",", ".");
+    const parts = normalized.split(":");
+
+    let hours = 0;
+    let minutes = 0;
+    let seconds = 0;
+
+    if (parts.length === 3) {
+        hours = parseFloat(parts[0]);
+        minutes = parseFloat(parts[1]);
+        seconds = parseFloat(parts[2]);
+    } else if (parts.length === 2) {
+        minutes = parseFloat(parts[0]);
+        seconds = parseFloat(parts[1]);
+    } else {
+        return null;
+    }
+
+    if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
+
+    return Math.round((hours * 3600 + minutes * 60 + seconds) * 1000);
 }
 
 export function parseSubtitle(text: string): SubtitleCue[] {
@@ -146,7 +114,27 @@ export function SubtitleOverlay({
     className,
 }: SubtitleOverlayProps) {
     const [currentText, setCurrentText] = useState<string | null>(null);
+    const [fullscreenElement, setFullscreenElement] = useState<Element | null>(null);
     const rafRef = useRef<number>(0);
+
+    useEffect(() => {
+        const updateFs = () => {
+            const fsEl =
+                document.fullscreenElement ||
+                (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement ||
+                null;
+            setFullscreenElement(fsEl);
+        };
+        updateFs();
+
+        document.addEventListener("fullscreenchange", updateFs);
+        document.addEventListener("webkitfullscreenchange", updateFs);
+
+        return () => {
+            document.removeEventListener("fullscreenchange", updateFs);
+            document.removeEventListener("webkitfullscreenchange", updateFs);
+        };
+    }, []);
 
     useEffect(() => {
         const video = videoRef.current;
@@ -165,10 +153,10 @@ export function SubtitleOverlay({
     }, [cues, videoRef, settings.offset]);
 
     if (error) {
-        return (
+        const errorContent = (
             <div
                 className={cn(
-                    "absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4",
+                    "absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4 z-[9999]",
                     className,
                 )}
             >
@@ -177,13 +165,14 @@ export function SubtitleOverlay({
                 </div>
             </div>
         );
+        return fullscreenElement ? createPortal(errorContent, fullscreenElement) : errorContent;
     }
 
     if (loading) {
-        return (
+        const loadingContent = (
             <div
                 className={cn(
-                    "absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4",
+                    "absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4 z-[9999]",
                     className,
                 )}
             >
@@ -192,19 +181,24 @@ export function SubtitleOverlay({
                 </div>
             </div>
         );
+        return fullscreenElement ? createPortal(loadingContent, fullscreenElement) : loadingContent;
     }
 
     if (!settings.enabled || !currentText) return null;
 
-    const positionClass = settings.position === "top" ? "top-20" : "bottom-16";
+    const vOffsetPx = settings.vOffset ?? 0;
+    const verticalStyle =
+        settings.position === "top"
+            ? { top: `calc(5rem + ${vOffsetPx}px)` }
+            : { bottom: `calc(4rem + ${vOffsetPx}px)` };
 
-    return (
+    const overlayContent = (
         <div
             className={cn(
-                "absolute left-0 right-0 flex justify-center pointer-events-none px-4",
-                positionClass,
+                "absolute left-0 right-0 flex justify-center pointer-events-none px-4 z-[9999]",
                 className,
             )}
+            style={verticalStyle}
         >
             <div
                 style={{
@@ -213,14 +207,16 @@ export function SubtitleOverlay({
                             ? "IRANSansXFaNum-Medium"
                             : "Vazirmatn-Medium"
                     }', var(--font-sans)`,
-                    fontSize: `${settings.size}px`,
+                    fontSize: `clamp(12px, ${(settings.size * 0.09).toFixed(2)}cqw, 72px)`,
                     color: settings.color,
                     backgroundColor: `rgba(0,0,0,${settings.bgOpacity / 100})`,
                     textShadow:
                         "0 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6), 0 0 12px rgba(0,0,0,0.4)",
                     lineHeight: 1.5,
                 }}
-                className="max-w-[90%] text-center rounded-xl px-4 py-2 backdrop-blur-sm"
+                className={`max-w-[90%] text-center px-4 py-2 backdrop-blur-sm ${
+                    settings.borderRadius === "sharp" ? "rounded-none" : "rounded-xl"
+                }`}
                 dir="auto"
             >
                 {currentText.split("\n").map((line, i) => (
@@ -232,6 +228,8 @@ export function SubtitleOverlay({
             </div>
         </div>
     );
+
+    return fullscreenElement ? createPortal(overlayContent, fullscreenElement) : overlayContent;
 }
 
 function cn(...classes: (string | false | null | undefined)[]): string {
