@@ -18,12 +18,12 @@ right-to-left. Design directly in RTL; do not design in LTR and mirror it after.
   ```css
   @font-face {
     font-family: 'Vazirmatn';
-    src: url('../fonts/vazirmatn-var.woff2') format('woff2');
-    font-weight: 100 900;
+    src: url('../fonts/Vazirmatn-Medium.woff2') format('woff2');
+    font-weight: 400 500;
     font-display: swap;
   }
   ```
-  The asset lives at `resources/fonts/vazirmatn-var.woff2` and is preloaded
+  The asset lives at `resources/fonts/Vazirmatn-Medium.woff2` and is preloaded
   through `Vite::asset()` in the root Blade template.
 - **Set direction once, at the root**, and let it cascade:
   `<html lang="fa" dir="rtl">`. Never set `dir` on individual components.

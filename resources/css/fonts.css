@@ -1,9 +1,153 @@
 @import "@fontsource-variable/inter";
 
+/* Primary Persian UI Font Family (Static Weights) */
 @font-face {
   font-family: 'Vazirmatn';
-  src: url('../fonts/vazirmatn-var.woff2') format('woff2');
-  font-weight: 100 900;
+  src: url('../fonts/Vazirmatn-Medium.woff2') format('woff2');
+  font-weight: 400 500;
   font-display: swap;
   unicode-range: U+0600-06FF, U+200C-200E, U+FB8A, U+067E, U+0686, U+06AF;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200E, U+FB8A, U+067E, U+0686, U+06AF;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-Bold.woff2') format('woff2');
+  font-weight: 700 900;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200E, U+FB8A, U+067E, U+0686, U+06AF;
+}
+
+/* Persian Subtitle Fonts */
+@font-face {
+  font-family: 'Dibaj-FaNum-Bold';
+  src: url('../fonts/Dibaj FaNum Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dibaj-FaNum-Medium';
+  src: url('../fonts/Dibaj FaNum Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dibaj-FaNum-SemiBold';
+  src: url('../fonts/Dibaj FaNum SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Farhang2FaNum-Bold';
+  src: url('../fonts/Farhang2FaNum-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Farhang2FaNum-DemiBold';
+  src: url('../fonts/Farhang2FaNum-DemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Farhang2FaNum-Medium';
+  src: url('../fonts/Farhang2FaNum-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IRANSansXFaNum-Bold';
+  src: url('../fonts/IRANSansXFaNum-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IRANSansXFaNum-DemiBold';
+  src: url('../fonts/IRANSansXFaNum-DemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IRANSansXFaNum-Medium';
+  src: url('../fonts/IRANSansXFaNum-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RaviFaNum-Bold';
+  src: url('../fonts/RaviFaNum-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RaviFaNum-Medium';
+  src: url('../fonts/RaviFaNum-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RaviFaNum-SemiBold';
+  src: url('../fonts/RaviFaNum-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vazirmatn-Bold';
+  src: url('../fonts/Vazirmatn-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vazirmatn-Medium';
+  src: url('../fonts/Vazirmatn-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vazirmatn-SemiBold';
+  src: url('../fonts/Vazirmatn-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'bon-Bold';
+  src: url('../fonts/bon-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'bon-Medium';
+  src: url('../fonts/bon-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'bon-SemiBold';
+  src: url('../fonts/bon-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
 }

@@ -5,8 +5,8 @@ import {
     DialogTitle,
 } from "@/Components/ui/dialog";
 import { useSubtitleStore } from "@/stores/subtitle";
-import { Subtitles } from "lucide-react";
-import { useRef } from "react";
+import { Subtitles, ChevronDown, ChevronUp } from "lucide-react";
+import { useRef, useState } from "react";
 import type { SubtitlePosition } from "@/lib/types/subtitle";
 
 interface SubtitleSettingsProps {
@@ -22,6 +22,29 @@ const COLORS = [
     { label: "صورتی", value: "#f472b6" },
 ];
 
+const FONTS = [
+    { label: "Dibaj FaNum Bold", value: "Dibaj-FaNum-Bold" },
+    { label: "Dibaj FaNum Medium", value: "Dibaj-FaNum-Medium" },
+    { label: "Dibaj FaNum SemiBold", value: "Dibaj-FaNum-SemiBold" },
+    { label: "Farhang2 FaNum Bold", value: "Farhang2FaNum-Bold" },
+    { label: "Farhang2 FaNum DemiBold", value: "Farhang2FaNum-DemiBold" },
+    { label: "Farhang2 FaNum Medium", value: "Farhang2FaNum-Medium" },
+    { label: "IRANSansX FaNum Bold", value: "IRANSansXFaNum-Bold" },
+    { label: "IRANSansX FaNum DemiBold", value: "IRANSansXFaNum-DemiBold" },
+    { label: "IRANSansX FaNum Medium", value: "IRANSansXFaNum-Medium" },
+    { label: "Ravi FaNum Bold", value: "RaviFaNum-Bold" },
+    { label: "Ravi FaNum Medium", value: "RaviFaNum-Medium" },
+    { label: "Ravi FaNum SemiBold", value: "RaviFaNum-SemiBold" },
+    { label: "Vazirmatn Bold", value: "Vazirmatn-Bold" },
+    { label: "Vazirmatn Medium", value: "Vazirmatn-Medium" },
+    { label: "Vazirmatn SemiBold", value: "Vazirmatn-SemiBold" },
+    { label: "bon Bold", value: "bon-Bold" },
+    { label: "bon Medium", value: "bon-Medium" },
+    { label: "bon SemiBold", value: "bon-SemiBold" },
+];
+
+const LEGACY_FONTS = ["Vazirmatn", "sans-serif", "serif", "monospace"];
+
 const POSITIONS: { label: string; value: SubtitlePosition }[] = [
     { label: "پایین", value: "bottom" },
     { label: "بالا", value: "top" },
@@ -34,24 +57,86 @@ export function SubtitleSettingsDialog({
     const settings = useSubtitleStore((s) => s.settings);
     const update = useSubtitleStore((s) => s.update);
     const dialogRef = useRef<HTMLDialogElement>(null);
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
+    const currentFont =
+        settings.fontFamily && !LEGACY_FONTS.includes(settings.fontFamily)
+            ? settings.fontFamily
+            : "Vazirmatn-Medium";
 
     return (
         <Dialog ref={dialogRef} open={open} onClose={onClose}>
-            <DialogContent className="min-w-[300px]">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Subtitles className="h-5 w-5" />
+            <DialogContent className="max-w-xs sm:max-w-sm w-full p-4 font-sans">
+                <DialogHeader className="pb-2 mb-2 border-b border-border">
+                    <DialogTitle className="flex items-center gap-2 text-base">
+                        <Subtitles className="h-4 w-4 text-primary" />
                         تنظیمات زیرنویس
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-5 mt-4">
+                <div className="space-y-4">
+                    {/* 1. Font Family Selector */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">
-                            اندازه متن
+                        <label className="block text-xs font-medium mb-1.5 text-foreground">
+                            قلم زیرنویس
                         </label>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground">
+                        {FONTS.length > 6 ? (
+                            <select
+                                value={currentFont}
+                                onChange={(e) =>
+                                    update({ fontFamily: e.target.value })
+                                }
+                                className="w-full rounded-lg border border-input bg-secondary px-3 py-1.5 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                            >
+                                {FONTS.map((f) => (
+                                    <option
+                                        key={f.value}
+                                        value={f.value}
+                                        style={{
+                                            fontFamily: `'${f.value}', sans-serif`,
+                                        }}
+                                    >
+                                        {f.label}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {FONTS.map((f) => (
+                                    <button
+                                        key={f.value}
+                                        type="button"
+                                        onClick={() =>
+                                            update({ fontFamily: f.value })
+                                        }
+                                        className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all text-center truncate ${
+                                            currentFont === f.value
+                                                ? "bg-primary text-primary-foreground shadow-sm"
+                                                : "bg-secondary text-muted-foreground hover:text-foreground"
+                                        }`}
+                                        style={{
+                                            fontFamily: `'${f.value}', sans-serif`,
+                                        }}
+                                    >
+                                        {f.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 2. Text Size */}
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-medium text-foreground">
+                                اندازه متن
+                            </label>
+                            <span className="text-xs text-muted-foreground font-mono">
+                                {settings.size}px
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground shrink-0">
                                 کوچک
                             </span>
                             <input
@@ -62,107 +147,29 @@ export function SubtitleSettingsDialog({
                                 onChange={(e) =>
                                     update({ size: parseInt(e.target.value) })
                                 }
-                                className="flex-1 h-2 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
+                                className="flex-1 h-1.5 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
                                 style={{ direction: "ltr" }}
                             />
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-[10px] text-muted-foreground shrink-0">
                                 بزرگ
                             </span>
                         </div>
-                        <div className="text-center text-sm mt-1 text-muted-foreground">
-                            {settings.size}px
-                        </div>
                     </div>
 
+                    {/* 3. Text Color */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">
-                            شفافیت پس‌زمینه
-                        </label>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground">
-                                شفاف
-                            </span>
-                            <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                value={settings.bgOpacity}
-                                onChange={(e) =>
-                                    update({
-                                        bgOpacity: parseInt(e.target.value),
-                                    })
-                                }
-                                className="flex-1 h-2 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
-                                style={{ direction: "ltr" }}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                                تیره
-                            </span>
-                        </div>
-                        <div className="text-center text-sm mt-1 text-muted-foreground">
-                            {settings.bgOpacity}%
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-2">
-                            هم‌زمانی زیرنویس
-                        </label>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground">
-                                دیرتر
-                            </span>
-                            <input
-                                type="range"
-                                min={-5000}
-                                max={5000}
-                                step={250}
-                                value={settings.offset}
-                                onChange={(e) =>
-                                    update({
-                                        offset: parseInt(e.target.value),
-                                    })
-                                }
-                                className="flex-1 h-2 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
-                                style={{ direction: "ltr" }}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                                زودتر
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-center gap-2 mt-1">
-                            <span className="text-sm text-muted-foreground">
-                                {settings.offset === 0
-                                    ? "بدون تأخیر"
-                                    : `${settings.offset > 0 ? "+" : "−"}${(
-                                          Math.abs(settings.offset) / 1000
-                                      ).toFixed(1)} ثانیه`}
-                            </span>
-                            {settings.offset !== 0 && (
-                                <button
-                                    type="button"
-                                    onClick={() => update({ offset: 0 })}
-                                    className="text-xs text-primary underline underline-offset-2 dark:text-accent-foreground"
-                                >
-                                    بازنشانی
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-xs font-medium mb-1.5 text-foreground">
                             رنگ متن
                         </label>
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 justify-between">
                             {COLORS.map((c) => (
                                 <button
                                     key={c.value}
                                     type="button"
                                     onClick={() => update({ color: c.value })}
-                                    className={`h-9 w-9 rounded-full border-2 transition-all ${
+                                    className={`h-7 w-7 rounded-full border-2 transition-all shrink-0 ${
                                         settings.color === c.value
-                                            ? "border-primary scale-110"
+                                            ? "border-primary scale-110 shadow-sm"
                                             : "border-transparent"
                                     }`}
                                     style={{ backgroundColor: c.value }}
@@ -173,70 +180,195 @@ export function SubtitleSettingsDialog({
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-2">
-                            موقعیت
-                        </label>
-                        <div className="flex gap-2">
-                            {POSITIONS.map((p) => (
-                                <button
-                                    key={p.value}
-                                    type="button"
-                                    onClick={() =>
-                                        update({ position: p.value })
-                                    }
-                                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-                                        settings.position === p.value
-                                            ? "bg-primary text-primary-foreground shadow-sm"
-                                            : "bg-secondary text-muted-foreground hover:text-foreground"
-                                    }`}
-                                >
-                                    {p.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-border">
-                        <span className="text-sm">نمایش زیرنویس</span>
+                    {/* Advanced Collapsible Section */}
+                    <div className="pt-2 border-t border-border">
                         <button
                             type="button"
-                            role="switch"
-                            aria-checked={settings.enabled}
-                            aria-label="نمایش زیرنویس"
-                            onClick={() =>
-                                update({ enabled: !settings.enabled })
-                            }
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                settings.enabled ? "bg-primary" : "bg-secondary"
-                            }`}
+                            onClick={() => setShowAdvanced((prev) => !prev)}
+                            className="w-full flex items-center justify-between text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
                         >
-                            <span
-                                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                                    settings.enabled
-                                        ? "translate-x-[22px]"
-                                        : "translate-x-[2px]"
-                                }`}
-                            />
+                            <span>سایر تنظیمات (تأخیر، پس‌زمینه، موقعیت)</span>
+                            {showAdvanced ? (
+                                <ChevronUp className="h-3.5 w-3.5" />
+                            ) : (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                            )}
                         </button>
+
+                        {showAdvanced && (
+                            <div className="space-y-3.5 pt-3 animate-in fade-in-0 slide-in-from-top-1">
+                                {/* Background Opacity */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="text-xs font-medium text-foreground">
+                                            شفافیت پس‌زمینه
+                                        </label>
+                                        <span className="text-xs text-muted-foreground font-mono">
+                                            {settings.bgOpacity}%
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-muted-foreground shrink-0">
+                                            شفاف
+                                        </span>
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={100}
+                                            value={settings.bgOpacity}
+                                            onChange={(e) =>
+                                                update({
+                                                    bgOpacity: parseInt(
+                                                        e.target.value,
+                                                    ),
+                                                })
+                                            }
+                                            className="flex-1 h-1.5 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
+                                            style={{ direction: "ltr" }}
+                                        />
+                                        <span className="text-[10px] text-muted-foreground shrink-0">
+                                            تیره
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Subtitle Offset / Timing */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="text-xs font-medium text-foreground">
+                                            هم‌زمانی زیرنویس
+                                        </label>
+                                        <span className="text-xs text-muted-foreground">
+                                            {settings.offset === 0
+                                                ? "بدون تأخیر"
+                                                : `${
+                                                      settings.offset > 0
+                                                          ? "+"
+                                                          : "−"
+                                                  }${(
+                                                      Math.abs(settings.offset) /
+                                                      1000
+                                                  ).toFixed(1)} ثانیه`}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-muted-foreground shrink-0">
+                                            دیرتر
+                                        </span>
+                                        <input
+                                            type="range"
+                                            min={-5000}
+                                            max={5000}
+                                            step={250}
+                                            value={settings.offset}
+                                            onChange={(e) =>
+                                                update({
+                                                    offset: parseInt(
+                                                        e.target.value,
+                                                    ),
+                                                })
+                                            }
+                                            className="flex-1 h-1.5 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
+                                            style={{ direction: "ltr" }}
+                                        />
+                                        <span className="text-[10px] text-muted-foreground shrink-0">
+                                            زودتر
+                                        </span>
+                                    </div>
+                                    {settings.offset !== 0 && (
+                                        <div className="text-end mt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    update({ offset: 0 })
+                                                }
+                                                className="text-[10px] text-primary underline underline-offset-2"
+                                            >
+                                                بازنشانی هم‌زمانی
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Position */}
+                                <div>
+                                    <label className="block text-xs font-medium mb-1 text-foreground">
+                                        موقعیت روی صفحه
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {POSITIONS.map((p) => (
+                                            <button
+                                                key={p.value}
+                                                type="button"
+                                                onClick={() =>
+                                                    update({ position: p.value })
+                                                }
+                                                className={`flex-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all text-center ${
+                                                    settings.position === p.value
+                                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                                        : "bg-secondary text-muted-foreground hover:text-foreground"
+                                                }`}
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Toggle Enabled */}
+                                <div className="flex items-center justify-between pt-1">
+                                    <span className="text-xs font-medium text-foreground">
+                                        نمایش زیرنویس
+                                    </span>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={settings.enabled}
+                                        aria-label="نمایش زیرنویس"
+                                        onClick={() =>
+                                            update({
+                                                enabled: !settings.enabled,
+                                            })
+                                        }
+                                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                            settings.enabled
+                                                ? "bg-primary"
+                                                : "bg-secondary"
+                                        }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                settings.enabled
+                                                    ? "translate-x-[18px]"
+                                                    : "translate-x-[2px]"
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
+                    {/* Live Preview Container */}
                     <div
-                        className="bg-muted rounded-xl p-3 text-sm text-muted-foreground text-center"
+                        className="bg-muted rounded-lg p-2.5 text-center transition-all overflow-hidden"
                         dir="auto"
                         style={{
-                            backgroundColor: `rgba(0,0,0,${settings.bgOpacity / 100})`,
+                            backgroundColor: `rgba(0,0,0,${
+                                settings.bgOpacity / 100
+                            })`,
                         }}
                     >
                         <span
                             style={{
-                                fontSize: `${settings.size}px`,
+                                fontFamily: `'${currentFont}', sans-serif`,
+                                fontSize: `${Math.min(settings.size, 24)}px`,
                                 color: settings.color,
                                 textShadow:
-                                    "0 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6), 0 0 12px rgba(0,0,0,0.4)",
+                                    "0 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)",
                             }}
                         >
-                            پیش‌نمایش متن زیرنویس
+                            پیش‌نمایش زیرنویس TamashaRoom
                         </span>
                     </div>
                 </div>

@@ -8,7 +8,7 @@
 
         <title inertia>{{ config('app.name', 'تماشاروم') }}</title>
 
-        <link rel="preload" as="font" type="font/woff2" href="{{ Vite::asset('resources/fonts/vazirmatn-var.woff2') }}" crossorigin="anonymous">
+        <link rel="preload" as="font" type="font/woff2" href="{{ Vite::asset('resources/fonts/Vazirmatn-Medium.woff2') }}" crossorigin="anonymous">
 
         @routes(nonce: $cspNonce ?? null)
         @viteReactRefresh

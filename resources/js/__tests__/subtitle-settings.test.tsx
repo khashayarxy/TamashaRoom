@@ -11,6 +11,7 @@ const defaultSettings = {
     bgOpacity: 40,
     position: "bottom" as const,
     offset: 0,
+    fontFamily: "Vazirmatn-Medium",
 };
 
 vi.mock("@/stores/subtitle", () => ({
@@ -34,7 +35,7 @@ describe("SubtitleSettingsDialog", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
         expect(screen.getByText("تنظیمات زیرنویس")).toBeInTheDocument();
         expect(screen.getByText("20px")).toBeInTheDocument();
-        expect(screen.getByText("40%")).toBeInTheDocument();
+        expect(screen.getByRole("combobox")).toHaveValue("Vazirmatn-Medium");
     });
 
     it("has dialog closed when not open", () => {
@@ -42,6 +43,13 @@ describe("SubtitleSettingsDialog", () => {
         const dialog = document.querySelector("dialog");
         expect(dialog).not.toBeNull();
         expect(dialog!.open).toBe(false);
+    });
+
+    it("updates font family when font choice changes", () => {
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const select = screen.getByRole("combobox");
+        fireEvent.change(select, { target: { value: "IRANSansXFaNum-Bold" } });
+        expect(mockUpdate).toHaveBeenCalledWith({ fontFamily: "IRANSansXFaNum-Bold" });
     });
 
     it("updates size when slider changes", () => {
@@ -52,37 +60,6 @@ describe("SubtitleSettingsDialog", () => {
         expect(mockUpdate).toHaveBeenCalledWith({ size: 28 });
     });
 
-    it("updates background opacity when slider changes", () => {
-        render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const sliders = screen.getAllByRole("slider");
-        const opacitySlider = sliders[1];
-        fireEvent.change(opacitySlider, { target: { value: "60" } });
-        expect(mockUpdate).toHaveBeenCalledWith({ bgOpacity: 60 });
-    });
-
-    it("shows no delay label when offset is zero", () => {
-        render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        expect(screen.getByText("بدون تأخیر")).toBeInTheDocument();
-        expect(screen.queryByText("بازنشانی")).not.toBeInTheDocument();
-    });
-
-    it("updates offset when slider changes", () => {
-        render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const sliders = screen.getAllByRole("slider");
-        const offsetSlider = sliders[2];
-        fireEvent.change(offsetSlider, { target: { value: "1500" } });
-        expect(mockUpdate).toHaveBeenCalledWith({ offset: 1500 });
-    });
-
-    it("shows formatted offset and reset button when offset is non-zero", () => {
-        currentSettings = { ...defaultSettings, offset: 1500 };
-        render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        expect(screen.getByText("+1.5 ثانیه")).toBeInTheDocument();
-        const reset = screen.getByText("بازنشانی");
-        fireEvent.click(reset);
-        expect(mockUpdate).toHaveBeenCalledWith({ offset: 0 });
-    });
-
     it("selects a color when clicked", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
         const yellowBtn = screen.getByLabelText("زرد");
@@ -90,15 +67,64 @@ describe("SubtitleSettingsDialog", () => {
         expect(mockUpdate).toHaveBeenCalledWith({ color: "#fbbf24" });
     });
 
-    it("selects top position when clicked", () => {
+    it("expands advanced section when toggle button is clicked", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const toggleBtn = screen.getByText("سایر تنظیمات (تأخیر، پس‌زمینه، موقعیت)");
+        fireEvent.click(toggleBtn);
+
+        expect(screen.getByText("40%")).toBeInTheDocument();
+        expect(screen.getByText("بدون تأخیر")).toBeInTheDocument();
+    });
+
+    it("updates background opacity in advanced section", () => {
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const toggleBtn = screen.getByText("سایر تنظیمات (تأخیر، پس‌زمینه، موقعیت)");
+        fireEvent.click(toggleBtn);
+
+        const sliders = screen.getAllByRole("slider");
+        const opacitySlider = sliders[1];
+        fireEvent.change(opacitySlider, { target: { value: "60" } });
+        expect(mockUpdate).toHaveBeenCalledWith({ bgOpacity: 60 });
+    });
+
+    it("updates offset in advanced section", () => {
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const toggleBtn = screen.getByText("سایر تنظیمات (تأخیر، پس‌زمینه، موقعیت)");
+        fireEvent.click(toggleBtn);
+
+        const sliders = screen.getAllByRole("slider");
+        const offsetSlider = sliders[2];
+        fireEvent.change(offsetSlider, { target: { value: "1500" } });
+        expect(mockUpdate).toHaveBeenCalledWith({ offset: 1500 });
+    });
+
+    it("shows formatted offset and reset button when offset is non-zero in advanced section", () => {
+        currentSettings = { ...defaultSettings, offset: 1500 };
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const toggleBtn = screen.getByText("سایر تنظیمات (تأخیر، پس‌زمینه، موقعیت)");
+        fireEvent.click(toggleBtn);
+
+        expect(screen.getByText("+1.5 ثانیه")).toBeInTheDocument();
+        const reset = screen.getByText("بازنشانی هم‌زمانی");
+        fireEvent.click(reset);
+        expect(mockUpdate).toHaveBeenCalledWith({ offset: 0 });
+    });
+
+    it("selects top position in advanced section", () => {
+        render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const toggleBtn = screen.getByText("سایر تنظیمات (تأخیر، پس‌زمینه، موقعیت)");
+        fireEvent.click(toggleBtn);
+
         const topBtn = screen.getByText("بالا");
         fireEvent.click(topBtn);
         expect(mockUpdate).toHaveBeenCalledWith({ position: "top" });
     });
 
-    it("toggles enabled state when switch is clicked", () => {
+    it("toggles enabled state in advanced section", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
+        const toggleBtn = screen.getByText("سایر تنظیمات (تأخیر، پس‌زمینه، موقعیت)");
+        fireEvent.click(toggleBtn);
+
         const toggle = screen.getByLabelText("نمایش زیرنویس");
         fireEvent.click(toggle);
         expect(mockUpdate).toHaveBeenCalledWith({ enabled: false });
@@ -106,7 +132,7 @@ describe("SubtitleSettingsDialog", () => {
 
     it("renders preview with current settings", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        expect(screen.getByText("پیش‌نمایش متن زیرنویس")).toBeInTheDocument();
+        expect(screen.getByText("پیش‌نمایش زیرنویس TamashaRoom")).toBeInTheDocument();
     });
 
     it("calls onClose when dialog background is clicked", () => {
