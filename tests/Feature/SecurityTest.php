@@ -148,6 +148,21 @@ class SecurityTest extends TestCase
         $response->assertHeaderMissing('X-Powered-By');
     }
 
+    #[Test]
+    public function local_environment_csp_allows_herd_https_and_vite_dev_server_origins(): void
+    {
+        $this->app['env'] = 'local';
+
+        $response = $this->actingAs($this->owner)->get('/dashboard');
+        $response->assertOk();
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString('https://tamasharoom.test:5173', $csp);
+        $this->assertStringContainsString('wss://tamasharoom.test:5173', $csp);
+        $this->assertStringContainsString("font-src 'self' data: blob:", $csp);
+        $this->assertStringContainsString('https://tamasharoom.test:5173', $csp);
+    }
+
     // ─── File Upload MIME Validation ────────────────────────
 
     #[Test]

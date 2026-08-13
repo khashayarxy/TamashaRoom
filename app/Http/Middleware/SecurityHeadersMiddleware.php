@@ -61,15 +61,47 @@ class SecurityHeadersMiddleware
         $pusherOrigin = $this->pusherWebSocketOrigin();
 
         if (app()->environment('local')) {
-            $viteDevOrigin = 'http://127.0.0.1:5173';
-            $viteDevWs = 'ws://127.0.0.1:5173';
+            $viteOrigins = [
+                'http://127.0.0.1:5173',
+                'https://127.0.0.1:5173',
+                'http://localhost:5173',
+                'https://localhost:5173',
+                'https://tamasharoom.test:5173',
+                'http://tamasharoom.test:5173',
+            ];
+
+            $viteWsOrigins = [
+                'ws://127.0.0.1:5173',
+                'wss://127.0.0.1:5173',
+                'ws://localhost:5173',
+                'wss://localhost:5173',
+                'wss://tamasharoom.test:5173',
+                'ws://tamasharoom.test:5173',
+            ];
+
+            $hotPath = public_path('hot');
+            if (file_exists($hotPath)) {
+                $hotUrl = trim((string) @file_get_contents($hotPath));
+                if ($hotUrl !== '') {
+                    $viteOrigins[] = $hotUrl;
+                    $parsed = parse_url($hotUrl);
+                    if ($parsed && isset($parsed['host'])) {
+                        $scheme = ($parsed['scheme'] ?? 'http') === 'https' ? 'wss' : 'ws';
+                        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
+                        $viteWsOrigins[] = "{$scheme}://{$parsed['host']}{$port}";
+                    }
+                }
+            }
+
+            $viteOriginsStr = implode(' ', array_unique($viteOrigins));
+            $viteWsOriginsStr = implode(' ', array_unique($viteWsOrigins));
 
             $csp = "default-src 'self'; "
-                ."script-src 'self' 'unsafe-inline' {$viteDevOrigin}; "
-                ."style-src 'self' 'unsafe-inline' {$viteDevOrigin}; "
+                ."script-src 'self' 'unsafe-inline' {$viteOriginsStr}; "
+                ."style-src 'self' 'unsafe-inline' {$viteOriginsStr}; "
                 ."img-src 'self' data: blob: https:; "
-                ."font-src 'self' data:; "
-                ."connect-src 'self' https: {$viteDevOrigin} {$viteDevWs}"
+                ."font-src 'self' data: blob: {$viteOriginsStr}; "
+                ."connect-src 'self' https: {$viteOriginsStr} {$viteWsOriginsStr}"
                 .($pusherOrigin !== null ? " {$pusherOrigin}" : '').'; '
                 ."media-src 'self' https:; "
                 ."frame-src 'none'; "
