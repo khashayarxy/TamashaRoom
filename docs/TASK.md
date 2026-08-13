@@ -338,8 +338,8 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **269** PHPUnit tests passing (2058 assertions) — verified by runtime run on 2026-08-12: `php artisan test` 269/269. No data providers — static count equals runtime count. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
-- [x] **234** Frontend Vitest tests passing — verified by runtime run on 2026-08-11: `npm run test` 234/234. No parameterized tests — static count equals runtime count.
+- [x] **274** PHPUnit tests passing (2086 assertions) — verified by runtime run on 2026-08-13: `php artisan test` 274/274. No data providers — static count equals runtime count. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
+- [x] **235** Frontend Vitest tests passing — verified by runtime run on 2026-08-13: `npm run test` 235/235. No parameterized tests — static count equals runtime count.
 - [x] **24** Playwright E2E tests passing — verified by runtime run on 2026-08-12: `npm run test:e2e` 24/24 (chat 3, keyboard-a11y 1, lock-kick-transfer 4, multi-tab-reconnect 2, playback-sync-verification 4, presence-moments 1, room 3, subtitle 4, tap-to-play 2).
 - [x] **19** axe accessibility tests passing — verified 2026-08-12: `npm run test:a11y` 19/19 (a11y 3, auth-a11y 6, contrast-a11y 8, room-a11y 1, welcome-a11y 1).
 - [x] Build verification (tsc + vite), `npm run check:docs`, Prettier `format:check`, Pint `--test`, `git diff --check` — all clean 2026-08-12.
