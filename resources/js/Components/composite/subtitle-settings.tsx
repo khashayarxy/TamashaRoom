@@ -23,27 +23,9 @@ const COLORS = [
 ];
 
 const FONTS = [
-    { label: "Dibaj FaNum Bold", value: "Dibaj-FaNum-Bold" },
-    { label: "Dibaj FaNum Medium", value: "Dibaj-FaNum-Medium" },
-    { label: "Dibaj FaNum SemiBold", value: "Dibaj-FaNum-SemiBold" },
-    { label: "Farhang2 FaNum Bold", value: "Farhang2FaNum-Bold" },
-    { label: "Farhang2 FaNum DemiBold", value: "Farhang2FaNum-DemiBold" },
-    { label: "Farhang2 FaNum Medium", value: "Farhang2FaNum-Medium" },
-    { label: "IRANSansX FaNum Bold", value: "IRANSansXFaNum-Bold" },
-    { label: "IRANSansX FaNum DemiBold", value: "IRANSansXFaNum-DemiBold" },
-    { label: "IRANSansX FaNum Medium", value: "IRANSansXFaNum-Medium" },
-    { label: "Ravi FaNum Bold", value: "RaviFaNum-Bold" },
-    { label: "Ravi FaNum Medium", value: "RaviFaNum-Medium" },
-    { label: "Ravi FaNum SemiBold", value: "RaviFaNum-SemiBold" },
-    { label: "Vazirmatn Bold", value: "Vazirmatn-Bold" },
-    { label: "Vazirmatn Medium", value: "Vazirmatn-Medium" },
-    { label: "Vazirmatn SemiBold", value: "Vazirmatn-SemiBold" },
-    { label: "bon Bold", value: "bon-Bold" },
-    { label: "bon Medium", value: "bon-Medium" },
-    { label: "bon SemiBold", value: "bon-SemiBold" },
+    { label: "وزیرمتن", value: "Vazirmatn-Medium" },
+    { label: "ایرانسنس X", value: "IRANSansXFaNum-Medium" },
 ];
-
-const LEGACY_FONTS = ["Vazirmatn", "sans-serif", "serif", "monospace"];
 
 const POSITIONS: { label: string; value: SubtitlePosition }[] = [
     { label: "پایین", value: "bottom" },
@@ -60,8 +42,8 @@ export function SubtitleSettingsDialog({
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     const currentFont =
-        settings.fontFamily && !LEGACY_FONTS.includes(settings.fontFamily)
-            ? settings.fontFamily
+        settings.fontFamily === "IRANSansXFaNum-Medium"
+            ? "IRANSansXFaNum-Medium"
             : "Vazirmatn-Medium";
 
     return (

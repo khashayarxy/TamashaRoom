@@ -35,7 +35,8 @@ describe("SubtitleSettingsDialog", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
         expect(screen.getByText("تنظیمات زیرنویس")).toBeInTheDocument();
         expect(screen.getByText("20px")).toBeInTheDocument();
-        expect(screen.getByRole("combobox")).toHaveValue("Vazirmatn-Medium");
+        expect(screen.getByText("وزیرمتن")).toBeInTheDocument();
+        expect(screen.getByText("ایرانسنس X")).toBeInTheDocument();
     });
 
     it("has dialog closed when not open", () => {
@@ -45,11 +46,11 @@ describe("SubtitleSettingsDialog", () => {
         expect(dialog!.open).toBe(false);
     });
 
-    it("updates font family when font choice changes", () => {
+    it("updates font family when font choice button changes", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        const select = screen.getByRole("combobox");
-        fireEvent.change(select, { target: { value: "IRANSansXFaNum-Bold" } });
-        expect(mockUpdate).toHaveBeenCalledWith({ fontFamily: "IRANSansXFaNum-Bold" });
+        const iranSansBtn = screen.getByText("ایرانسنس X");
+        fireEvent.click(iranSansBtn);
+        expect(mockUpdate).toHaveBeenCalledWith({ fontFamily: "IRANSansXFaNum-Medium" });
     });
 
     it("updates size when slider changes", () => {

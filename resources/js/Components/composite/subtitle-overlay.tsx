@@ -209,8 +209,8 @@ export function SubtitleOverlay({
             <div
                 style={{
                     fontFamily: `'${
-                        settings.fontFamily && !["Vazirmatn", "sans-serif", "serif", "monospace"].includes(settings.fontFamily)
-                            ? settings.fontFamily
+                        settings.fontFamily === "IRANSansXFaNum-Medium"
+                            ? "IRANSansXFaNum-Medium"
                             : "Vazirmatn-Medium"
                     }', var(--font-sans)`,
                     fontSize: `${settings.size}px`,

@@ -28,10 +28,10 @@ export const subtitleSettingsSchema = z.object({
     position: z.enum(["bottom", "top"]).default("bottom"),
     offset: z.number().int().min(-5000).max(5000).default(0),
     fontFamily: z.string().default("Vazirmatn-Medium").transform((val) => {
-        if (["Vazirmatn", "sans-serif", "serif", "monospace"].includes(val)) {
-            return "Vazirmatn-Medium";
+        if (val === "IRANSansXFaNum-Medium") {
+            return "IRANSansXFaNum-Medium";
         }
-        return val;
+        return "Vazirmatn-Medium";
     }),
 });
 
