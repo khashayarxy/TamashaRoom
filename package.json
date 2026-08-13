@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && php artisan view:clear",
     "dev": "vite",
     "lint": "eslint resources/js --max-warnings 4",
     "lint:fix": "eslint resources/js --fix",
