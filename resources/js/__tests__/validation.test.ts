@@ -37,10 +37,18 @@ describe("lib/validation schemas", () => {
     it("subtitleSettingsSchema fills defaults for partial stored settings", () => {
         const parsed = subtitleSettingsSchema.parse({ size: 24 });
         expect(parsed.size).toBe(24);
-        expect(parsed.color).toBe("#ffffff");
+        expect(parsed.color).toBe("#FFFFFF");
         expect(parsed.enabled).toBe(true);
         expect(parsed.position).toBe("bottom");
         expect(parsed.offset).toBe(0);
+    });
+
+    it("subtitleSettingsSchema falls back to #FFFFFF for unsupported colors", () => {
+        const parsedPink = subtitleSettingsSchema.parse({ color: "#f472b6" });
+        expect(parsedPink.color).toBe("#FFFFFF");
+
+        const parsedYellow = subtitleSettingsSchema.parse({ color: "#ffff00" });
+        expect(parsedYellow.color).toBe("#FFFF00");
     });
 
     it("subtitleSettingsSchema rejects out-of-range values", () => {

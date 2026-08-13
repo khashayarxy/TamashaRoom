@@ -22,7 +22,14 @@ export const chatMessagesSchema = z.array(chatMessageSchema);
 
 export const subtitleSettingsSchema = z.object({
     size: z.number().int().min(10).max(40).default(20),
-    color: z.string().default("#ffffff"),
+    color: z
+        .string()
+        .default("#FFFFFF")
+        .transform((val) => {
+            const upper = val.toUpperCase();
+            if (upper === "#FFFF00") return "#FFFF00";
+            return "#FFFFFF";
+        }),
     enabled: z.boolean().default(true),
     bgOpacity: z.number().int().min(0).max(100).default(40),
     position: z.enum(["bottom", "top"]).default("bottom"),
@@ -33,6 +40,8 @@ export const subtitleSettingsSchema = z.object({
         }
         return "Vazirmatn-Medium";
     }),
+    borderRadius: z.enum(["rounded", "sharp"]).default("rounded"),
+    vOffset: z.number().int().min(-25).max(75).default(0),
 });
 
 export const subtitleTrackSchema = z.object({

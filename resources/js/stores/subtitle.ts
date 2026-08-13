@@ -6,12 +6,14 @@ const SETTINGS_KEY = "tamasharoom-subtitle-settings";
 
 const DEFAULT_SETTINGS: SubtitleSettings = {
     size: 20,
-    color: "#ffffff",
+    color: "#FFFFFF",
     enabled: true,
     bgOpacity: 40,
     position: "bottom",
     offset: 0,
     fontFamily: "Vazirmatn-Medium",
+    borderRadius: "rounded",
+    vOffset: 0,
 };
 
 function loadSettings(): SubtitleSettings {
@@ -19,7 +21,9 @@ function loadSettings(): SubtitleSettings {
         const raw = localStorage.getItem(SETTINGS_KEY);
         if (raw) {
             const parsed = subtitleSettingsSchema.parse(JSON.parse(raw));
-            return { ...DEFAULT_SETTINGS, ...parsed };
+            const settings = { ...DEFAULT_SETTINGS, ...parsed };
+            settings.vOffset = Math.max(-25, Math.min(75, settings.vOffset ?? 0));
+            return settings;
         }
     } catch {
         /* invalid or malformed stored settings — fall through to defaults */

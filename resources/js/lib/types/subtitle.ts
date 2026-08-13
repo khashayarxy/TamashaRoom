@@ -14,6 +14,8 @@ export interface SubtitleCue {
 
 export type SubtitlePosition = "bottom" | "top";
 
+export type SubtitleBorderRadius = "rounded" | "sharp";
+
 export interface SubtitleSettings {
     size: number;
     color: string;
@@ -22,4 +24,6 @@ export interface SubtitleSettings {
     position: SubtitlePosition;
     offset: number;
     fontFamily: string;
+    borderRadius: SubtitleBorderRadius;
+    vOffset: number;
 }

@@ -5,12 +5,14 @@ const SETTINGS_KEY = "tamasharoom-subtitle-settings";
 
 const defaults = {
     size: 20,
-    color: "#ffffff",
+    color: "#FFFFFF",
     enabled: true,
     bgOpacity: 40,
     position: "bottom" as const,
     offset: 0,
-    fontFamily: "Vazirmatn",
+    fontFamily: "Vazirmatn-Medium",
+    borderRadius: "rounded" as const,
+    vOffset: 0,
 };
 
 describe("useSubtitleStore", () => {
@@ -24,7 +26,7 @@ describe("useSubtitleStore", () => {
         expect(fresh.settings).toEqual(defaults);
     });
 
-    it("loads persisted settings from localStorage", () => {
+    it("loads persisted settings from localStorage and normalizes allowed colors", () => {
         const persisted = { ...defaults, size: 28, color: "#ffff00" };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(persisted));
         useSubtitleStore.setState({ settings: { ...persisted } });
@@ -36,13 +38,13 @@ describe("useSubtitleStore", () => {
     it("update changes a single field", () => {
         useSubtitleStore.getState().update({ size: 32 });
         expect(useSubtitleStore.getState().settings.size).toBe(32);
-        expect(useSubtitleStore.getState().settings.color).toBe("#ffffff");
+        expect(useSubtitleStore.getState().settings.color).toBe("#FFFFFF");
     });
 
     it("update changes multiple fields at once", () => {
-        useSubtitleStore.getState().update({ color: "#ff0000", bgOpacity: 60 });
+        useSubtitleStore.getState().update({ color: "#FFFF00", bgOpacity: 60 });
         const state = useSubtitleStore.getState();
-        expect(state.settings.color).toBe("#ff0000");
+        expect(state.settings.color).toBe("#FFFF00");
         expect(state.settings.bgOpacity).toBe(60);
         expect(state.settings.size).toBe(20);
     });
