@@ -99,6 +99,58 @@ class GuestJoinTest extends TestCase
     }
 
     #[Test]
+    public function existing_member_reopening_join_confirm_redirects_straight_to_room(): void
+    {
+        $this->post("/rooms/join/{$this->room->invite_code}", ['guest_name' => 'آرش']);
+        $guest = User::where('name', 'آرش')->firstOrFail();
+        $this->assertAuthenticatedAs($guest);
+
+        $response = $this->actingAs($guest)->get("/rooms/join/{$this->room->invite_code}");
+
+        $response->assertRedirect(route('rooms.show', $this->room));
+    }
+
+    #[Test]
+    public function existing_member_submitting_join_post_reenters_room_without_duplicate_insert_crash(): void
+    {
+        $this->post("/rooms/join/{$this->room->invite_code}", ['guest_name' => 'آرش']);
+        $guest = User::where('name', 'آرش')->firstOrFail();
+        $this->assertAuthenticatedAs($guest);
+
+        $response = $this->actingAs($guest)->post("/rooms/join/{$this->room->invite_code}");
+
+        $response->assertRedirect(route('rooms.show', $this->room));
+    }
+
+    #[Test]
+    public function guest_leaves_via_tab_close_and_reopens_invite_link_reenters_room_successfully(): void
+    {
+        $this->post("/rooms/join/{$this->room->invite_code}", ['guest_name' => 'سامان']);
+        $guest = User::where('name', 'سامان')->firstOrFail();
+        $this->assertAuthenticatedAs($guest);
+
+        $this->actingAs($guest)->post(route('presence.leave', $this->room))->assertOk();
+        $this->assertDatabaseHas('room_members', [
+            'room_id' => $this->room->id,
+            'user_id' => $guest->id,
+            'presence_status' => 'offline',
+        ]);
+
+        $reopenConfirm = $this->actingAs($guest)->get("/rooms/join/{$this->room->invite_code}");
+        $reopenConfirm->assertRedirect(route('rooms.show', $this->room));
+
+        $reopenJoin = $this->actingAs($guest)->post("/rooms/join/{$this->room->invite_code}");
+        $reopenJoin->assertRedirect(route('rooms.show', $this->room));
+
+        $this->assertDatabaseHas('room_members', [
+            'room_id' => $this->room->id,
+            'user_id' => $guest->id,
+            'presence_status' => 'online',
+        ]);
+        $this->assertSame(1, RoomMember::where('room_id', $this->room->id)->where('user_id', $guest->id)->count());
+    }
+
+    #[Test]
     public function guest_cannot_join_a_locked_room(): void
     {
         $this->room->update(['is_locked' => true]);

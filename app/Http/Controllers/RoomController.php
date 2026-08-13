@@ -86,11 +86,17 @@ class RoomController extends Controller
      * membership — the actual join is a POST (see RoomController::join) so a
      * bare invite link or image tag cannot force a join (CSRF-style).
      */
-    public function joinConfirm(Request $request, string $inviteCode): Response
+    public function joinConfirm(Request $request, string $inviteCode): Response|RedirectResponse
     {
         $room = Room::query()
             ->where('invite_code', $inviteCode)
             ->firstOrFail();
+
+        $user = $request->user();
+
+        if ($user !== null && ($user->id === $room->user_id || $room->members()->where('user_id', $user->id)->exists())) {
+            return to_route('rooms.show', $room);
+        }
 
         return Inertia::render('Rooms/Join', [
             'room' => [
@@ -109,6 +115,18 @@ class RoomController extends Controller
                 ->firstOrFail();
 
             $authenticatedUser = $request->user();
+
+            if ($authenticatedUser !== null && ($authenticatedUser->id === $room->user_id || $room->members()->where('user_id', $authenticatedUser->id)->exists())) {
+                $room->members()->where('user_id', $authenticatedUser->id)->update([
+                    'presence_status' => 'online',
+                    'last_seen_at' => now(),
+                ]);
+                $room->touchActivity();
+                $this->presence->broadcastMembers($room);
+
+                return to_route('rooms.show', $room);
+            }
+
             $isGuest = $authenticatedUser === null;
             $createdGuest = null;
 
@@ -131,13 +149,17 @@ class RoomController extends Controller
                     ->withErrors(['invite_code' => $e->getMessage()]);
             }
 
-            RoomMember::create([
-                'room_id' => $room->id,
-                'user_id' => $user->id,
-                'last_seen_at' => now(),
-                'presence_status' => 'online',
-                'joined_at' => now(),
-            ]);
+            RoomMember::firstOrCreate(
+                [
+                    'room_id' => $room->id,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'last_seen_at' => now(),
+                    'presence_status' => 'online',
+                    'joined_at' => now(),
+                ]
+            );
 
             $room->touchActivity();
 
