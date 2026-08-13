@@ -64,7 +64,10 @@ test.describe("Room creation and joining", () => {
     expect(joinResp.ok()).toBeTruthy();
 
     await guestPage.goto(room_url);
-    await guestPage.waitForLoadState("networkidle");
+    // The polling hook fetches continuously, so `waitForLoadState("networkidle")`
+    // never settles once the guest starts streaming the room's video. Wait for
+    // the real media element instead (same pattern as playback-sync-verification).
+    await guestPage.waitForSelector("video", { timeout: 15000 });
 
     // Establish the video URL via the host's session
     const xsrfToken = await getXsrfToken(hostPage);
