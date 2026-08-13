@@ -2,6 +2,21 @@
 
 ## Completed
 
+### Subtitle Settings Redesign, Video.js Player Controls & Room UX Polish (2026-08-13)
+
+**Batch scope:** comprehensive refactor of player controls, subtitle settings UI, subtitle overlay rendering, dialog component scoping, and room layout overflow fixes across frontend and backend integration.
+
+- [x] **Player Controls Cleanup & Unregistration.** Excluded `playbackRateFeature` and `remotePlaybackFeature` from `@videojs/react` `createPlayer({ features: customVideoFeatures })` in `VideoJsPlayer.tsx`. Removed Cast button (`CastButton`, `CastEnterIcon`, `CastExitIcon`) and playback speed options at the player-state level. Added ⚙️ subtitle settings gear menu into Video.js's native control bar slot. Set `containerType: "inline-size"` on player containers for container query font scaling.
+- [x] **Subtitle Overlay & Proportional Scaling.** Rendered subtitle overlay cues via `createPortal(cues, document.fullscreenElement)` in `subtitle-overlay.tsx` so subtitles remain visible when in real browser fullscreen mode. Applied `fontSize: clamp(12px, ${(settings.size * 0.09).toFixed(2)}cqw, 72px)` to scale text size proportionally with player container width across fullscreen and normal views.
+- [x] **Two-Tab Subtitle Settings Dialog (`subtitle-settings.tsx`).** Replaced tall collapsible scrollable panel with a two-tab segmented switcher ("پایه" / "پیشرفته").
+  - **Tab 1 ("پایه"):** Font Family selector (وزیرمتن / ایران سنس), Text Size slider, Text Color palette (سفید / زرد side-by-side buttons), Corner style buttons (گرد / تیز).
+  - **Tab 2 ("پیشرفته"):** Subtitle enabled toggle switch, Background Opacity slider, Subtitle Sync Offset slider, Screen Position buttons (پایین / بالا), Vertical Distance Offset slider (`vOffset` expanded range -25 to 75).
+  - **Persistent Live Preview:** Live preview box sits below tab switcher, updating in real time on both tabs.
+- [x] **Client-Side Color Migration.** Updated `subtitleSettingsSchema` in `validation.ts` to allow only white (`#FFFFFF`) and yellow (`#FFFF00`). Persisted colors that are not `#FFFF00` (legacy yellow `#fbbf24`, pink, blue, green, orange) automatically fall back to `#FFFFFF` in `stores/subtitle.ts` (`loadSettings()`).
+- [x] **Shared Dialog Component & Room Layout Fixes.** Added `disableBackdropBlur` opt-out prop to `DialogProps` in `dialog.tsx` so video underneath subtitle settings remains sharp while other dialogs retain standard backdrop blur. Adjusted room container height calculation in `Show.tsx` to `h-[calc(100vh-8.5rem)]` to eliminate 1mm subpixel vertical page scrollbar. Removed duplicate standalone subtitle settings buttons outside player menu.
+- [x] **Build Tooling.** Updated `package.json` build script to `"build": "tsc && vite build && php artisan view:clear"` to clear compiled Blade views automatically on production build.
+- [x] **Tests & Verification.** `php artisan test` **278/278** (2096 assertions); `npm run test` **239/239** (+1 new color migration test); `npm run type-check` clean; `npm run test:a11y` **15/15** passed; `npm run build` clean (11.61s). 5 commits pushed to `origin/master`.
+
 ### Video proxy: follow redirects on stream open + real 206 headers + probe retry (2026-08-13)
 
 **Batch scope:** two production video-player errors against the proxy path (`PipelineStatus::PIPELINE_ERROR_READ: data source error` at load/play; `MEDIA_ELEMENT_ERROR: Format error` mid-playback after a few minutes plus repeated seeks). Root causes confirmed in `app/Services/VideoProxyService.php`:
