@@ -23,6 +23,7 @@ Report which number you mean when the two differ.
 | Frontend component | Vitest + React Testing Library | `npm run test` |
 | E2E | Playwright | `npm run test:e2e` |
 | Accessibility audit | @axe-core/playwright | `npm run test:a11y` |
+| Contrast a11y audit (fast) | @axe-core/playwright | `npm run test:a11y:contrast` |
 
 ## The Testing Pyramid
 
@@ -119,7 +120,7 @@ the full suite; a doc-only or isolated change stops at Level 1–2.
 |---|---|---|
 | **1** | Static/format/lint **for the edited files** | Every code change, before anything else |
 | **2** | **Targeted** test for the affected subsystem | The behavior changed; `--filter=` or single-file vitest |
-| **3** | Related integration / E2E / a11y test | Flow spans systems (join→playback→chat) or touches UI |
+| **3** | Related integration / E2E / a11y test | Flow spans systems (join→playback→chat) or touches UI (`npm run test:a11y:contrast` when modifying components/pages) |
 | **4** | **Full** suite (`php artisan test`, `npm run test`, `test:e2e`, `test:a11y`) | Only when the change is broadly reachable (below) |
 
 **Level 4 (full suite) is required only for:** shared infrastructure changes;

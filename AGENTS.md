@@ -89,6 +89,7 @@ npm run format:check         # Prettier check (read-only)
 npm run test                 # Frontend unit tests (Vitest)
 npm run test:e2e             # E2E (Playwright)
 npm run test:a11y            # Accessibility audit (@axe-core/playwright)
+npm run test:a11y:contrast   # Fast contrast a11y audit (Playwright — run when editing UI)
 php artisan test              # Backend feature/unit tests (PHPUnit)
 
 # Database

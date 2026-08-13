@@ -41,8 +41,11 @@ and the repo was audited for exactly these failure modes before first push.
 4. Run the relevant checks for what changed — follow `testing-strategy`
    "Verification Escalation" (Levels 1–4): start at the static/format/lint
    checks for the edited files, escalate only as the change warrants.
-   Command names come from AGENTS.md Commands / `package.json`; don't invent
-   them. Don't commit code that fails its checks.
+   **Crucial guardrail:** when modifying `resources/js/Components/**` or
+   `resources/js/Pages/**`, always run `npm run test:a11y:contrast` locally before
+   committing to catch DOM/contrast regressions before CI. Command names come
+   from AGENTS.md Commands / `package.json`; don't invent them. Don't commit
+   code that fails its checks.
 5. Stage **only the intended files** with explicit paths
    (`git add app/... tests/...`). Use `git add -A` only after reviewing
    `git status` and confirming everything present is intended.

@@ -2,6 +2,17 @@
 
 ## Completed
 
+### A11y Contrast Test Reliability & Pre-Push Workflow Guardrails (2026-08-14)
+
+**Batch scope:** resolved a11y `contrast-a11y.spec.ts` test failures originating from the subtitle-settings and player gear-menu redesigns, fixed a dark-mode contrast bug on the subtitle sync reset button, and established fast local contrast testing guardrails before commit/push.
+
+- [x] **Subtitle Settings Flow in Playwright A11y Test (`contrast-a11y.spec.ts`).** Updated the subtitle settings dialog test path to use the player gear menu (`.media-button--settings` with `force: true` -> `"تنظیمات زیرنویس"` menu button) instead of the removed standalone button (KI-018). Navigated to the `"پیشرفته"` tab prior to locating the subtitle sync offset slider `input[type="range"][max="5000"]` and updated the reset button selector to match the actual label `"بازنشانی هم‌زمانی"` (KI-019).
+- [x] **Dark-Mode Contrast Fix (`subtitle-settings.tsx`).** Replaced `text-primary` (`#5048e5`, failing 3.04:1 ratio against dark card `#111117`) with `text-accent-foreground` (`hsl(243, 80%, 88%)`, ~10.7:1 ratio) on the subtitle offset reset button, passing WCAG 2.2 AA minimum contrast standards.
+- [x] **Fast Local Pre-Push Contrast Script (`package.json`).** Added `"test:a11y:contrast": "npx playwright test contrast-a11y.spec.ts --config=tests/a11y/playwright.config.ts"` to run the full 8-test contrast audit in ~37s locally.
+- [x] **Workflow Rules Update (`AGENTS.md`, `.skills/git-workflow`, `.skills/testing-strategy`, `.skills/debugging`).** Added KI-018 and KI-019 to `debugging/SKILL.md`. Documented `npm run test:a11y:contrast` as a required local verification check before committing UI changes touching `resources/js/Components/**` or `resources/js/Pages/**`.
+- [x] **Verification.** `npm run test:a11y:contrast` **8/8 passed** (37.7s); `npm run test` **239/239 passed**; `npm run check:docs` clean (47 files scanned); `npm run lint` clean (0 warnings).
+
+
 ### Subtitle Settings Redesign, Video.js Player Controls & Room UX Polish (2026-08-13)
 
 **Batch scope:** comprehensive refactor of player controls, subtitle settings UI, subtitle overlay rendering, dialog component scoping, and room layout overflow fixes across frontend and backend integration.
