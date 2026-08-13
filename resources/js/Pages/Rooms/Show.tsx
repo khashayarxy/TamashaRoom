@@ -18,8 +18,8 @@ import { safeCopyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
 import { useRoomUiStore } from "@/stores/room-ui";
 import {
-    Copy,
     MessageSquare,
+    Settings,
     Star,
     Subtitles,
     Trash2,
@@ -205,25 +205,16 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             )}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    {isOwner && (
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                                handleCopy(route("rooms.join", roomInviteCode))
-                            }
+                            onClick={() => setShowRoomSettings(true)}
                         >
-                            <Copy className="h-4 w-4" />
-                            کپی لینک دعوت
+                            <Settings className="h-4 w-4" />
+                            تنظیمات اتاق
                         </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCopy(roomInviteCode)}
-                        >
-                            کپی کد دعوت
-                        </Button>
-                    </div>
+                    )}
                 </div>
 
                 {isOwner &&
@@ -515,8 +506,6 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                 ownerId={ownerId}
                                 connected={connected}
                                 currentUserId={auth.user.id}
-                                isLocked={roomIsLocked}
-                                onOpenSettings={() => setShowRoomSettings(true)}
                                 onKick={handleKick}
                                 onTransfer={handleTransfer}
                             />

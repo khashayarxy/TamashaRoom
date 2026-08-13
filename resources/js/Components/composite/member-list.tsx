@@ -4,8 +4,6 @@ import { toast } from "sonner";
 import {
     Crown,
     LogOut,
-    Settings,
-    ShieldAlert,
     User as UserIcon,
     UserMinus,
     Wifi,
@@ -22,8 +20,6 @@ interface MemberListProps {
     currentUserId?: number;
     onKick?: (userId: number) => void;
     onTransfer?: (userId: number) => void;
-    onOpenSettings?: () => void;
-    isLocked?: boolean;
 }
 
 function timeAgo(dateStr: string): string {
@@ -83,8 +79,6 @@ export function MemberList({
     currentUserId,
     onKick,
     onTransfer,
-    onOpenSettings,
-    isLocked,
 }: MemberListProps) {
     const onlineCount = members.filter(
         (m) => m.presence_status === "online",
@@ -149,19 +143,6 @@ export function MemberList({
                     )}
                 </div>
             </div>
-
-            {isOwner && (
-                <button
-                    onClick={onOpenSettings}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:bg-accent transition-colors"
-                >
-                    <Settings className="h-4 w-4" />
-                    تنظیمات اتاق
-                    {isLocked && (
-                        <ShieldAlert className="h-3.5 w-3.5 text-warning me-auto" />
-                    )}
-                </button>
-            )}
 
             <div className="space-y-1">
                 {members.map((member) => (
