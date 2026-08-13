@@ -2,6 +2,16 @@
 
 ## Completed
 
+### Room Top Bar & Member List UI Layout Polish (2026-08-14)
+
+**Batch scope:** streamlined room header actions above the video player by removing duplicate standalone invite code/link copy buttons, relocated the "تنظیمات اتاق" (Room Settings) trigger from the Members sidebar tab into the room top bar for direct access, and cleaned up MemberList component layout.
+
+- [x] **Room Top Bar Actions (`Show.tsx`).** Removed standalone "کپی لینک دعوت" and "کپی کد دعوت" buttons above the player. Added the owner-only "تنظیمات اتاق" button (`Settings` icon + text, `variant="outline"`, `size="sm"`) aligned on the end side (RTL left) across from the room title.
+- [x] **MemberList Component Cleanup (`member-list.tsx`).** Removed the "تنظیمات اتاق" button and unused `onOpenSettings`/`isLocked` props, allowing the member list to flow seamlessly from the header into member cards.
+- [x] **Test Updates (`member-list.test.tsx`, `contrast-a11y.spec.ts`).** Updated `member-list.test.tsx` to assert member header and online count. Updated `contrast-a11y.spec.ts` toast and room dialogs tests to open Room Settings directly from the top bar.
+- [x] **Verification.** `npm run test` **239/239 passed**; `npm run test:a11y:contrast` **8/8 passed** (37.7s); `npm run test:a11y` **19/19 passed** (1.1m); `npm run check:docs` clean; `npm run lint` clean (0 warnings).
+
+
 ### A11y Contrast Test Reliability & Pre-Push Workflow Guardrails (2026-08-14)
 
 **Batch scope:** resolved a11y `contrast-a11y.spec.ts` test failures originating from the subtitle-settings and player gear-menu redesigns, fixed a dark-mode contrast bug on the subtitle sync reset button, and established fast local contrast testing guardrails before commit/push.
