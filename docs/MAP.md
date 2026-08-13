@@ -11,7 +11,7 @@ restates rules.
 
 ```
 AGENTS.md (invariants, skill table) → docs/MAP.md (this file) →
-  one skill (`.opencode/skills/`) → one SYSTEM.md chapter → source files
+  one skill (`.skills/`) → one SYSTEM.md chapter → source files
 ```
 
 ## Cross‑Cutting Reference Docs

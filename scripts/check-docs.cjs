@@ -75,10 +75,25 @@ function resolvePath(token) {
     const full = path.join(ROOT, p);
     if (fs.existsSync(full)) return full;
 
+    // Check junction alias fallback (.opencode/skills or .agents/skills -> .skills)
+    let aliasP = p;
+    if (p.startsWith(".opencode/skills")) {
+        aliasP = p.replace(/^\.opencode\/skills/, ".skills");
+    } else if (p.startsWith(".agents/skills")) {
+        aliasP = p.replace(/^\.agents\/skills/, ".skills");
+    }
+    if (aliasP !== p) {
+        const aliasFull = path.join(ROOT, aliasP);
+        if (fs.existsSync(aliasFull)) return aliasFull;
+    }
+
     // Try common extensions when the base name has none.
     const exts = [".ts", ".tsx", ".js", ".cjs", ".php", ".md", ".css", ".json"];
     for (const e of exts) {
         if (fs.existsSync(full + e)) return full + e;
+        if (aliasP !== p && fs.existsSync(path.join(ROOT, aliasP) + e)) {
+            return path.join(ROOT, aliasP) + e;
+        }
     }
     // Directory index files.
     for (const idx of ["/index.ts", "/index.tsx", "/index.js", "/index.css"]) {
@@ -97,7 +112,9 @@ const knownPathRoots = [
     "config/",
     "database/",
     "bootstrap/",
+    ".skills/",
     ".opencode/",
+    ".agents/",
     "storage/",
     "vendor/",
     "scripts/",

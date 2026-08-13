@@ -113,7 +113,7 @@ While inspecting the code, look for issues the report did not cover:
 ### 6. Check security implications
 
 For any change touching auth, external URLs, uploads, or public endpoints, run
-the security lens explicitly. See `.opencode/skills/security-rules`.
+the security lens explicitly. See `.skills/security-rules`.
 
 ### 7. Check regression risks
 

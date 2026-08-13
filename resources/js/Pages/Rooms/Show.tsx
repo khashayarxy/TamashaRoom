@@ -101,7 +101,6 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         subError,
         trackToDelete,
         deletingTrack,
-        activeTrack,
         setTrackToDelete,
         selectTrack,
         followRoomDefault,

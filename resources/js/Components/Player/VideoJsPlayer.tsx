@@ -57,9 +57,6 @@ import {
     VolumeLowIcon,
     VolumeOffIcon,
 } from "@videojs/react/icons";
-const isRenderProp = (val: unknown): val is (...args: unknown[]) => unknown =>
-    typeof val === "function";
-import { isString } from "@videojs/utils/predicate";
 import {
     audioText,
     captionsText,

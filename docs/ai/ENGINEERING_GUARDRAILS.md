@@ -46,7 +46,7 @@ guardrail governs **new** endpoints going forward.
 
 **Reference:**
 `docs/SYSTEM.md` ch. 18.08 Rule 5 (rate limit public endpoints);
-`.opencode/skills/security-rules`.
+`.skills/security-rules`.
 
 ---
 

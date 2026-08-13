@@ -12,7 +12,7 @@
    contract. If the plan is ambiguous, ask the human before guessing.
 2. **Read the relevant existing code.** Understand the current implementation and
    its conventions before changing anything. Follow the codebase's established
-   patterns (see `.opencode/skills/` for the project rules).
+   patterns (see `.skills/` for the project rules).
 3. **Check the risk level.** HIGH/CRITICAL items demand extra care and a clear
    report of what was verified.
 

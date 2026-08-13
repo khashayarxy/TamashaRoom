@@ -8,7 +8,7 @@ import { usePlaybackSync } from "@/Hooks/use-playback-sync";
 import { computeExpectedPosition } from "@/lib/types/playback";
 import type { SubtitleCue, SubtitleSettings } from "@/lib/types/subtitle";
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Send, Settings } from "lucide-react";
+import { Play, RotateCcw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DRIFT_THRESHOLD = 2;
