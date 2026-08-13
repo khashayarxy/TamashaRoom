@@ -4,10 +4,11 @@ import { DialogHTMLAttributes, useEffect, useRef, forwardRef } from "react";
 export interface DialogProps extends DialogHTMLAttributes<HTMLDialogElement> {
     open?: boolean;
     onClose?: () => void;
+    disableBackdropBlur?: boolean;
 }
 
 const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
-    ({ open, onClose, children, className, ...props }, ref) => {
+    ({ open, onClose, disableBackdropBlur, children, className, ...props }, ref) => {
         const innerRef = useRef<HTMLDialogElement | null>(null);
         const resolvedRef = (ref ||
             innerRef) as React.RefObject<HTMLDialogElement | null>;
@@ -47,7 +48,8 @@ const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
             <dialog
                 ref={ref || innerRef}
                 className={cn(
-                    "backdrop:bg-black/50 backdrop:backdrop-blur-sm",
+                    "backdrop:bg-black/50",
+                    !disableBackdropBlur && "backdrop:backdrop-blur-sm",
                     "rounded-2xl border border-border bg-card text-foreground p-0 shadow-xl",
                     "open:animate-in open:fade-in-0 open:zoom-in-95",
                     "max-w-lg w-full",

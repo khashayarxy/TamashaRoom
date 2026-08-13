@@ -20,7 +20,6 @@ import { useRoomUiStore } from "@/stores/room-ui";
 import {
     Copy,
     MessageSquare,
-    Settings,
     Star,
     Subtitles,
     Trash2,
@@ -195,7 +194,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     };
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
+        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)]">
             <div className="flex-1 flex flex-col gap-4 min-w-0">
                 <div className="flex items-center justify-between">
                     <div>
@@ -248,6 +247,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         initialVideoUrl={room.video_url}
                         className="h-full"
                         onSuggestNext={suggestNext}
+                        onOpenSubtitleSettings={() => setShowSubSettings(true)}
                         refreshKey={videoRefreshKey}
                         subtitles={{
                             cues,
@@ -333,15 +333,6 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     </>
                                 )}
                                 <div className="flex-1" />
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowSubSettings(true)}
-                                    title="تنظیمات زیرنویس"
-                                >
-                                    <Settings className="h-4 w-4" />
-                                    تنظیمات
-                                </Button>
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -458,24 +449,14 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             )}
                         </div>
                     ) : (
-                        <>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowSubManager(true)}
-                            >
-                                <Subtitles className="h-4 w-4" />
-                                زیرنویس
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowSubSettings(true)}
-                            >
-                                <Settings className="h-4 w-4" />
-                                تنظیمات زیرنویس
-                            </Button>
-                        </>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowSubManager(true)}
+                        >
+                            <Subtitles className="h-4 w-4" />
+                            زیرنویس
+                        </Button>
                     )}
                 </div>
             </div>
