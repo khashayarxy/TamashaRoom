@@ -10,6 +10,7 @@ const defaults = {
     bgOpacity: 40,
     position: "bottom" as const,
     offset: 0,
+    fontFamily: "Vazirmatn",
 };
 
 describe("useSubtitleStore", () => {

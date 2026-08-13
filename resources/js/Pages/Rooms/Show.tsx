@@ -20,6 +20,7 @@ import { useRoomUiStore } from "@/stores/room-ui";
 import {
     Copy,
     MessageSquare,
+    Settings,
     Star,
     Subtitles,
     Trash2,
@@ -335,6 +336,15 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                 <Button
                                     variant="ghost"
                                     size="sm"
+                                    onClick={() => setShowSubSettings(true)}
+                                    title="تنظیمات زیرنویس"
+                                >
+                                    <Settings className="h-4 w-4" />
+                                    تنظیمات
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => setShowSubManager(false)}
                                 >
                                     <X className="h-4 w-4" />
@@ -457,16 +467,14 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                 <Subtitles className="h-4 w-4" />
                                 زیرنویس
                             </Button>
-                            {activeTrack && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowSubSettings(true)}
-                                >
-                                    <Subtitles className="h-4 w-4" />
-                                    تنظیمات
-                                </Button>
-                            )}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowSubSettings(true)}
+                            >
+                                <Settings className="h-4 w-4" />
+                                تنظیمات زیرنویس
+                            </Button>
                         </>
                     )}
                 </div>

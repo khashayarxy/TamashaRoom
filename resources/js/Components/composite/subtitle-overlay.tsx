@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: SubtitleSettings = {
     bgOpacity: 40,
     position: "bottom",
     offset: 0,
+    fontFamily: "Vazirmatn-Medium",
 };
 
 export function parseVtt(text: string): SubtitleCue[] {
@@ -207,6 +208,11 @@ export function SubtitleOverlay({
         >
             <div
                 style={{
+                    fontFamily: `'${
+                        settings.fontFamily && !["Vazirmatn", "sans-serif", "serif", "monospace"].includes(settings.fontFamily)
+                            ? settings.fontFamily
+                            : "Vazirmatn-Medium"
+                    }', var(--font-sans)`,
                     fontSize: `${settings.size}px`,
                     color: settings.color,
                     backgroundColor: `rgba(0,0,0,${settings.bgOpacity / 100})`,

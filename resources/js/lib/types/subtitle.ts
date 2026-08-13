@@ -21,4 +21,5 @@ export interface SubtitleSettings {
     bgOpacity: number;
     position: SubtitlePosition;
     offset: number;
+    fontFamily: string;
 }

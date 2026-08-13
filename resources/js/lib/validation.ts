@@ -27,6 +27,12 @@ export const subtitleSettingsSchema = z.object({
     bgOpacity: z.number().int().min(0).max(100).default(40),
     position: z.enum(["bottom", "top"]).default("bottom"),
     offset: z.number().int().min(-5000).max(5000).default(0),
+    fontFamily: z.string().default("Vazirmatn-Medium").transform((val) => {
+        if (["Vazirmatn", "sans-serif", "serif", "monospace"].includes(val)) {
+            return "Vazirmatn-Medium";
+        }
+        return val;
+    }),
 });
 
 export const subtitleTrackSchema = z.object({

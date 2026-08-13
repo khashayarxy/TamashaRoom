@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS: SubtitleSettings = {
     bgOpacity: 40,
     position: "bottom",
     offset: 0,
+    fontFamily: "Vazirmatn",
 };
 
 function createMockVideo(currentTime = 0): HTMLVideoElement {
