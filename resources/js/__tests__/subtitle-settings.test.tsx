@@ -52,7 +52,9 @@ describe("SubtitleSettingsDialog", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
         const iranSansBtn = screen.getByText("ایران سنس");
         fireEvent.click(iranSansBtn);
-        expect(mockUpdate).toHaveBeenCalledWith({ fontFamily: "IRANSansXFaNum-Medium" });
+        expect(mockUpdate).toHaveBeenCalledWith({
+            fontFamily: "IRANSansXFaNum-Medium",
+        });
     });
 
     it("updates corner style when corner button changes", () => {
@@ -152,7 +154,9 @@ describe("SubtitleSettingsDialog", () => {
 
     it("renders preview with current settings", () => {
         render(<SubtitleSettingsDialog open onClose={() => {}} />);
-        expect(screen.getByText("پیش‌نمایش زیرنویس TamashaRoom")).toBeInTheDocument();
+        expect(
+            screen.getByText("پیش‌نمایش زیرنویس TamashaRoom"),
+        ).toBeInTheDocument();
     });
 
     it("calls onClose when dialog background is clicked", () => {

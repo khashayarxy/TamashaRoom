@@ -8,7 +8,10 @@ export interface DialogProps extends DialogHTMLAttributes<HTMLDialogElement> {
 }
 
 const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
-    ({ open, onClose, disableBackdropBlur, children, className, ...props }, ref) => {
+    (
+        { open, onClose, disableBackdropBlur, children, className, ...props },
+        ref,
+    ) => {
         const innerRef = useRef<HTMLDialogElement | null>(null);
         const resolvedRef = (ref ||
             innerRef) as React.RefObject<HTMLDialogElement | null>;

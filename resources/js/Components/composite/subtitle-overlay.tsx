@@ -114,14 +114,17 @@ export function SubtitleOverlay({
     className,
 }: SubtitleOverlayProps) {
     const [currentText, setCurrentText] = useState<string | null>(null);
-    const [fullscreenElement, setFullscreenElement] = useState<Element | null>(null);
+    const [fullscreenElement, setFullscreenElement] = useState<Element | null>(
+        null,
+    );
     const rafRef = useRef<number>(0);
 
     useEffect(() => {
         const updateFs = () => {
             const fsEl =
                 document.fullscreenElement ||
-                (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement ||
+                (document as unknown as { webkitFullscreenElement?: Element })
+                    .webkitFullscreenElement ||
                 null;
             setFullscreenElement(fsEl);
         };
@@ -165,7 +168,9 @@ export function SubtitleOverlay({
                 </div>
             </div>
         );
-        return fullscreenElement ? createPortal(errorContent, fullscreenElement) : errorContent;
+        return fullscreenElement
+            ? createPortal(errorContent, fullscreenElement)
+            : errorContent;
     }
 
     if (loading) {
@@ -181,7 +186,9 @@ export function SubtitleOverlay({
                 </div>
             </div>
         );
-        return fullscreenElement ? createPortal(loadingContent, fullscreenElement) : loadingContent;
+        return fullscreenElement
+            ? createPortal(loadingContent, fullscreenElement)
+            : loadingContent;
     }
 
     if (!settings.enabled || !currentText) return null;
@@ -215,7 +222,9 @@ export function SubtitleOverlay({
                     lineHeight: 1.5,
                 }}
                 className={`max-w-[90%] text-center px-4 py-2 backdrop-blur-sm ${
-                    settings.borderRadius === "sharp" ? "rounded-none" : "rounded-xl"
+                    settings.borderRadius === "sharp"
+                        ? "rounded-none"
+                        : "rounded-xl"
                 }`}
                 dir="auto"
             >
@@ -229,7 +238,9 @@ export function SubtitleOverlay({
         </div>
     );
 
-    return fullscreenElement ? createPortal(overlayContent, fullscreenElement) : overlayContent;
+    return fullscreenElement
+        ? createPortal(overlayContent, fullscreenElement)
+        : overlayContent;
 }
 
 function cn(...classes: (string | false | null | undefined)[]): string {

@@ -34,12 +34,15 @@ export const subtitleSettingsSchema = z.object({
     bgOpacity: z.number().int().min(0).max(100).default(40),
     position: z.enum(["bottom", "top"]).default("bottom"),
     offset: z.number().int().min(-5000).max(5000).default(0),
-    fontFamily: z.string().default("Vazirmatn-Medium").transform((val) => {
-        if (val === "IRANSansXFaNum-Medium") {
-            return "IRANSansXFaNum-Medium";
-        }
-        return "Vazirmatn-Medium";
-    }),
+    fontFamily: z
+        .string()
+        .default("Vazirmatn-Medium")
+        .transform((val) => {
+            if (val === "IRANSansXFaNum-Medium") {
+                return "IRANSansXFaNum-Medium";
+            }
+            return "Vazirmatn-Medium";
+        }),
     borderRadius: z.enum(["rounded", "sharp"]).default("rounded"),
     vOffset: z.number().int().min(-25).max(75).default(0),
 });

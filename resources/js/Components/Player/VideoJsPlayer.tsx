@@ -331,10 +331,7 @@ function MediaVolumePopover() {
         (s) => s.volumeAvailability === "unsupported",
     );
     const muteBtn = (
-        <MuteButton
-            className="media-button--mute"
-            render={<MediaButton />}
-        >
+        <MuteButton className="media-button--mute" render={<MediaButton />}>
             <VolumeOffIcon className="media-icon media-icon--volume-off" />
             <VolumeLowIcon className="media-icon media-icon--volume-low" />
             <VolumeHighIcon className="media-icon media-icon--volume-high" />
@@ -344,12 +341,7 @@ function MediaVolumePopover() {
     if (volumeUnsupported) return muteBtn;
 
     return (
-        <Popover.Root
-            openOnHover
-            delay={200}
-            closeDelay={100}
-            side="top"
-        >
+        <Popover.Root openOnHover delay={200} closeDelay={100} side="top">
             <Popover.Trigger render={muteBtn} />
             <Popover.Popup className="media-surface media-popover media-popover--volume">
                 <VolumeSlider.Root
@@ -705,10 +697,7 @@ function TamashaVideoSkin({
             {poster && <Poster src={poster} />}
             <BufferingIndicator
                 render={(props) => (
-                    <div
-                        {...props}
-                        className="media-buffering-indicator"
-                    >
+                    <div {...props} className="media-buffering-indicator">
                         <SpinnerIcon className="media-icon" />
                     </div>
                 )}
@@ -755,10 +744,7 @@ function TamashaVideoSkin({
 
                         {/* 2. Center Control Group: Time & Scrubber Slider */}
                         <div className="media-time-controls">
-                            <Time.Value
-                                type="current"
-                                className="media-time"
-                            />
+                            <Time.Value type="current" className="media-time" />
                             <TimeSlider.Root className="media-slider">
                                 <Slider.Track className="media-slider__track">
                                     <Slider.Fill className="media-slider__fill" />
@@ -845,11 +831,7 @@ function TamashaVideoSkin({
                 pointer="mouse"
                 region="center"
             />
-            <Gesture
-                type="tap"
-                action="toggleControls"
-                pointer="touch"
-            />
+            <Gesture type="tap" action="toggleControls" pointer="touch" />
             <Gesture
                 type="doubletap"
                 action="seekStep"

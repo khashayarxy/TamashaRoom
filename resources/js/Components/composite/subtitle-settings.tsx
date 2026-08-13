@@ -8,7 +8,10 @@ import { useSubtitleStore } from "@/stores/subtitle";
 import { Subtitles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { SubtitleBorderRadius, SubtitlePosition } from "@/lib/types/subtitle";
+import type {
+    SubtitleBorderRadius,
+    SubtitlePosition,
+} from "@/lib/types/subtitle";
 
 interface SubtitleSettingsProps {
     open: boolean;
@@ -43,13 +46,16 @@ export function SubtitleSettingsDialog({
     const update = useSubtitleStore((s) => s.update);
     const dialogRef = useRef<HTMLDialogElement>(null);
     const [activeTab, setActiveTab] = useState<"basic" | "advanced">("basic");
-    const [fullscreenElement, setFullscreenElement] = useState<Element | null>(null);
+    const [fullscreenElement, setFullscreenElement] = useState<Element | null>(
+        null,
+    );
 
     useEffect(() => {
         const updateFs = () => {
             const fsEl =
                 document.fullscreenElement ||
-                (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement ||
+                (document as unknown as { webkitFullscreenElement?: Element })
+                    .webkitFullscreenElement ||
                 null;
             setFullscreenElement(fsEl);
         };
@@ -162,7 +168,9 @@ export function SubtitleSettingsDialog({
                                         max={36}
                                         value={settings.size}
                                         onChange={(e) =>
-                                            update({ size: parseInt(e.target.value) })
+                                            update({
+                                                size: parseInt(e.target.value),
+                                            })
                                         }
                                         className="flex-1 h-1.5 rounded-full bg-secondary appearance-none cursor-pointer accent-primary"
                                         style={{ direction: "ltr" }}
@@ -201,7 +209,8 @@ export function SubtitleSettingsDialog({
                                                 <span
                                                     className="h-3 w-3 rounded-full border border-black/30 shrink-0"
                                                     style={{
-                                                        backgroundColor: c.value,
+                                                        backgroundColor:
+                                                            c.value,
                                                     }}
                                                 />
                                                 <span>{c.label}</span>
@@ -222,10 +231,13 @@ export function SubtitleSettingsDialog({
                                             key={c.value}
                                             type="button"
                                             onClick={() =>
-                                                update({ borderRadius: c.value })
+                                                update({
+                                                    borderRadius: c.value,
+                                                })
                                             }
                                             className={`flex-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all text-center ${
-                                                settings.borderRadius === c.value
+                                                settings.borderRadius ===
+                                                c.value
                                                     ? "bg-primary text-primary-foreground shadow-sm"
                                                     : "bg-secondary text-muted-foreground hover:text-foreground"
                                             }`}

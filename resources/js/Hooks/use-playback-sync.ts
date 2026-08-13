@@ -1,4 +1,5 @@
-import api from "@/lib/api"; import { isPollingSuspended } from "@/lib/polling-controller";
+import api from "@/lib/api";
+import { isPollingSuspended } from "@/lib/polling-controller";
 import { getEcho, type EchoPresenceChannel } from "@/lib/echo";
 import {
     computeExpectedPosition,
@@ -141,7 +142,11 @@ export function usePlaybackSync({
     }, []);
 
     const fetchState = useCallback(async () => {
-        if (cancelledRef.current || documentHiddenRef.current || isPollingSuspended()) {
+        if (
+            cancelledRef.current ||
+            documentHiddenRef.current ||
+            isPollingSuspended()
+        ) {
             return;
         }
 

@@ -1,4 +1,5 @@
-import api from "@/lib/api"; import { isPollingSuspended } from "@/lib/polling-controller";
+import api from "@/lib/api";
+import { isPollingSuspended } from "@/lib/polling-controller";
 import { getEcho, type EchoPresenceChannel } from "@/lib/echo";
 import {
     buildPresenceBaseline,
@@ -182,7 +183,8 @@ export function usePresence(
     }, []);
 
     const fetchPresence = useCallback(async () => {
-        if (!roomId || documentHiddenRef.current || isPollingSuspended()) return;
+        if (!roomId || documentHiddenRef.current || isPollingSuspended())
+            return;
         try {
             const { data } = await api.get<PresenceMember[]>(
                 `/presence/${roomId}`,

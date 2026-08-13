@@ -22,7 +22,10 @@ function loadSettings(): SubtitleSettings {
         if (raw) {
             const parsed = subtitleSettingsSchema.parse(JSON.parse(raw));
             const settings = { ...DEFAULT_SETTINGS, ...parsed };
-            settings.vOffset = Math.max(-25, Math.min(75, settings.vOffset ?? 0));
+            settings.vOffset = Math.max(
+                -25,
+                Math.min(75, settings.vOffset ?? 0),
+            );
             return settings;
         }
     } catch {
