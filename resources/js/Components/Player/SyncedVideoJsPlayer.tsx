@@ -8,7 +8,7 @@ import { usePlaybackSync } from "@/Hooks/use-playback-sync";
 import { computeExpectedPosition } from "@/lib/types/playback";
 import type { SubtitleCue, SubtitleSettings } from "@/lib/types/subtitle";
 import { cn } from "@/lib/utils";
-import { Play, RotateCcw, Send } from "lucide-react";
+import { Play, RotateCcw, Send, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DRIFT_THRESHOLD = 2;
@@ -26,6 +26,7 @@ interface SyncedVideoJsPlayerProps {
     initialVideoUrl?: string | null;
     className?: string;
     onSuggestNext?: () => void;
+    onOpenSubtitleSettings?: () => void;
     subtitles?: SyncedVideoJsPlayerSubtitles;
     /**
      * Bumped after a video mutation (set/remove) so the host reconciles its
@@ -45,6 +46,7 @@ export function SyncedVideoJsPlayer({
     initialVideoUrl,
     className,
     onSuggestNext,
+    onOpenSubtitleSettings,
     subtitles,
     refreshKey,
 }: SyncedVideoJsPlayerProps) {
@@ -248,6 +250,7 @@ export function SyncedVideoJsPlayer({
     return (
         <div
             dir="ltr"
+            style={{ containerType: "inline-size" }}
             className={cn(
                 "relative group overflow-hidden rounded-2xl bg-black",
                 className,
@@ -265,6 +268,7 @@ export function SyncedVideoJsPlayer({
                     src={sourceUrl ?? effectiveUrl}
                     videoUrl={videoUrl}
                     className="w-full h-full"
+                    onOpenSubtitleSettings={onOpenSubtitleSettings}
                     onPlay={handlePlay}
                     onPause={handlePause}
                     onSeeked={handleSeeked}
