@@ -188,8 +188,10 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
         ] as const) {
             await gotoRoom(page, params);
             await setTheme(page, dark);
-            await page.getByRole("button", { name: "کپی لینک دعوت" }).click();
-            await page.getByText("لینک دعوت کپی شد.").waitFor();
+            await page.getByRole("button", { name: "تنظیمات اتاق" }).click();
+            await page.getByRole("heading", { name: "تنظیمات اتاق" }).waitFor();
+            await page.getByTitle("کپی لینک").click();
+            await page.getByText("لینک دعوت کپی شد").waitFor();
             const violations = await contrastViolations(page);
             expect(
                 violations,
@@ -219,10 +221,9 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             ["dark", true],
             ["light", false],
         ] as const) {
-            // Room settings dialog (opened from the members tab)
+            // Room settings dialog (opened from top bar above player)
             await gotoRoom(page, params);
             await setTheme(page, dark);
-            await page.getByRole("button", { name: "اعضا" }).click();
             await page.getByRole("button", { name: "تنظیمات اتاق" }).click();
             await page.getByRole("heading", { name: "تنظیمات اتاق" }).waitFor();
             let violations = await contrastViolations(page);

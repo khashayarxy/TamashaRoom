@@ -143,7 +143,7 @@ describe("MemberList", () => {
         expect(screen.getByText("Owner")).toBeInTheDocument();
     });
 
-    it("shows room settings button for owner", () => {
+    it("shows member count header and online status", () => {
         const members = [
             makeMember({ id: 1, user_id: 1, name: "Owner", is_owner: true }),
         ];
@@ -156,7 +156,8 @@ describe("MemberList", () => {
                 connected
             />,
         );
-        expect(screen.getByText("تنظیمات اتاق")).toBeInTheDocument();
+        expect(screen.getByText("اعضای اتاق (1)")).toBeInTheDocument();
+        expect(screen.getByText("1 آنلاین")).toBeInTheDocument();
     });
 
     it("calls onKick after kick confirmation", async () => {
