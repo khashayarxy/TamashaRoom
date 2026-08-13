@@ -2,6 +2,19 @@
 
 ## Completed
 
+### Video proxy: follow redirects on stream open + real 206 headers + probe retry (2026-08-13)
+
+**Batch scope:** two production video-player errors against the proxy path (`PipelineStatus::PIPELINE_ERROR_READ: data source error` at load/play; `MEDIA_ELEMENT_ERROR: Format error` mid-playback after a few minutes plus repeated seeks). Root causes confirmed in `app/Services/VideoProxyService.php`:
+1. **Redirect on stream open not followed.** `openRemoteStream()` opens the probe-resolved final URL with `follow_location=0`; an edge CDN that rotates nodes between `fetchHead` and the actual range GET (verified against the failing room 903 source, a 3-hop abrtech → edgevurq7 → edge11 chain) answers the stream open with a 3xx. `handleRangeRequest` only special-cased `upstreamStatusIs200()`, so the redirect stub body (empty/HTML) was relayed as a synthesized 206 → `Format error` at load or after a seek.
+2. **206 `Content-Length`/`Content-Range` computed from the probe, not the actual upstream response** → declared-vs-actual byte mismatch on seek.
+3. **Non-2xx (403/404/416) on stream open was relayed as video bytes** instead of an honest error.
+4. **Intermittent `fetchHead` probe failure → 502 `Failed to reach video source`** (log-confirmed `00:29:55` for room 903) → load-time data-source error.
+
+- [x] **`VideoProxyService` fix.** New `openStreamFollowingRedirects()` follows redirects on the actual stream open (bounded by `MAX_REDIRECTS`, per-hop SSRF validation, visited-set — mirroring `fetchHead`), so an edge rotation between probe and open is resolved instead of relayed. `handleRangeRequest`/`handleFullRequest` now prefer the upstream's real `Content-Range`/`Content-Length` for the 206 and return a clean 502 (empty `video/mp4`, never JSON) for any non-2xx status. `stream()` retries `fetchHead` once to absorb transient probe failures. Removed the now-dead `upstreamStatusIs200()`; `openRemoteStream` now also captures `$http_response_header`.
+- [x] **Tests.** `tests/Feature/VideoStreamTest.php`: 4 new regression tests (redirect followed on range open; redirect followed on full open; non-2xx → 502; actual upstream `Content-Range` used for the 206). One existing full-stream stub now sets `lastStreamStatus = 200` to match the real `openRemoteStream`.
+- [x] **E2E flake (pre-existing, unrelated).** `tests/e2e/room.spec.ts:67` `waitForLoadState("networkidle")` never settles once the guest streams the room's video — reproduced identically on the pre-change code (2 consecutive failures, both original and fixed). Replaced with the project's established `waitForSelector("video")` pattern (see `playback-sync-verification.spec.ts`). The chat.spec tab-switch timeout and the 2 contrast-a11y strict-locator failures (`getByRole('button', { name: 'زیرنویس' })` substring-matching both "زیرنویس" and "تنظیمات زیرنویس") also reproduce identically on unmodified code — pre-existing timing/UI-locator flakes, unrelated to the proxy.
+- [x] **Verification.** `php artisan test` **278/278** (2096 assertions, incl. 4 new proxy tests); `npm run test` **235/235**; `npm run type-check` clean; ESLint clean; Pint clean; full `npm run test:e2e` **24/24** (3.0m); a11y **17/19** (2 pre-existing contrast failures reproduced on unmodified code). Nothing committed/pushed.
+
 ### Multi-tab session preservation & presence reconnection fixes (2026-08-12)
 
 **Batch scope:** resolved two UX bug reports regarding multi-tab session handling and tab close/reopen room membership without weakening session security.
@@ -699,6 +712,10 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [ ] **`APP_ENV=production`** — must be set on production; currently `local`
 
 ## Pending
+
+### Known pre-existing test issues (not introduced by the 2026-08-13 video-proxy fix)
+- [ ] **contrast-a11y.spec.ts strict-locator failures (2)** — `getByRole('button', { name: 'زیرنویس' })` substring-matches both the "زیرنویس" and "تنظیمات زیرنویس" toolbar buttons ("Room open states" + "Room dialogs"). Reproduced identically on the unmodified code; unrelated to the proxy fix. Fix: use `exact: true` (or `.first()`) and confirm intent.
+- [ ] **chat.spec.ts tab-switch timeout** — "Chat messages persist across the Chat/Members tab switch" intermittently times out on the 5s `toBeVisible` after send on this 1-CPU machine; passes on re-run. Pre-existing timing flake, unrelated to the proxy fix.
 
 ### Deployment
 - [ ] Run migrations on production database
