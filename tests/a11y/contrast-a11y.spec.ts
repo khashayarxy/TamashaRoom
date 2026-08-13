@@ -233,7 +233,10 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             await page.keyboard.press("Escape");
             await page.locator("dialog[open]").waitFor({ state: "hidden" });
 
-            // Subtitle settings dialog (requires an active track)
+            // Subtitle settings dialog (requires an active track).
+            // Entry point is the player gear menu → "تنظیمات زیرنویس".
+            // The standalone "تنظیمات" button was removed in c5d5b2f when
+            // the subtitle settings trigger moved into the player gear menu.
             await page.getByRole("button", { name: "زیرنویس" }).click();
             await page.getByRole("button", { name: "بدون زیرنویس" }).waitFor();
             await page.getByRole("button", { name: "فارسی" }).click();
@@ -241,10 +244,9 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 .getByRole("button")
                 .filter({ has: page.locator("svg.lucide-x") })
                 .click();
-            await page
-                .getByRole("button", { name: "تنظیمات", exact: true })
-                .filter({ hasText: "تنظیمات" })
-                .click();
+            // Open the player gear/settings menu, then trigger subtitle settings.
+            await page.locator(".media-button--settings").click();
+            await page.getByRole("button", { name: "تنظیمات زیرنویس" }).click();
             await page
                 .getByRole("heading", { name: "تنظیمات زیرنویس" })
                 .waitFor();
