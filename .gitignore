@@ -55,6 +55,13 @@ _ide_helper.php
 .agents/
 skills-lock.json
 
+# Local junctions pointing to the real, tracked skill content in `.skills/`.
+# Regenerate after a fresh clone (run from the project root):
+#   New-Item -ItemType Junction -Path .opencode/skills -Target .skills
+#   New-Item -ItemType Junction -Path .agents/skills   -Target .skills
+.opencode/skills
+.agents/skills
+
 # ─── OS Files ─────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
