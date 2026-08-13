@@ -245,8 +245,23 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 .filter({ has: page.locator("svg.lucide-x") })
                 .click();
             // Open the player gear/settings menu, then trigger subtitle settings.
-            await page.locator(".media-button--settings").click();
-            await page.getByRole("button", { name: "تنظیمات زیرنویس" }).click();
+            // Controls.Root gets opacity:0 / pointer-events:none when data-visible is
+            // absent (skin.css). Two-step hover: first hover the player container to
+            // trigger data-visible, then move to the gear button and click it while
+            // the controls remain visible under the pointer.
+            await page.locator(".media-default-skin--video").hover();
+            const gearBtn = page.locator(".media-button--settings");
+            await gearBtn.waitFor({ state: "visible" });
+            await gearBtn.click();
+            // Hover the menu item before clicking: keeps the pointer inside the player
+            // overlay so Controls.Root retains data-visible (and thus opacity:1) while
+            // the menu is open. Without this, moving the mouse away briefly removes
+            // data-visible and fades the menu before the click can land.
+            const subtitleSettingsBtn = page.getByRole("button", {
+                name: "تنظیمات زیرنویس",
+            });
+            await subtitleSettingsBtn.hover();
+            await subtitleSettingsBtn.click();
             await page
                 .getByRole("heading", { name: "تنظیمات زیرنویس" })
                 .waitFor();
@@ -256,15 +271,19 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 `subtitle settings dialog (${theme}):\n${formatViolations(violations)}`,
             ).toEqual([]);
 
-            // Non-zero sync offset reveals the "بازنشانی" reset link. Scope to
-            // the open dialog: the room page's video player exposes its own
-            // range/seekbar controls outside the dialog.
+            // Non-zero sync offset reveals the "بازنشانی هم‌زمانی" reset link.
+            // The offset slider is on the "پیشرفته" tab (subtitle settings redesign).
+            // Scope the range selector to the open dialog: the room player also
+            // has range/seekbar controls outside the dialog.
+            await page.getByRole("button", { name: "پیشرفته" }).click();
             const offsetSlider = page.locator(
                 'dialog[open] input[type="range"][max="5000"]',
             );
             await offsetSlider.focus();
             await page.keyboard.press("ArrowRight");
-            await page.getByRole("button", { name: "بازنشانی" }).waitFor();
+            await page
+                .getByRole("button", { name: "بازنشانی هم‌زمانی" })
+                .waitFor();
             violations = await contrastViolations(page);
             expect(
                 violations,

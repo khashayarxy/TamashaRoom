@@ -367,7 +367,7 @@ export function SubtitleSettingsDialog({
                                             onClick={() =>
                                                 update({ offset: 0 })
                                             }
-                                            className="text-[10px] text-primary underline underline-offset-2"
+                                            className="text-[10px] text-accent-foreground underline underline-offset-2"
                                         >
                                             بازنشانی هم‌زمانی
                                         </button>
