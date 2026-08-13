@@ -19,7 +19,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const SKILLS_DIR = path.join(ROOT, ".opencode", "skills");
+const SKILLS_DIR = fs.existsSync(path.join(ROOT, ".skills"))
+    ? path.join(ROOT, ".skills")
+    : path.join(ROOT, ".opencode", "skills");
 const EXCLUDED_DOCS = new Set(["TASK.md"]);
 
 // ---------------------------------------------------------------------------
@@ -36,10 +38,12 @@ function walk(dir, out = []) {
     return out;
 }
 
-const skillDirs = fs
-    .readdirSync(SKILLS_DIR, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name);
+const skillDirs = fs.existsSync(SKILLS_DIR)
+    ? fs
+          .readdirSync(SKILLS_DIR, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => d.name)
+    : [];
 const skillSet = new Set(skillDirs);
 
 // Built-in / third-party skills that live outside this repo's skills dir.
@@ -147,7 +151,7 @@ const testCountPatterns = [
 // ---------------------------------------------------------------------------
 
 const files = [];
-for (const dir of [path.join(ROOT, ".opencode", "skills"), path.join(ROOT, "docs")]) {
+for (const dir of [SKILLS_DIR, path.join(ROOT, "docs")]) {
     for (const f of walk(dir)) {
         if (f.endsWith(".md") || f.endsWith(".js") || f.endsWith(".json")) files.push(f);
     }
@@ -156,7 +160,10 @@ files.push(path.join(ROOT, "AGENTS.md"));
 
 for (const file of files) {
     const rel = path.relative(ROOT, file);
-    const isSkill = rel.startsWith(path.join(".opencode", "skills"));
+    const isSkill =
+        rel.startsWith(".skills") ||
+        rel.startsWith(path.join(".opencode", "skills")) ||
+        rel.startsWith(path.join(".agents", "skills"));
     const base = path.basename(file);
     const skipDocs = rel.startsWith("docs") && EXCLUDED_DOCS.has(base);
     if (skipDocs) continue;
@@ -224,16 +231,16 @@ for (const file of files) {
 // --- Check 5: debugging skill file:line references ---
 const debugSkill = path.join(SKILLS_DIR, "debugging", "SKILL.md");
 if (fs.existsSync(debugSkill)) {
-    const rel = ".opencode/skills/debugging/SKILL.md";
+    const rel = path.relative(ROOT, debugSkill);
     const lines = fs.readFileSync(debugSkill, "utf8").split("\n");
 
     // Polling timings table: file:line must contain the expected interval value.
     const timingRows = [
-        { file: "use-playback-sync.ts", line: 14, expect: "3000" },
-        { file: "use-playback-sync.ts", line: 15, expect: "10000" },
-        { file: "use-presence.ts", line: 23, expect: "30000" },
-        { file: "use-presence.ts", line: 24, expect: "5000" },
-        { file: "use-presence.ts", line: 25, expect: "300000" },
+        { file: "use-playback-sync.ts", line: 15, expect: "3000" },
+        { file: "use-playback-sync.ts", line: 16, expect: "10000" },
+        { file: "use-presence.ts", line: 24, expect: "30000" },
+        { file: "use-presence.ts", line: 25, expect: "5000" },
+        { file: "use-presence.ts", line: 26, expect: "300000" },
     ];
     for (const row of timingRows) {
         const hit = walk(path.join(ROOT, "resources")).find(

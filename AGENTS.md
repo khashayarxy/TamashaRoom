@@ -1,7 +1,7 @@
 # TamashaRoom — Agent Instructions
 
 This file is always loaded into context. Keep it short. Deep-dive rules live in
-`.opencode/skills/` and are loaded on demand — see "Available Skills" below.
+`.skills/` (git-tracked source of truth, aliased locally to `.opencode/skills/` and `.agents/skills/`) and are loaded on demand — see "Available Skills" below.
 The full source of truth is `docs/SYSTEM.md` (29 chapters; chapter→line index
 at its top). `docs/MAP.md` maps every subsystem to its docs chapter, skill,
 and source files — read it before exploring code. `docs/PROJECT.md` (tech
@@ -118,6 +118,10 @@ misleads the next session (including your own).
 
 Skills are loaded automatically when relevant. You generally don't need to
 reference them by name — just describe the task.
+
+Skill definitions are tracked in git under `.skills/`. Local agent tooling discovers them via `.opencode/skills` or `.agents/skills`. On a fresh clone, run:
+- **Windows (PowerShell):** `New-Item -ItemType Junction -Path .opencode/skills -Target .skills` ; `New-Item -ItemType Junction -Path .agents/skills -Target .skills`
+- **Linux / macOS:** `ln -s .skills .opencode/skills && ln -s .skills .agents/skills`
 
 | Skill | Load it when working on... |
 |---|---|
