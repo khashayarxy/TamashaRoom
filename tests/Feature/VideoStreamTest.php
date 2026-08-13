@@ -67,9 +67,10 @@ class VideoStreamTest extends TestCase
 
     private function mockProxyError(int $statusCode): void
     {
-        $mockResponse = response()->stream(function (): void {
-            echo json_encode(['error' => 'mocked error']);
-        }, $statusCode, ['Content-Type' => 'application/json']);
+        $mockResponse = response()->stream(function (): void {}, $statusCode, [
+            'Content-Type' => 'video/mp4',
+            'X-Proxy-Error' => 'mocked error',
+        ]);
 
         $this->mock(VideoProxyService::class, function ($mock) use ($mockResponse): void {
             $mock->shouldReceive('stream')

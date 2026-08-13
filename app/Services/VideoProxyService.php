@@ -32,10 +32,7 @@ class VideoProxyService
     ];
 
     /**
-     * The HTTP status code of the most recent upstream stream open. PHP's
-     * `$http_response_header` is only visible in the scope where the stream was
-     * opened, so openRemoteStream captures it here for later inspection (e.g.
-     * to detect an origin that ignored our Range header).
+     * The HTTP status code of the most recent upstream stream open.
      */
     protected ?int $lastStreamStatus = null;
 
@@ -68,7 +65,10 @@ class VideoProxyService
         $contentLength = $headInfo['content_length'] ?? null;
         $acceptRanges = $headInfo['accept_ranges'] ?? false;
 
-        if ($rangeHeader !== null && $acceptRanges) {
+        // Fix for Root Cause A: Always forward Range requests whenever the browser sends
+        // a Range header (e.g. bytes=0-), regardless of whether the upstream explicit HEAD
+        // probe returned Accept-Ranges: bytes.
+        if ($rangeHeader !== null) {
             return $this->handleRangeRequest($finalUrl, $rangeHeader, $contentType, $contentLength);
         }
 
@@ -237,7 +237,7 @@ class VideoProxyService
 
     private function detectContentType(?string $remoteType, string $url): string
     {
-        if ($remoteType !== null && $remoteType !== '' && $remoteType !== 'application/octet-stream') {
+        if ($remoteType !== null && $remoteType !== '' && $remoteType !== 'application/octet-stream' && ! str_contains($remoteType, 'text/html')) {
             return $remoteType;
         }
 
@@ -454,10 +454,13 @@ class VideoProxyService
             'message' => $message,
         ]);
 
-        return response()->stream(function () use ($message): void {
-            echo json_encode(['error' => $message]);
-        }, $statusCode, [
-            'Content-Type' => 'application/json',
+        // Fix for Root Cause B: Never return application/json or JSON body to the <video>
+        // element. On upstream failure, return an empty body stream with video/mp4 Content-Type
+        // and appropriate HTTP error status (502, 404, 400, 416) so the browser's native media
+        // engine processes the HTTP error status without throwing a JSON decoding crash.
+        return response()->stream(function (): void {}, $statusCode, [
+            'Content-Type' => 'video/mp4',
+            'X-Proxy-Error' => $message,
         ]);
     }
 
