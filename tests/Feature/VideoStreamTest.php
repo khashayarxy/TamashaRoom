@@ -301,6 +301,8 @@ class VideoStreamTest extends TestCase
                 fwrite($stream, str_repeat('x', 100));
                 rewind($stream);
 
+                $this->lastStreamStatus = 200;
+
                 return $stream;
             }
         };
@@ -311,6 +313,93 @@ class VideoStreamTest extends TestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertNull($response->headers->get('Accept-Ranges'));
+    }
+
+    public function test_video_proxy_follows_redirect_on_range_stream_open(): void
+    {
+        $service = $this->stubVideoProxyWithSequence([
+            [
+                'status' => 302,
+                'headers' => ['HTTP/1.1 302 Found', 'Location' => 'https://cdn.example.org/final.mp4'],
+            ],
+            [
+                'status' => 206,
+                'headers' => ['HTTP/1.1 206 Partial Content', 'Content-Range' => 'bytes 0-99/100'],
+            ],
+        ]);
+
+        $request = Request::create('/proxy/video/1', 'GET', [], [], [], [
+            'HTTP_Range' => 'bytes=0-99',
+        ]);
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        // A 3xx on the actual stream open (edge CDN rotated nodes between the
+        // probe and the open) must be followed, not relayed as an empty body
+        // dressed up as a 206 — that is what caused the Format error.
+        $this->assertSame(206, $response->getStatusCode());
+        $this->assertSame('bytes 0-99/100', $response->headers->get('Content-Range'));
+        $this->assertSame('100', $response->headers->get('Content-Length'));
+    }
+
+    public function test_video_proxy_follows_redirect_on_full_stream_open(): void
+    {
+        $service = $this->stubVideoProxyWithSequence([
+            [
+                'status' => 302,
+                'headers' => ['HTTP/1.1 302 Found', 'Location' => 'https://cdn.example.org/final.mp4'],
+            ],
+            ['status' => 200, 'headers' => ['HTTP/1.1 200 OK']],
+        ]);
+
+        $request = Request::create('/proxy/video/1', 'GET');
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function test_video_proxy_returns_502_when_upstream_returns_non_2xx_on_stream_open(): void
+    {
+        $service = $this->stubVideoProxyWithSequence([
+            ['status' => 403, 'headers' => ['HTTP/1.1 403 Forbidden']],
+        ]);
+
+        $request = Request::create('/proxy/video/1', 'GET', [], [], [], [
+            'HTTP_Range' => 'bytes=0-99',
+        ]);
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        // An upstream 403/404/416 body must never be relayed as video bytes.
+        $this->assertSame(502, $response->getStatusCode());
+        $this->assertNull($response->headers->get('Content-Range'));
+    }
+
+    public function test_video_proxy_uses_actual_upstream_content_range_for_206(): void
+    {
+        $service = $this->stubVideoProxyWithSequence([
+            [
+                'status' => 206,
+                'headers' => [
+                    'HTTP/1.1 206 Partial Content',
+                    'Content-Range' => 'bytes 5000000-1045340150/1045340151',
+                ],
+            ],
+        ], 1045340151);
+
+        $request = Request::create('/proxy/video/1', 'GET', [], [], [], [
+            'HTTP_Range' => 'bytes=5000000-',
+        ]);
+
+        $response = $service->stream($request, 'https://example.com/video.mp4');
+
+        // The relayed headers must describe the bytes actually streamed, not a
+        // guess computed from the probe — a mismatch here is the seek-time
+        // Format error.
+        $this->assertSame(206, $response->getStatusCode());
+        $this->assertSame('bytes 5000000-1045340150/1045340151', $response->headers->get('Content-Range'));
+        $this->assertSame('1040340151', $response->headers->get('Content-Length'));
     }
 
     public function test_proxy_stream_context_enables_tls_verification(): void
@@ -464,6 +553,61 @@ class VideoStreamTest extends TestCase
                 rewind($stream);
 
                 $this->lastStreamStatus = $this->upstreamStatus;
+
+                return $stream;
+            }
+        };
+    }
+
+    /**
+     * A VideoProxyService stub whose stream opens return a scripted sequence of
+     * upstream responses (status + headers). Lets a test simulate a 3xx on the
+     * stream open — e.g. an edge CDN rotating nodes between the fetchHead probe
+     * and the actual range GET — and verify redirects are followed.
+     */
+    private function stubVideoProxyWithSequence(array $responses, int $contentLength = 100): VideoProxyService
+    {
+        $urlSecurity = new class extends UrlSecurityService
+        {
+            public function validateVideoUrl(string $url): ?string
+            {
+                return null;
+            }
+        };
+
+        return new class($urlSecurity, $responses, $contentLength) extends VideoProxyService
+        {
+            public function __construct(
+                UrlSecurityService $urlSecurity,
+                private readonly array $responses,
+                private readonly int $probeContentLength,
+            ) {
+                parent::__construct($urlSecurity);
+            }
+
+            private int $openCount = 0;
+
+            protected function httpGetHeaders(string $url, mixed $context): array|false
+            {
+                return [
+                    'HTTP/1.1 200 OK',
+                    'Content-Type' => 'video/mp4',
+                    'Content-Length' => (string) $this->probeContentLength,
+                    'Accept-Ranges' => 'bytes',
+                ];
+            }
+
+            protected function openRemoteStream(string $url, mixed $context)
+            {
+                $response = $this->responses[$this->openCount] ?? end($this->responses);
+                $this->openCount++;
+
+                $stream = fopen('php://temp', 'r+');
+                fwrite($stream, str_repeat('x', 100));
+                rewind($stream);
+
+                $this->lastStreamStatus = $response['status'];
+                $this->lastStreamHeaders = $response['headers'] ?? [];
 
                 return $stream;
             }

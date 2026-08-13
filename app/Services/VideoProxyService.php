@@ -36,6 +36,13 @@ class VideoProxyService
      */
     protected ?int $lastStreamStatus = null;
 
+    /**
+     * The raw response headers of the most recent upstream stream open.
+     *
+     * @var array<string|int, mixed>
+     */
+    protected array $lastStreamHeaders = [];
+
     public function __construct(
         private readonly UrlSecurityService $urlSecurity,
     ) {}
@@ -55,6 +62,13 @@ class VideoProxyService
         }
 
         $headInfo = $this->fetchHead($videoUrl);
+
+        if ($headInfo === null) {
+            // Single bounded retry: edge CDNs (and the shared-hosting budget)
+            // hiccup intermittently. One immediate retry turns a transient probe
+            // failure into a working stream instead of a 502 data source error.
+            $headInfo = $this->fetchHead($videoUrl);
+        }
 
         if ($headInfo === null) {
             return $this->errorResponse('Failed to reach video source.', 502);
@@ -292,21 +306,46 @@ class VideoProxyService
             "Range: bytes={$start}-".($end !== null ? $end : ''),
         ]);
 
-        $stream = $this->openRemoteStream($url, $context);
+        $opened = $this->openStreamFollowingRedirects($url, $context);
 
-        if ($stream === false) {
+        if ($opened === false) {
             return $this->errorResponse('Failed to open video stream.', 502);
         }
+
+        $stream = $opened['stream'];
 
         // If the origin ignored our Range header and returned the full body
         // (HTTP 200), fall through to full-stream semantics rather than
         // synthesizing an incorrect 206/Content-Range.
-        if ($this->upstreamStatusIs200()) {
+        if ($opened['status'] === 200) {
             return $this->buildFullStreamResponse($stream, $contentType, true);
         }
 
-        $responseContentLength = $end !== null ? $end - $start + 1 : ($contentLength !== null ? $contentLength - $start : null);
-        $contentRange = "bytes {$start}-".($end ?? ($contentLength !== null ? $contentLength - 1 : '*')).'/'.($contentLength ?? '*');
+        // Only a 206 is valid for a range request. Anything else (4xx/5xx, or a
+        // redirect that could not be resolved) is an upstream failure — never
+        // relay the error body as video bytes.
+        if ($opened['status'] !== 206) {
+            fclose($stream);
+
+            return $this->errorResponse('Upstream range request failed.', 502);
+        }
+
+        // Prefer the upstream's actual Content-Range/Content-Length so the bytes
+        // we relay always match the headers the browser sees. A mismatch here
+        // (e.g. an edge that clamps or re-serves the range) surfaces as a
+        // mid-seek MEDIA_ELEMENT_ERROR: Format error.
+        $upstreamContentRange = $this->extractHeaderValue($opened['headers'], 'Content-Range');
+        $responseContentLength = null;
+        $contentRange = null;
+
+        if ($upstreamContentRange !== null
+            && preg_match('/^bytes (\d+)-(\d+)\/(\d+|\*)$/', $upstreamContentRange, $matches)) {
+            $contentRange = $upstreamContentRange;
+            $responseContentLength = (int) $matches[2] - (int) $matches[1] + 1;
+        } else {
+            $responseContentLength = $end !== null ? $end - $start + 1 : ($contentLength !== null ? $contentLength - $start : null);
+            $contentRange = "bytes {$start}-".($end ?? ($contentLength !== null ? $contentLength - 1 : '*')).'/'.($contentLength ?? '*');
+        }
 
         $response = response()->stream(function () use ($stream): void {
             $this->streamChunks($stream);
@@ -331,13 +370,22 @@ class VideoProxyService
             'User-Agent: TamashaRoom/1.0',
         ]);
 
-        $stream = $this->openRemoteStream($url, $context);
+        $opened = $this->openStreamFollowingRedirects($url, $context);
 
-        if ($stream === false) {
+        if ($opened === false) {
             return $this->errorResponse('Failed to open video stream.', 502);
         }
 
-        return $this->buildFullStreamResponse($stream, $contentType, $acceptRanges);
+        // Redirects are followed by openStreamFollowingRedirects, so only 2xx
+        // responses are expected here. Reject anything else rather than relaying
+        // an upstream error body as video.
+        if ($opened['status'] === null || $opened['status'] >= 300) {
+            fclose($opened['stream']);
+
+            return $this->errorResponse('Failed to open video stream.', 502);
+        }
+
+        return $this->buildFullStreamResponse($opened['stream'], $contentType, $acceptRanges);
     }
 
     private function buildFullStreamResponse($stream, string $contentType, bool $acceptRanges): Response
@@ -411,12 +459,66 @@ class VideoProxyService
     }
 
     /**
-     * Detect whether the upstream origin ignored our Range header by returning
-     * the full body with a 200 status (instead of 206).
+     * Open the upstream stream, following any redirect the final URL returns.
+     * Edge CDNs rotate nodes between the fetchHead probe and the actual stream
+     * open, so the URL we open here can itself answer with a 3xx even though the
+     * probe resolved it. Redirect hops are validated per-hop for SSRF, mirroring
+     * fetchHead. Returns the opened stream plus its final status and response
+     * headers, or false when the chain cannot be resolved.
+     *
+     * @return array{stream: resource, status: int|null, headers: array<string|int, mixed>}|false
      */
-    private function upstreamStatusIs200(): bool
+    private function openStreamFollowingRedirects(string $url, mixed $context): array|false
     {
-        return $this->lastStreamStatus === 200;
+        $current = $url;
+        $visited = [];
+
+        for ($hop = 0; $hop < self::MAX_REDIRECTS; $hop++) {
+            $error = $this->urlSecurity->validateVideoUrl($current);
+
+            if ($error !== null) {
+                return false;
+            }
+
+            if (isset($visited[$current])) {
+                return false;
+            }
+
+            $visited[$current] = true;
+
+            $stream = $this->openRemoteStream($current, $context);
+
+            if ($stream === false) {
+                return false;
+            }
+
+            $status = $this->lastStreamStatus;
+
+            if ($status === null || $status < 300 || $status >= 400) {
+                return [
+                    'stream' => $stream,
+                    'status' => $status,
+                    'headers' => $this->lastStreamHeaders,
+                ];
+            }
+
+            $location = $this->extractHeaderValue($this->lastStreamHeaders, 'Location');
+            fclose($stream);
+
+            if ($location === null) {
+                return false;
+            }
+
+            $resolved = $this->resolveRelativeUrl($current, $location);
+
+            if ($resolved === null) {
+                return false;
+            }
+
+            $current = $resolved;
+        }
+
+        return false;
     }
 
     /**
@@ -434,7 +536,8 @@ class VideoProxyService
     /**
      * Overridable seam for the range/full stream open. Defaults to fopen with
      * the provided stream context; tests substitute a memory stream. Captures
-     * the upstream HTTP status from $http_response_header for later use.
+     * the upstream HTTP status and response headers from $http_response_header
+     * for later use.
      */
     protected function openRemoteStream(string $url, mixed $context)
     {
@@ -443,6 +546,7 @@ class VideoProxyService
         $headers = $http_response_header ?? [];
 
         $this->lastStreamStatus = $this->extractStatusCode($headers);
+        $this->lastStreamHeaders = $headers;
 
         return $stream;
     }
