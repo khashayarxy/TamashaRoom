@@ -120,3 +120,10 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Suppress native browser-injected Picture-in-Picture overlay buttons (e.g. Vivaldi, Opera, Edge pop-out) */
+video::-webkit-media-controls-picture-in-picture-button,
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+

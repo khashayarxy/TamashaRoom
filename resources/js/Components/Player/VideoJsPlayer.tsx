@@ -9,7 +9,6 @@ import {
     ErrorDialog,
     AlertDialog,
     Controls,
-    Tooltip,
     PlayButton,
     MuteButton,
     Popover,
@@ -19,14 +18,10 @@ import {
     Slider,
     CaptionsButton,
     AirPlayButton,
-    PiPButton,
     FullscreenButton,
     Hotkey,
     Gesture,
     StatusAnnouncer,
-    StatusIndicator,
-    VolumeIndicator,
-    SeekIndicator,
     Menu,
     useQualityOptions,
     useAudioTrackOptions,
@@ -46,8 +41,6 @@ import {
     FullscreenExitIcon,
     GearIcon,
     PauseIcon,
-    PipEnterIcon,
-    PipExitIcon,
     PlayIcon,
     QualityIcon,
     RestartIcon,
@@ -299,12 +292,6 @@ function PlayerBridge({
 }
 
 const SEEK_TIME = 10;
-const TOP_STATUS_ACTIONS = [
-    "toggleSubtitles",
-    "toggleFullscreen",
-    "togglePictureInPicture",
-];
-const CENTER_STATUS_ACTIONS = ["togglePaused"];
 
 const MediaButton = forwardRef<
     HTMLButtonElement,
@@ -589,67 +576,25 @@ function TamashaSettingsMenu({
 
 function MediaAirPlayControl() {
     return (
-        <Tooltip.Root side="top">
-            <Tooltip.Trigger
-                render={
-                    <AirPlayButton
-                        className="media-button--airplay"
-                        render={<MediaButton />}
-                    >
-                        <AirPlayEnterIcon className="media-icon media-icon--airplay-enter" />
-                        <AirPlayExitIcon className="media-icon media-icon--airplay-exit" />
-                    </AirPlayButton>
-                }
-            />
-            <Tooltip.Popup className="media-surface media-tooltip">
-                <Tooltip.Label />
-                <Tooltip.Shortcut className="media-tooltip__kbd" />
-            </Tooltip.Popup>
-        </Tooltip.Root>
-    );
-}
-
-function MediaPiPControl() {
-    return (
-        <Tooltip.Root side="top">
-            <Tooltip.Trigger
-                render={
-                    <PiPButton
-                        className="media-button--pip"
-                        render={<MediaButton />}
-                    >
-                        <PipEnterIcon className="media-icon media-icon--pip-enter" />
-                        <PipExitIcon className="media-icon media-icon--pip-exit" />
-                    </PiPButton>
-                }
-            />
-            <Tooltip.Popup className="media-surface media-tooltip">
-                <Tooltip.Label />
-                <Tooltip.Shortcut className="media-tooltip__kbd" />
-            </Tooltip.Popup>
-        </Tooltip.Root>
+        <AirPlayButton
+            className="media-button--airplay"
+            render={<MediaButton aria-label="پخش بی‌سیم" />}
+        >
+            <AirPlayEnterIcon className="media-icon media-icon--airplay-enter" />
+            <AirPlayExitIcon className="media-icon media-icon--airplay-exit" />
+        </AirPlayButton>
     );
 }
 
 function MediaFullscreenControl() {
     return (
-        <Tooltip.Root side="top">
-            <Tooltip.Trigger
-                render={
-                    <FullscreenButton
-                        className="media-button--fullscreen"
-                        render={<MediaButton />}
-                    >
-                        <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
-                        <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
-                    </FullscreenButton>
-                }
-            />
-            <Tooltip.Popup className="media-surface media-tooltip">
-                <Tooltip.Label />
-                <Tooltip.Shortcut className="media-tooltip__kbd" />
-            </Tooltip.Popup>
-        </Tooltip.Root>
+        <FullscreenButton
+            className="media-button--fullscreen"
+            render={<MediaButton aria-label="تمام‌صفحه" />}
+        >
+            <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
+            <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
+        </FullscreenButton>
     );
 }
 
@@ -714,96 +659,65 @@ function TamashaVideoSkin({
             </ErrorDialog.Root>
 
             <Controls.Root className="media-surface media-controls media-controls--root">
-                <Tooltip.Provider>
-                    <div className="media-surface media-controls media-controls--primary">
-                        {/* 1. Left Control Group: Play & Volume */}
-                        <div className="media-button-group">
-                            <Tooltip.Root side="top">
-                                <Tooltip.Trigger
-                                    render={
-                                        <PlayButton
-                                            className="media-button--play"
-                                            render={<MediaButton />}
-                                        >
-                                            <RestartIcon className="media-icon media-icon--restart" />
-                                            <PlayIcon className="media-icon media-icon--play" />
-                                            <PauseIcon className="media-icon media-icon--pause" />
-                                        </PlayButton>
-                                    }
-                                />
-                                <Tooltip.Popup className="media-surface media-tooltip">
-                                    <Tooltip.Label />
-                                    <Tooltip.Shortcut className="media-tooltip__kbd" />
-                                </Tooltip.Popup>
-                            </Tooltip.Root>
-                            <MediaVolumePopover />
-                        </div>
-
-                        {/* 2. Center Control Group: Time & Scrubber Slider */}
-                        <div className="media-time-controls">
-                            <Time.Value type="current" className="media-time" />
-                            <TimeSlider.Root className="media-slider">
-                                <Slider.Track className="media-slider__track">
-                                    <Slider.Fill className="media-slider__fill" />
-                                    <Slider.Buffer className="media-slider__buffer" />
-                                </Slider.Track>
-                                <Slider.Thumb className="media-slider__thumb" />
-                                <div className="media-surface media-thumbnail media-slider__thumbnail">
-                                    <Slider.Thumbnail className="media-thumbnail__image" />
-                                    <Slider.Value
-                                        type="pointer"
-                                        className="media-time media-thumbnail__time"
-                                    />
-                                    <SpinnerIcon className="media-thumbnail__spinner media-icon" />
-                                </div>
-                                <Slider.Preview className="media-slider__preview">
-                                    <Slider.Value
-                                        type="pointer"
-                                        className="media-time media-slider__value"
-                                    />
-                                </Slider.Preview>
-                            </TimeSlider.Root>
-                            <Time.Value
-                                toggle
-                                type="remaining"
-                                className="media-time"
-                            />
-                        </div>
-
-                        {/* 3. Right Primary Control Group: Captions CC & Gear Menu ⚙️ */}
-                        <div className="media-button-group">
-                            <Tooltip.Root side="top">
-                                <Tooltip.Trigger
-                                    render={
-                                        <CaptionsButton
-                                            className="media-button--captions"
-                                            render={<MediaButton />}
-                                        >
-                                            <CaptionsOffIcon className="media-icon media-icon--captions-off" />
-                                            <CaptionsOnIcon className="media-icon media-icon--captions-on" />
-                                        </CaptionsButton>
-                                    }
-                                />
-                                <Tooltip.Popup className="media-surface media-tooltip">
-                                    <Tooltip.Label />
-                                    <Tooltip.Shortcut className="media-tooltip__kbd" />
-                                </Tooltip.Popup>
-                            </Tooltip.Root>
-                            <TamashaSettingsMenu
-                                onOpenSubtitleSettings={onOpenSubtitleSettings}
-                            />
-                        </div>
+                <div className="media-surface media-controls media-controls--primary">
+                    {/* 1. Left Control Group: Play & Volume */}
+                    <div className="media-button-group">
+                        <PlayButton
+                            className="media-button--play"
+                            render={<MediaButton aria-label="پخش" />}
+                        >
+                            <RestartIcon className="media-icon media-icon--restart" />
+                            <PlayIcon className="media-icon media-icon--play" />
+                            <PauseIcon className="media-icon media-icon--pause" />
+                        </PlayButton>
+                        <MediaVolumePopover />
                     </div>
 
-                    {/* 4. Secondary Control Group (Far Right): AirPlay, PiP, Fullscreen */}
-                    <div className="media-surface media-controls media-controls--secondary">
-                        <div className="media-button-group">
-                            <MediaAirPlayControl />
-                            <MediaPiPControl />
-                            <MediaFullscreenControl />
-                        </div>
+                    {/* 2. Center Control Group: Time & Scrubber Slider */}
+                    <div className="media-time-controls">
+                        <Time.Value type="current" className="media-time" />
+                        <TimeSlider.Root className="media-slider">
+                            <Slider.Track className="media-slider__track">
+                                <Slider.Fill className="media-slider__fill" />
+                                <Slider.Buffer className="media-slider__buffer" />
+                            </Slider.Track>
+                            <Slider.Thumb className="media-slider__thumb" />
+                            <Slider.Preview className="media-slider__preview">
+                                <Slider.Value
+                                    type="pointer"
+                                    className="media-time media-slider__value"
+                                />
+                            </Slider.Preview>
+                        </TimeSlider.Root>
+                        <Time.Value
+                            toggle
+                            type="remaining"
+                            className="media-time"
+                        />
                     </div>
-                </Tooltip.Provider>
+
+                    {/* 3. Right Primary Control Group: Captions CC & Gear Menu ⚙️ */}
+                    <div className="media-button-group">
+                        <CaptionsButton
+                            className="media-button--captions"
+                            render={<MediaButton aria-label="زیرنویس" />}
+                        >
+                            <CaptionsOffIcon className="media-icon media-icon--captions-off" />
+                            <CaptionsOnIcon className="media-icon media-icon--captions-on" />
+                        </CaptionsButton>
+                        <TamashaSettingsMenu
+                            onOpenSubtitleSettings={onOpenSubtitleSettings}
+                        />
+                    </div>
+                </div>
+
+                {/* 4. Secondary Control Group (Far Right): AirPlay, Fullscreen */}
+                <div className="media-surface media-controls media-controls--secondary">
+                    <div className="media-button-group">
+                        <MediaAirPlayControl />
+                        <MediaFullscreenControl />
+                    </div>
+                </div>
             </Controls.Root>
 
             <div className="media-overlay" />
@@ -812,7 +726,6 @@ function TamashaVideoSkin({
             <Hotkey keys="m" action="toggleMuted" />
             <Hotkey keys="f" action="toggleFullscreen" />
             <Hotkey keys="c" action="toggleSubtitles" />
-            <Hotkey keys="i" action="togglePictureInPicture" />
             <Hotkey keys="ArrowRight" action="seekStep" value={SEEK_TIME / 2} />
             <Hotkey keys="ArrowLeft" action="seekStep" value={-5} />
             <Hotkey keys="l" action="seekStep" value={SEEK_TIME} />
@@ -847,41 +760,6 @@ function TamashaVideoSkin({
                 region="right"
             />
             <StatusAnnouncer className="media-sr-only" />
-            <div className="media-input-feedback">
-                <VolumeIndicator.Root className="media-surface media-input-feedback-island media-input-feedback-island--volume">
-                    <VolumeIndicator.Fill className="media-input-feedback-island__content">
-                        <VolumeOffIcon className="media-icon media-icon--volume-off" />
-                        <VolumeLowIcon className="media-icon media-icon--volume-low" />
-                        <VolumeHighIcon className="media-icon media-icon--volume-high" />
-                        <VolumeIndicator.Value className="media-input-feedback-island__value" />
-                    </VolumeIndicator.Fill>
-                </VolumeIndicator.Root>
-                <StatusIndicator.Root
-                    actions={TOP_STATUS_ACTIONS}
-                    className="media-surface media-input-feedback-island media-input-feedback-island--status"
-                >
-                    <div className="media-input-feedback-island__content">
-                        <CaptionsOnIcon className="media-icon media-icon--captions-on" />
-                        <CaptionsOffIcon className="media-icon media-icon--captions-off" />
-                        <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
-                        <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
-                        <PipEnterIcon className="media-icon media-icon--pip-enter" />
-                        <PipExitIcon className="media-icon media-icon--pip-exit" />
-                        <StatusIndicator.Value className="media-input-feedback-island__value" />
-                    </div>
-                </StatusIndicator.Root>
-                <SeekIndicator.Root className="media-input-feedback-bubble">
-                    <ChevronIcon className="media-icon media-icon--seek" />
-                    <SeekIndicator.Value className="media-time" />
-                </SeekIndicator.Root>
-                <StatusIndicator.Root
-                    actions={CENTER_STATUS_ACTIONS}
-                    className="media-input-feedback-bubble"
-                >
-                    <PlayIcon className="media-icon media-icon--play" />
-                    <PauseIcon className="media-icon media-icon--pause" />
-                </StatusIndicator.Root>
-            </div>
         </Container>
     );
 }
@@ -921,6 +799,7 @@ export const VideoJsPlayer = forwardRef(function VideoJsPlayer(
                         crossOrigin="anonymous"
                         playsInline
                         preload="auto"
+                        disablePictureInPicture
                     >
                         {subtitleSrc ? (
                             <track
