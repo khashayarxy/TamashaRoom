@@ -36,8 +36,10 @@ interface SyncedVideoJsPlayerProps {
     refreshKey?: number;
 }
 
-function proxyUrl(roomId: number): string {
-    return `/proxy/video/${roomId}`;
+function proxyUrl(roomId: number, version?: number): string {
+    return version
+        ? `/proxy/video/${roomId}?v=${version}`
+        : `/proxy/video/${roomId}`;
 }
 
 export function SyncedVideoJsPlayer({
@@ -74,7 +76,7 @@ export function SyncedVideoJsPlayer({
     const sourceUrl: string | undefined =
         state.playbackMode === "direct" || proxyFailed
             ? state.videoUrl || initialVideoUrl || undefined
-            : proxyUrl(roomId);
+            : proxyUrl(roomId, state.stateVersion || undefined);
 
     const videoUrl = state.videoUrl ?? initialVideoUrl ?? null;
 

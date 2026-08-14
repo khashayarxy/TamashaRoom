@@ -161,7 +161,7 @@ describe("SyncedVideoJsPlayer", () => {
         render(<SyncedVideoJsPlayer roomId={1} />);
         expect(screen.getByTestId("player-video")).toHaveAttribute(
             "data-src",
-            "/proxy/video/1",
+            "/proxy/video/1?v=1",
         );
     });
 
@@ -176,7 +176,7 @@ describe("SyncedVideoJsPlayer", () => {
         render(<SyncedVideoJsPlayer roomId={1} />);
         expect(screen.getByTestId("player-video")).toHaveAttribute(
             "data-src",
-            "/proxy/video/1",
+            "/proxy/video/1?v=1",
         );
 
         act(() => {
@@ -719,6 +719,26 @@ describe("SyncedVideoJsPlayer", () => {
                 },
             };
             expect(getBufferedPercent(mockVideo)).toBe(100);
+        });
+
+        it("appends stateVersion to proxyUrl when stateVersion changes", () => {
+            const mockStateWithVersion: PlaybackState = makeState({
+                stateVersion: 3,
+                videoUrl: "https://example.com/video-v3.mp4",
+                playbackMode: "proxy",
+            });
+            vi.mocked(usePlaybackSync).mockReturnValue({
+                state: mockStateWithVersion,
+                sync: mockSync,
+                syncImmediate: mockSyncImmediate,
+                loading: false,
+                error: null,
+            });
+
+            render(<SyncedVideoJsPlayer roomId={100} canControl={true} />);
+
+            expect(testState.props?.src).toBe("/proxy/video/100?v=3");
+            expect(testState.props?.videoUrl).toBe("https://example.com/video-v3.mp4");
         });
     });
 });

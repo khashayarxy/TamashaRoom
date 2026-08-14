@@ -74,6 +74,9 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const roomIsLocked = useRoomUiStore((s) => s.roomIsLocked);
     const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
     const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
+    const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(
+        room.video_url,
+    );
     const [settingVideo, setSettingVideo] = useState(false);
     const [videoRefreshKey, setVideoRefreshKey] = useState(0);
     const [chatUnread, setChatUnread] = useState(0);
@@ -150,6 +153,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             await api.post(`/playback/${room.id}/set-video`, {
                 video_url: url.trim(),
             });
+            setCurrentVideoUrl(url.trim());
             setShowSetVideo(false);
             setVideoRefreshKey((key) => key + 1);
             toast.success("ویدیو تنظیم شد.");
@@ -326,7 +330,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 onClose={() => setShowSetVideo(false)}
                 onSetVideo={handleSetVideo}
                 loading={settingVideo}
-                initialUrl={room.video_url}
+                initialUrl={currentVideoUrl}
             />
 
             <SubtitleManagerDialog

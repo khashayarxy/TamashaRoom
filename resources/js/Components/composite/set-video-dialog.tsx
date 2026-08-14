@@ -9,7 +9,7 @@ import {
 } from "@/Components/ui/dialog";
 import { Input } from "@/Components/ui/input";
 import { Tv } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface SetVideoDialogProps {
     open: boolean;
@@ -27,11 +27,13 @@ export function SetVideoDialog({
     initialUrl = "",
 }: SetVideoDialogProps) {
     const [videoUrl, setVideoUrl] = useState(initialUrl ?? "");
+    const prevOpenRef = useRef(false);
 
     useEffect(() => {
-        if (open) {
+        if (open && !prevOpenRef.current) {
             setVideoUrl(initialUrl ?? "");
         }
+        prevOpenRef.current = open;
     }, [open, initialUrl]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -60,6 +62,8 @@ export function SetVideoDialog({
                         placeholder="https://example.com/video.mp4"
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onDoubleClick={(e) => e.currentTarget.select()}
                         dir="ltr"
                         autoFocus
                     />
