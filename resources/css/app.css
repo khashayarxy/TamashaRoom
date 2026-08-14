@@ -136,4 +136,18 @@ video::-webkit-media-controls-enclosure {
   text-align: center;
 }
 
+/* Ensure video player skin and video element maintain consistent dark background and GPU clipping */
+.media-default-skin {
+  --media-border-radius: inherit;
+  border-radius: inherit;
+  background-color: #000;
+}
+
+.media-default-skin video {
+  border-radius: inherit;
+  background-color: #000;
+  overflow: hidden;
+}
+
+
 

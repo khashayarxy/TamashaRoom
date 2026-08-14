@@ -840,6 +840,7 @@ export const VideoJsPlayer = forwardRef(function VideoJsPlayer(
                         playsInline
                         preload="auto"
                         disablePictureInPicture
+                        className="bg-black"
                     >
                         {subtitleSrc ? (
                             <track

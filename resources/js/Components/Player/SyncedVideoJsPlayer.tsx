@@ -252,7 +252,7 @@ export function SyncedVideoJsPlayer({
             dir="ltr"
             style={{ containerType: "inline-size" }}
             className={cn(
-                "relative group overflow-hidden rounded-2xl bg-black",
+                "relative group overflow-hidden rounded-2xl bg-black isolate [transform:translateZ(0)]",
                 className,
             )}
         >
