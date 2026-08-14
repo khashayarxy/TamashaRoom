@@ -442,7 +442,7 @@ export function SubtitleSettingsDialog({
                     {/* Live Preview Container (Always Visible) */}
                     <div
                         className="bg-muted rounded-lg p-2.5 text-center transition-all overflow-hidden mt-3"
-                        dir="auto"
+                        dir="rtl"
                         style={{
                             containerType: "inline-size",
                             backgroundColor: `rgba(0,0,0,${

@@ -227,7 +227,7 @@ export function SubtitleOverlay({
                         ? "rounded-none"
                         : "rounded-xl"
                 }`}
-                dir="auto"
+                dir="rtl"
             >
                 {currentText.split("\n").map((line, i) => (
                     <span key={i}>

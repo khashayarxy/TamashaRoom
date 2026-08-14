@@ -251,4 +251,28 @@ describe("SubtitleOverlay", () => {
         });
         document.body.removeChild(fullscreenDiv);
     });
+
+    it("renders subtitle container with explicit dir='rtl' for cues with trailing punctuation", () => {
+        const ref = { current: createMockVideo(2.5) };
+        const cues: SubtitleCue[] = [
+            { start: 1000, end: 4000, text: "خشایار من اومدم..." },
+        ];
+
+        const { container } = render(
+            <SubtitleOverlay
+                videoRef={ref}
+                cues={cues}
+                settings={DEFAULT_SETTINGS}
+            />,
+        );
+
+        act(() => {
+            vi.advanceTimersByTime(100);
+        });
+
+        const subtitleEl = container.querySelector('[dir="rtl"]');
+        expect(subtitleEl).not.toBeNull();
+        expect(subtitleEl?.getAttribute("dir")).toBe("rtl");
+        expect(screen.getByText("خشایار من اومدم...")).toBeInTheDocument();
+    });
 });
