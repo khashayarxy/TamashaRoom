@@ -143,6 +143,7 @@ Skill definitions are tracked in git under `.skills/`. Local agent tooling disco
 | `git-workflow` | Any commit/push, pre-push audit, or git-safety decision |
 | `ai-efficiency` | Exploring the repo or reading docs; drafting a prompt for another agent; minimizing context/token usage |
 | `debugging` | A bug report, an unexpected test failure, or behavior that doesn't match expectations |
+| `blocker-resilience-rules` | Handling ad-blockers, tracking protection, or client-blocked scripts, CDNs, embeds, or WebSockets |
 | `skill-maintenance` | Adding, editing, merging, or removing a skill; updating the AGENTS.md skill table |
 
 ## Current Status
