@@ -32,11 +32,13 @@ export function ConfirmDialog({
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
+                <DialogHeader className="text-center sm:text-center">
+                    <DialogTitle className="text-center">{title}</DialogTitle>
+                    <DialogDescription className="text-center">
+                        {description}
+                    </DialogDescription>
                 </DialogHeader>
-                <DialogFooter>
+                <DialogFooter className="justify-center sm:justify-center">
                     <Button
                         variant="ghost"
                         onClick={onClose}

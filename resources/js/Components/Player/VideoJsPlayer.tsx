@@ -645,13 +645,13 @@ function TamashaVideoSkin({
                 )}
             />
             <ErrorDialog.Root>
-                <AlertDialog.Popup className="media-error">
-                    <div className="media-error__dialog media-surface">
-                        <div className="media-error__content">
-                            <ErrorDialog.Title className="media-error__title" />
-                            <ErrorDialog.Description className="media-error__description" />
+                <AlertDialog.Popup className="media-error text-center">
+                    <div className="media-error__dialog media-surface text-center">
+                        <div className="media-error__content text-center">
+                            <ErrorDialog.Title className="media-error__title text-center" />
+                            <ErrorDialog.Description className="media-error__description text-center" />
                         </div>
-                        <div className="media-error__actions">
+                        <div className="media-error__actions flex justify-center">
                             <ErrorDialog.Close className="media-button media-button--primary" />
                         </div>
                     </div>
