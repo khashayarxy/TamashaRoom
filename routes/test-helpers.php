@@ -95,11 +95,14 @@ Route::middleware('web')->group(function () {
         if ($request->boolean('with_subtitle')) {
             $filename = sprintf('%d_test.vtt', time());
             $path = sprintf('subtitles/%d/%s', $room->id, $filename);
-            $vtt = "WEBVTT\n\n1\n00:00:01.000 --> 00:00:05.000\nزیرنویس فارسی\n\n2\n00:00:06.000 --> 00:00:10.000\nSecond cue in English";
+            $vtt = $request->input(
+                'subtitle_content',
+                "WEBVTT\n\n1\n00:00:01.000 --> 00:00:05.000\nزیرنویس فارسی\n\n2\n00:00:06.000 --> 00:00:10.000\nSecond cue in English"
+            );
 
             Storage::disk('local')->put($path, $vtt);
 
-            SubtitleTrack::create([
+            $track = SubtitleTrack::create([
                 'room_id' => $room->id,
                 'user_id' => $user->id,
                 'label' => 'فارسی',
@@ -107,6 +110,8 @@ Route::middleware('web')->group(function () {
                 'file_path' => $path,
                 'original_extension' => 'vtt',
             ]);
+
+            $room->update(['active_subtitle_track_id' => $track->id]);
         }
 
         if ($request->boolean('with_guest')) {

@@ -245,6 +245,16 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 .getByRole("button")
                 .filter({ has: page.locator("svg.lucide-x") })
                 .click();
+            await page.locator("dialog[open]").waitFor({ state: "hidden" });
+
+            // If the mock video URL triggered a media format error dialog, dismiss it.
+            const playerErrorClose = page.locator(
+                ".media-error button, .media-error .media-button, .media-dialog--alert button",
+            );
+            if (await playerErrorClose.isVisible()) {
+                await playerErrorClose.click();
+            }
+
             // Open the player gear/settings menu, then trigger subtitle settings.
             // Using force: true ensures the click reaches the button even if
             // the control bar is in an idle fade transition.
@@ -253,7 +263,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
                 .click({ force: true });
             await page
                 .getByRole("button", { name: "تنظیمات زیرنویس" })
-                .click();
+                .click({ force: true });
             await page
                 .getByRole("heading", { name: "تنظیمات زیرنویس" })
                 .waitFor();
