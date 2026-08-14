@@ -53,7 +53,7 @@ describe("SubtitleSettingsDialog", () => {
         const iranSansBtn = screen.getByText("ایران سنس");
         fireEvent.click(iranSansBtn);
         expect(mockUpdate).toHaveBeenCalledWith({
-            fontFamily: "IRANSansXFaNum-Medium",
+            fontFamily: "IRANSansXFaNum-Regular",
         });
     });
 

@@ -210,8 +210,9 @@ export function SubtitleOverlay({
             <div
                 style={{
                     fontFamily: `'${
+                        settings.fontFamily === "IRANSansXFaNum-Regular" ||
                         settings.fontFamily === "IRANSansXFaNum-Medium"
-                            ? "IRANSansXFaNum-Medium"
+                            ? "IRANSansXFaNum-Regular"
                             : "Vazirmatn-Medium"
                     }', var(--font-sans)`,
                     fontSize: `clamp(12px, ${(settings.size * 0.09).toFixed(2)}cqw, 72px)`,

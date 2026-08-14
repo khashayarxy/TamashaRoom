@@ -25,7 +25,7 @@ const COLORS = [
 
 const FONTS = [
     { label: "وزیرمتن", value: "Vazirmatn-Medium" },
-    { label: "ایران سنس", value: "IRANSansXFaNum-Medium" },
+    { label: "ایران سنس", value: "IRANSansXFaNum-Regular" },
 ];
 
 const POSITIONS: { label: string; value: SubtitlePosition }[] = [
@@ -71,8 +71,9 @@ export function SubtitleSettingsDialog({
     }, []);
 
     const currentFont =
+        settings.fontFamily === "IRANSansXFaNum-Regular" ||
         settings.fontFamily === "IRANSansXFaNum-Medium"
-            ? "IRANSansXFaNum-Medium"
+            ? "IRANSansXFaNum-Regular"
             : "Vazirmatn-Medium";
 
     const dialogContent = (

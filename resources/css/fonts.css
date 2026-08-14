@@ -19,8 +19,8 @@
 
 /* Persian Subtitle Font - IRANSansX */
 @font-face {
-  font-family: 'IRANSansXFaNum-Medium';
-  src: url('../fonts/IRANSansXFaNum-Medium.woff2') format('woff2');
-  font-weight: 500;
+  font-family: 'IRANSansXFaNum-Regular';
+  src: url('../fonts/IRANSansXFaNum-Regular.woff2') format('woff2');
+  font-weight: 400;
   font-display: swap;
 }

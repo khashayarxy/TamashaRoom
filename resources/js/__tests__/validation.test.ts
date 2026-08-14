@@ -51,6 +51,23 @@ describe("lib/validation schemas", () => {
         expect(parsedYellow.color).toBe("#FFFF00");
     });
 
+    it("subtitleSettingsSchema handles fontFamily validation and legacy migration", () => {
+        const regular = subtitleSettingsSchema.parse({
+            fontFamily: "IRANSansXFaNum-Regular",
+        });
+        expect(regular.fontFamily).toBe("IRANSansXFaNum-Regular");
+
+        const legacyMedium = subtitleSettingsSchema.parse({
+            fontFamily: "IRANSansXFaNum-Medium",
+        });
+        expect(legacyMedium.fontFamily).toBe("IRANSansXFaNum-Regular");
+
+        const unknown = subtitleSettingsSchema.parse({
+            fontFamily: "Times New Roman",
+        });
+        expect(unknown.fontFamily).toBe("Vazirmatn-Medium");
+    });
+
     it("subtitleSettingsSchema rejects out-of-range values", () => {
         expect(() => subtitleSettingsSchema.parse({ offset: 99999 })).toThrow();
         expect(() => subtitleSettingsSchema.parse({ size: 500 })).toThrow();

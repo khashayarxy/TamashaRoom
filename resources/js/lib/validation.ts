@@ -38,8 +38,11 @@ export const subtitleSettingsSchema = z.object({
         .string()
         .default("Vazirmatn-Medium")
         .transform((val) => {
-            if (val === "IRANSansXFaNum-Medium") {
-                return "IRANSansXFaNum-Medium";
+            if (
+                val === "IRANSansXFaNum-Regular" ||
+                val === "IRANSansXFaNum-Medium"
+            ) {
+                return "IRANSansXFaNum-Regular";
             }
             return "Vazirmatn-Medium";
         }),
