@@ -60,9 +60,15 @@ import {
     settingsText,
 } from "@videojs/core/i18n/text/menu";
 import { shouldPreservePositionOnSourceChange } from "@/lib/player-source";
-import { cn } from "@/lib/utils";
+import { cn, toPersianDigits } from "@/lib/utils";
 import { Subtitles } from "lucide-react";
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import {
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from "react";
 
 // Exclude playbackRateFeature and remotePlaybackFeature so Video.js never registers or renders playback speed or cast options
 const customVideoFeatures = videoFeatures.filter(
@@ -607,6 +613,7 @@ const CENTER_STATUS_ACTIONS = ["togglePaused"] as const;
 
 interface TamashaVideoSkinProps {
     children?: React.ReactNode;
+    videoRef?: React.RefObject<HTMLVideoElement | null>;
     className?: string;
     poster?: string | null;
     placeholder?: string;
@@ -614,8 +621,103 @@ interface TamashaVideoSkinProps {
     onOpenSubtitleSettings?: () => void;
 }
 
+export function getBufferedPercent(
+    video: Pick<
+        HTMLVideoElement,
+        "duration" | "buffered" | "currentTime"
+    > | null,
+): number {
+    if (
+        !video ||
+        !video.duration ||
+        !video.buffered ||
+        video.buffered.length === 0
+    ) {
+        return 0;
+    }
+    let maxEnd = 0;
+    const ct = video.currentTime;
+    for (let i = 0; i < video.buffered.length; i++) {
+        const start = video.buffered.start(i);
+        const end = video.buffered.end(i);
+        if (start <= ct && ct <= end) {
+            maxEnd = end;
+            break;
+        }
+        if (end > maxEnd) {
+            maxEnd = end;
+        }
+    }
+    return Math.min(
+        100,
+        Math.max(0, Math.round((maxEnd / video.duration) * 100)),
+    );
+}
+
+function TamashaBufferingIndicator({
+    videoRef,
+}: {
+    videoRef?: React.RefObject<HTMLVideoElement | null>;
+}) {
+    const [bufferedPercent, setBufferedPercent] = useState(0);
+
+    useEffect(() => {
+        const video = videoRef?.current;
+        if (!video) return;
+
+        const updateBuffer = () => {
+            setBufferedPercent(getBufferedPercent(video));
+        };
+
+        const events = [
+            "progress",
+            "timeupdate",
+            "seeking",
+            "seeked",
+            "waiting",
+            "canplay",
+            "canplaythrough",
+            "loadedmetadata",
+            "loadstart",
+            "emptied",
+        ];
+
+        events.forEach((evt) => video.addEventListener(evt, updateBuffer));
+        updateBuffer();
+
+        return () => {
+            events.forEach((evt) =>
+                video.removeEventListener(evt, updateBuffer),
+            );
+        };
+    }, [videoRef]);
+
+    return (
+        <BufferingIndicator
+            render={(props) => (
+                <div
+                    {...props}
+                    className={cn(
+                        "media-buffering-indicator flex flex-col items-center justify-center gap-3.5 select-none pointer-events-none",
+                        props.className,
+                    )}
+                >
+                    <SpinnerIcon className="media-icon !h-8 !w-8 text-white" />
+                    <span
+                        className="rounded-full bg-black/80 px-3.5 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-md"
+                        dir="rtl"
+                    >
+                        در حال بارگذاری... {toPersianDigits(bufferedPercent)}٪
+                    </span>
+                </div>
+            )}
+        />
+    );
+}
+
 function TamashaVideoSkin({
     children,
+    videoRef,
     className,
     poster,
     placeholder,
@@ -644,13 +746,7 @@ function TamashaVideoSkin({
         >
             {children}
             {poster && <Poster src={poster} />}
-            <BufferingIndicator
-                render={(props) => (
-                    <div {...props} className="media-buffering-indicator">
-                        <SpinnerIcon className="media-icon" />
-                    </div>
-                )}
-            />
+            <TamashaBufferingIndicator videoRef={videoRef} />
             <ErrorDialog.Root>
                 <AlertDialog.Popup className="media-error text-center">
                     <div className="media-error__dialog media-surface text-center">
@@ -830,6 +926,7 @@ export const VideoJsPlayer = forwardRef(function VideoJsPlayer(
         <Player.Provider>
             <I18nProvider locale="fa">
                 <TamashaVideoSkin
+                    videoRef={videoRef}
                     className={cn("h-full w-full", className)}
                     poster={poster ?? undefined}
                     onOpenSubtitleSettings={onOpenSubtitleSettings}

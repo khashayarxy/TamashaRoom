@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { SyncedVideoJsPlayer } from "@/Components/Player/SyncedVideoJsPlayer";
+import { getBufferedPercent } from "@/Components/Player/VideoJsPlayer";
 import { usePlaybackSync } from "@/Hooks/use-playback-sync";
 import type { PlaybackState, PlaybackMode } from "@/lib/types/playback";
 
@@ -28,10 +29,12 @@ const testState = vi.hoisted(() => {
     };
 });
 
-vi.mock("@/Components/Player/VideoJsPlayer", async () => {
+vi.mock("@/Components/Player/VideoJsPlayer", async (importOriginal) => {
+    const actual = await importOriginal<Record<string, unknown>>();
     const React = await import("react");
     const { forwardRef, useImperativeHandle } = React;
     return {
+        ...actual,
         VideoJsPlayer: forwardRef(
             (
                 props: {
@@ -664,5 +667,58 @@ describe("SyncedVideoJsPlayer", () => {
         );
 
         expect(screen.getByText("زیرنویس نامعتبر")).toBeInTheDocument();
+    });
+
+    describe("getBufferedPercent", () => {
+        it("returns 0 when video is null or duration is 0", () => {
+            expect(getBufferedPercent(null)).toBe(0);
+            expect(
+                getBufferedPercent({
+                    duration: 0,
+                    currentTime: 0,
+                    buffered: { length: 0, start: () => 0, end: () => 0 },
+                }),
+            ).toBe(0);
+        });
+
+        it("calculates percentage accurately from active buffer range", () => {
+            const mockVideo = {
+                duration: 100,
+                currentTime: 25,
+                buffered: {
+                    length: 1,
+                    start: (i: number) => (i === 0 ? 0 : 0),
+                    end: (i: number) => (i === 0 ? 45 : 0),
+                },
+            };
+            expect(getBufferedPercent(mockVideo)).toBe(45);
+        });
+
+        it("selects the range containing current time when multiple chunks exist", () => {
+            const mockVideo = {
+                duration: 200,
+                currentTime: 50,
+                buffered: {
+                    length: 2,
+                    start: (i: number) => (i === 0 ? 0 : 40),
+                    end: (i: number) => (i === 0 ? 20 : 120),
+                },
+            };
+            // Range 1 (40..120) contains currentTime 50, so end is 120 => 120/200 = 60%
+            expect(getBufferedPercent(mockVideo)).toBe(60);
+        });
+
+        it("clamps percentage between 0 and 100", () => {
+            const mockVideo = {
+                duration: 100,
+                currentTime: 0,
+                buffered: {
+                    length: 1,
+                    start: () => 0,
+                    end: () => 150,
+                },
+            };
+            expect(getBufferedPercent(mockVideo)).toBe(100);
+        });
     });
 });
