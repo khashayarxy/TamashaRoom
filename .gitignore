@@ -85,6 +85,10 @@ Homestead.yaml
 playwright.chrome.config.ts
 playwright.edge.config.ts
 
+# Machine-local test video fixtures and local streaming helpers. Never committed.
+/tests/fixtures/local-video-paths.md
+/tests/fixtures/media-server.cjs
+
 # ─── Debug Artifacts ──────────────────────────────────────────────────────
 *-probe.cjs
 debug-*.cjs
