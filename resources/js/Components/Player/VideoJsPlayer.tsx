@@ -19,6 +19,9 @@ import {
     CaptionsButton,
     AirPlayButton,
     FullscreenButton,
+    VolumeIndicator,
+    StatusIndicator,
+    SeekIndicator,
     Hotkey,
     Gesture,
     StatusAnnouncer,
@@ -598,6 +601,10 @@ function MediaFullscreenControl() {
     );
 }
 
+const TOP_STATUS_ACTIONS = ["toggleSubtitles", "toggleFullscreen"] as const;
+
+const CENTER_STATUS_ACTIONS = ["togglePaused"] as const;
+
 interface TamashaVideoSkinProps {
     children?: React.ReactNode;
     className?: string;
@@ -760,6 +767,39 @@ function TamashaVideoSkin({
                 region="right"
             />
             <StatusAnnouncer className="media-sr-only" />
+            <div className="media-input-feedback">
+                <VolumeIndicator.Root className="media-surface media-input-feedback-island media-input-feedback-island--volume">
+                    <VolumeIndicator.Fill className="media-input-feedback-island__content">
+                        <VolumeOffIcon className="media-icon media-icon--volume-off" />
+                        <VolumeLowIcon className="media-icon media-icon--volume-low" />
+                        <VolumeHighIcon className="media-icon media-icon--volume-high" />
+                        <VolumeIndicator.Value className="media-input-feedback-island__value" />
+                    </VolumeIndicator.Fill>
+                </VolumeIndicator.Root>
+                <StatusIndicator.Root
+                    actions={TOP_STATUS_ACTIONS}
+                    className="media-surface media-input-feedback-island media-input-feedback-island--status"
+                >
+                    <div className="media-input-feedback-island__content">
+                        <CaptionsOnIcon className="media-icon media-icon--captions-on" />
+                        <CaptionsOffIcon className="media-icon media-icon--captions-off" />
+                        <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
+                        <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
+                        <StatusIndicator.Value className="media-input-feedback-island__value" />
+                    </div>
+                </StatusIndicator.Root>
+                <SeekIndicator.Root className="media-input-feedback-bubble">
+                    <ChevronIcon className="media-icon media-icon--seek" />
+                    <SeekIndicator.Value className="media-time" />
+                </SeekIndicator.Root>
+                <StatusIndicator.Root
+                    actions={CENTER_STATUS_ACTIONS}
+                    className="media-input-feedback-bubble"
+                >
+                    <PlayIcon className="media-icon media-icon--play" />
+                    <PauseIcon className="media-icon media-icon--pause" />
+                </StatusIndicator.Root>
+            </div>
         </Container>
     );
 }
