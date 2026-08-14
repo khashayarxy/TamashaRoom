@@ -30,6 +30,7 @@ export default async function globalSetup() {
         cwd: PROJECT_ROOT,
         env: process.env,
         stdio: "inherit",
+        shell: true,
     });
 
     worker.on("exit", (code) => {

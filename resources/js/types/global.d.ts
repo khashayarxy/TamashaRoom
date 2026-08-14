@@ -6,6 +6,8 @@ import { PageProps as AppPageProps } from "./";
 declare global {
     interface Window {
         axios: AxiosInstance;
+        __TAMASHA_MOUNTED__?: boolean;
+        __tamashaClearFallbackTimer?: () => void;
     }
 
     var route: typeof ziggyRoute;

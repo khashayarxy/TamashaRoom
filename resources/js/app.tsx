@@ -38,6 +38,12 @@ createInertiaApp({
                 <Toaster />
             </ErrorBoundary>,
         );
+
+        window.__TAMASHA_MOUNTED__ = true;
+        document.documentElement.setAttribute("data-app-mounted", "true");
+        if (typeof window.__tamashaClearFallbackTimer === "function") {
+            window.__tamashaClearFallbackTimer();
+        }
     },
     progress: false,
 });

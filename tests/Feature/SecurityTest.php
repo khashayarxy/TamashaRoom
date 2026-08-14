@@ -101,6 +101,37 @@ class SecurityTest extends TestCase
     }
 
     #[Test]
+    public function app_blade_renders_fallback_ui_and_carries_csp_nonce(): void
+    {
+        $response = $this->actingAs($this->owner)->get('/dashboard');
+        $response->assertOk();
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+        preg_match("/'nonce-([^']+)'/", $csp, $matches);
+        $this->assertNotEmpty($matches);
+        $nonce = $matches[1];
+        $escaped = preg_quote($nonce, '/');
+
+        $html = (string) $response->getContent();
+
+        // Must include the nonced fallback inline script
+        $this->assertMatchesRegularExpression(
+            '/<script[^>]*nonce="'.$escaped.'"[^>]*>[\s\S]*__tamashaClearFallbackTimer/',
+            $html,
+        );
+
+        // Must include noscript fallback
+        $this->assertStringContainsString('<noscript>', $html);
+        $this->assertStringContainsString('جاوااسکریپت غیرفعال است', $html);
+
+        // Must include plain HTML fallback element with tracking protection guidance
+        $this->assertStringContainsString('id="tamasha-fallback"', $html);
+        $this->assertStringContainsString('خطا در بارگذاری برنامه', $html);
+        $this->assertStringContainsString('Tracking Protection', $html);
+        $this->assertStringContainsString('تلاش مجدد', $html);
+    }
+
+    #[Test]
     public function login_page_has_security_headers(): void
     {
         $response = $this->get('/login');

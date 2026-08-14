@@ -2,6 +2,16 @@
 
 ## Completed
 
+### Graceful Fallback for Strict Browser Privacy / Tracking Protection (2026-08-14)
+
+**Batch scope:** added a pure HTML, framework-independent detection mechanism and Persian fallback UI for users with strict browser privacy / tracking protection settings (e.g. Firefox Strict Enhanced Tracking Protection, script blockers) where the React/Inertia JavaScript bundle is blocked from loading or executing.
+
+- [x] **Inline Detection Script & Mount Markers (`app.blade.php`, `app.tsx`, `global.d.ts`).** Added a nonced inline `<script>` in `<head>` that starts a 4-second timer. Added `window.__TAMASHA_MOUNTED__ = true`, `data-app-mounted="true"`, and timer cleanup `__tamashaClearFallbackTimer()` in `app.tsx` upon successful React root mount.
+- [x] **Pure HTML / Inline Styled Fallback UI (`app.blade.php`).** Added `#tamasha-fallback` and `<noscript>` blocks styled with standalone inline styles and clean dark-mode Persian typography, providing clear guidance on lowering tracking protection levels, adding domain exceptions/allowlists, and a reload button ("تلاش مجدد").
+- [x] **Security & Strict Nonce Alignment (`SecurityTest.php`).** Verified inline script carries the CSP nonce under strict non-local environments; added `app_blade_renders_fallback_ui_and_carries_csp_nonce` test in `SecurityTest.php`.
+- [x] **E2E Simulation Test (`fallback-loading.spec.ts`).** Added Playwright E2E tests simulating script blockage (`page.route('**/*.js', abort)`) to verify fallback displays with instructions and hides when scripts load normally.
+- [x] **Verification.** `php artisan test` **279/279 passed** (2,105 assertions); `npm run test` **239/239 passed**; `npm run test:a11y:contrast` **8/8 passed**; `npx playwright test fallback-loading.spec.ts` **2/2 passed**; `npm run check:docs` clean.
+
 ### Room Top Bar & Member List UI Layout Polish (2026-08-14)
 
 **Batch scope:** streamlined room header actions above the video player by removing duplicate standalone invite code/link copy buttons, relocated the "تنظیمات اتاق" (Room Settings) trigger from the Members sidebar tab into the room top bar for direct access, and cleaned up MemberList component layout.
