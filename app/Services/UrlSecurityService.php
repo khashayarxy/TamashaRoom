@@ -28,6 +28,14 @@ class UrlSecurityService
 
     public function validateVideoUrl(string $url): ?string
     {
+        // Only the local environment skips SSRF validation, so dev/E2E runs can
+        // use loopback fixture media servers. The `testing` environment MUST
+        // keep SSRF enforced — UrlSecurityServiceTest, PlaybackSyncTest, and
+        // SecurityTest assert rejection of private/loopback URLs.
+        if (app()->environment('local')) {
+            return null;
+        }
+
         if (! filter_var($url, FILTER_VALIDATE_URL)) {
             return 'Invalid video URL format.';
         }
