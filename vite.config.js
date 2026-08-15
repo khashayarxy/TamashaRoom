@@ -7,6 +7,11 @@ export default defineConfig({
     server: {
         host: '127.0.0.1',
         port: 5173,
+        // Herd TLS runs on the site host; the browser lowercases URL hosts when
+        // sending the Host header, but the laravel-vite-plugin derives the HMR
+        // host from the (capitalized) project folder name. Vite's WebSocket
+        // Host check is case-sensitive, so allow the lowercase form explicitly.
+        allowedHosts: ['tamasharoom.test'],
     },
     plugins: [
         laravel({
