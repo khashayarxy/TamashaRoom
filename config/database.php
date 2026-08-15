@@ -38,9 +38,15 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+            // SQLite serializes writers. The app's watch-party load (playback
+            // PATCHes, proxy/throttle cache increments, presence heartbeats)
+            // contends for the single write lock; Windows in particular can
+            // stall it for seconds at a time (WAL checkpoint, AV scanning of
+            // -wal/-shm). A generous busy_timeout turns those stalls into
+            // brief waits instead of "database is locked" 500s.
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 30000),
+            'journal_mode' => env('DB_JOURNAL_MODE', 'wal'),
+            'synchronous' => env('DB_SYNCHRONOUS', 'NORMAL'),
             'transaction_mode' => 'DEFERRED',
         ],
 
