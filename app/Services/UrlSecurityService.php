@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class UrlSecurityService
@@ -64,6 +65,38 @@ class UrlSecurityService
         }
 
         return null;
+    }
+
+    /**
+     * Safely fetch a small Range of initial bytes from the video URL for best-effort inspection.
+     * Performs full SSRF validation before issuing the HTTP request.
+     */
+    public function fetchRangeBytes(string $url, int $length = 65536, int $timeoutSeconds = 3): ?string
+    {
+        $error = $this->validateVideoUrl($url);
+        if ($error !== null) {
+            return null;
+        }
+
+        try {
+            $end = max(0, $length - 1);
+            $response = Http::timeout($timeoutSeconds)
+                ->withHeaders([
+                    'Range' => "bytes=0-{$end}",
+                    'User-Agent' => 'TamashaRoom/1.0',
+                ])
+                ->get($url);
+
+            if ($response->successful() || $response->status() === 206) {
+                return $response->body();
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            Log::info("UrlSecurityService: fetchRangeBytes failed for {$url}: {$e->getMessage()}");
+
+            return null;
+        }
     }
 
     private function isHostnameBlocked(string $host): bool

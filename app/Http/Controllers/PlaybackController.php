@@ -9,6 +9,7 @@ use App\Enums\PlaybackMode;
 use App\Events\PlaybackStateChanged;
 use App\Http\Requests\UpdatePlaybackRequest;
 use App\Models\Room;
+use App\Services\MediaCodecDetector;
 use App\Services\UrlSecurityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class PlaybackController extends Controller
     public function __construct(
         private readonly UrlSecurityService $urlSecurity,
         private readonly DetermineVideoPlaybackModeAction $determineMode,
+        private readonly MediaCodecDetector $codecDetector = new MediaCodecDetector,
     ) {}
 
     public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse
@@ -81,6 +83,14 @@ class PlaybackController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => $error,
+            ], 422);
+        }
+
+        $codecResult = $this->codecDetector->detectFromUrl($videoUrl);
+        if ($codecResult->isConfidentlyHEVC()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'این ویدیو با کدک HEVC/x265 فشرده‌سازی شده که فعلاً پشتیبانی نمی‌شود. لطفاً از فایل‌های MP4 یا MKV با کدک H.264 استفاده کنید.',
             ], 422);
         }
 
