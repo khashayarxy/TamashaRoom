@@ -14,7 +14,11 @@ export { type PlaybackState } from "@/lib/types/playback";
 
 const POLL_ACTIVE = 3000;
 const POLL_IDLE = 10000;
-const DEBOUNCE_MS = 1000;
+// Position-only syncs are debounced to 3s: every PATCH does two SQLite writes
+// (throttle cache increment + rooms update), and at 1s the host's cadence sat
+// exactly at throttle:playback's perMinute(60) limit. 3s cuts write
+// contention ~3x while guests still extrapolate between updates.
+const DEBOUNCE_MS = 3000;
 
 interface SyncOptions {
     roomId: number;

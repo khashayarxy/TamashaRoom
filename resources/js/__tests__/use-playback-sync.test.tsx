@@ -97,7 +97,7 @@ describe("usePlaybackSync", () => {
         expect(mockPatch).not.toHaveBeenCalled();
 
         await waitFor(() => expect(mockPatch).toHaveBeenCalled(), {
-            timeout: 3000,
+            timeout: 4000,
         });
 
         expect(mockPatch).toHaveBeenCalledWith(
@@ -125,7 +125,7 @@ describe("usePlaybackSync", () => {
         });
 
         await waitFor(() => expect(mockPatch).toHaveBeenCalled(), {
-            timeout: 3000,
+            timeout: 4000,
         });
 
         // A position-only sync must never carry the host's (possibly stale)
