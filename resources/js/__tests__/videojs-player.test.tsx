@@ -131,6 +131,7 @@ describe("SyncedVideoJsPlayer", () => {
     afterEach(() => {
         testState.playMock.mockReset();
         testState.pauseMock.mockReset();
+        vi.useRealTimers();
     });
 
     it("shows a sync error banner above the player", () => {
@@ -186,6 +187,75 @@ describe("SyncedVideoJsPlayer", () => {
         expect(screen.getByTestId("player-video")).toHaveAttribute(
             "data-src",
             "https://example.com/video.mp4",
+        );
+    });
+
+    it("retries the proxy after a cooldown when the proxy failure is transient", () => {
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ playbackMode: "proxy" }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        vi.useFakeTimers();
+        render(<SyncedVideoJsPlayer roomId={1} />);
+        expect(screen.getByTestId("player-video")).toHaveAttribute(
+            "data-src",
+            "/proxy/video/1?v=1",
+        );
+
+        act(() => {
+            testState.props?.onError?.();
+        });
+        // A transient proxy error drops to the direct URL immediately…
+        expect(screen.getByTestId("player-video")).toHaveAttribute(
+            "data-src",
+            "https://example.com/video.mp4",
+        );
+
+        // …but the proxy is re-armed and retried once the cooldown elapses,
+        // without the video having to be re-set.
+        act(() => {
+            vi.advanceTimersByTime(10_000);
+        });
+        expect(screen.getByTestId("player-video")).toHaveAttribute(
+            "data-src",
+            "/proxy/video/1?v=1",
+        );
+    });
+
+    it("does not extend the cooldown when the direct fallback also errors", () => {
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ playbackMode: "proxy" }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        vi.useFakeTimers();
+        render(<SyncedVideoJsPlayer roomId={1} />);
+
+        act(() => {
+            testState.props?.onError?.();
+        });
+        // Repeated error events from the CORS-blocked direct URL…
+        act(() => {
+            testState.props?.onError?.();
+            testState.props?.onError?.();
+            vi.advanceTimersByTime(5_000);
+        });
+        // …do not delay the recovery past the original cooldown.
+        expect(screen.getByTestId("player-video")).toHaveAttribute(
+            "data-src",
+            "https://example.com/video.mp4",
+        );
+        act(() => {
+            vi.advanceTimersByTime(5_000);
+        });
+        expect(screen.getByTestId("player-video")).toHaveAttribute(
+            "data-src",
+            "/proxy/video/1?v=1",
         );
     });
 
@@ -721,24 +791,40 @@ describe("SyncedVideoJsPlayer", () => {
             expect(getBufferedPercent(mockVideo)).toBe(100);
         });
 
-        it("appends stateVersion to proxyUrl when stateVersion changes", () => {
-            const mockStateWithVersion: PlaybackState = makeState({
-                stateVersion: 3,
-                videoUrl: "https://example.com/video-v3.mp4",
-                playbackMode: "proxy",
-            });
+        it("appends incrementing version to proxyUrl when videoUrl changes", () => {
             vi.mocked(usePlaybackSync).mockReturnValue({
-                state: mockStateWithVersion,
+                state: makeState({ videoUrl: "https://example.com/video1.mp4", playbackMode: "proxy" }),
                 sync: mockSync,
                 syncImmediate: mockSyncImmediate,
                 loading: false,
                 error: null,
             });
+            const { rerender } = render(<SyncedVideoJsPlayer roomId={100} canControl={true} />);
+            
+            // Initial render with video1 uses v=1
+            expect(testState.props?.src).toBe("/proxy/video/100?v=1");
+            
+            // Update with SAME video URL -> should still be v=1
+            vi.mocked(usePlaybackSync).mockReturnValue({
+                state: makeState({ videoUrl: "https://example.com/video1.mp4", playbackMode: "proxy" }),
+                sync: mockSync,
+                syncImmediate: mockSyncImmediate,
+                loading: false,
+                error: null,
+            });
+            rerender(<SyncedVideoJsPlayer roomId={100} canControl={true} />);
+            expect(testState.props?.src).toBe("/proxy/video/100?v=1");
 
-            render(<SyncedVideoJsPlayer roomId={100} canControl={true} />);
-
-            expect(testState.props?.src).toBe("/proxy/video/100?v=3");
-            expect(testState.props?.videoUrl).toBe("https://example.com/video-v3.mp4");
+            // Update with NEW video URL -> should increment to v=2
+            vi.mocked(usePlaybackSync).mockReturnValue({
+                state: makeState({ videoUrl: "https://example.com/video2.mp4", playbackMode: "proxy" }),
+                sync: mockSync,
+                syncImmediate: mockSyncImmediate,
+                loading: false,
+                error: null,
+            });
+            rerender(<SyncedVideoJsPlayer roomId={100} canControl={true} />);
+            expect(testState.props?.src).toBe("/proxy/video/100?v=2");
         });
     });
 });

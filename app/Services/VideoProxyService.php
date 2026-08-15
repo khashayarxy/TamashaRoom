@@ -189,7 +189,17 @@ class VideoProxyService
 
     private function extractHeaderValue(array $headers, string $name): ?string
     {
-        $value = $headers[$name] ?? null;
+        $nameLower = strtolower($name);
+        $value = null;
+
+        // PHP's get_headers returns an associative array where keys can be the original case.
+        // We need to iterate to find the case-insensitive match.
+        foreach ($headers as $key => $val) {
+            if (is_string($key) && strtolower($key) === $nameLower) {
+                $value = $val;
+                break;
+            }
+        }
 
         if (is_array($value)) {
             $value = end($value);

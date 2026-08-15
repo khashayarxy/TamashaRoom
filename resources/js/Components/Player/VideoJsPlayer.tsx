@@ -71,6 +71,21 @@ import {
 } from "react";
 
 // Exclude playbackRateFeature and remotePlaybackFeature so Video.js never registers or renders playback speed or cast options
+
+function CustomErrorDescription() {
+    const error = usePlayer((s) => s.error);
+    if (!error) return null;
+
+    const code = (error as { code?: number }).code;
+    let message = "خطای ناشناخته در پخش ویدیو.";
+    if (code === 1) message = "پخش ویدیو لغو شد.";
+    if (code === 2) message = "خطای شبکه. لطفاً اتصال اینترنت خود را بررسی کنید.";
+    if (code === 3) message = "خطا در رمزگشایی ویدیو.";
+    if (code === 4) message = "فرمت این ویدیو پشتیبانی نمی‌شود یا لینک نامعتبر است.";
+
+    return <p className="media-error__description text-center mt-2">{message}</p>;
+}
+
 const customVideoFeatures = videoFeatures.filter(
     (f) => f !== playbackRateFeature && f !== remotePlaybackFeature,
 );
@@ -698,7 +713,7 @@ function TamashaBufferingIndicator({
                 <div
                     {...props}
                     className={cn(
-                        "media-buffering-indicator flex flex-col items-center justify-center gap-3.5 select-none pointer-events-none",
+                        "media-buffering-indicator absolute inset-0 z-10 flex flex-col items-center justify-center gap-3.5 select-none pointer-events-none",
                         props.className,
                     )}
                 >
@@ -751,8 +766,8 @@ function TamashaVideoSkin({
                 <AlertDialog.Popup className="media-error text-center">
                     <div className="media-error__dialog media-surface text-center">
                         <div className="media-error__content text-center">
-                            <ErrorDialog.Title className="media-error__title text-center" />
-                            <ErrorDialog.Description className="media-error__description text-center" />
+                            <h3 className="media-error__title text-center text-lg font-bold mb-2">خطای پخش ویدیو</h3>
+                            <CustomErrorDescription />
                         </div>
                         <div className="media-error__actions flex justify-center">
                             <ErrorDialog.Close className="media-button media-button--primary" />

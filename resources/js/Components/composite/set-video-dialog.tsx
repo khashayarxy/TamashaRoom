@@ -27,11 +27,13 @@ export function SetVideoDialog({
     initialUrl = "",
 }: SetVideoDialogProps) {
     const [videoUrl, setVideoUrl] = useState(initialUrl ?? "");
+    const [error, setError] = useState<string | null>(null);
     const prevOpenRef = useRef(false);
 
     useEffect(() => {
         if (open && !prevOpenRef.current) {
             setVideoUrl(initialUrl ?? "");
+            setError(null);
         }
         prevOpenRef.current = open;
     }, [open, initialUrl]);
@@ -39,7 +41,12 @@ export function SetVideoDialog({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!videoUrl.trim() || loading) return;
-        await onSetVideo(videoUrl.trim());
+        setError(null);
+        try {
+            await onSetVideo(videoUrl.trim());
+        } catch (err: unknown) {
+            setError(err instanceof Error && err.message ? err.message : "خطایی رخ داد.");
+        }
     };
 
     return (
@@ -57,6 +64,11 @@ export function SetVideoDialog({
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+                    {error && (
+                        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" dir="rtl">
+                            {error}
+                        </div>
+                    )}
                     <Input
                         label="آدرس ویدیو"
                         placeholder="https://example.com/video.mp4"

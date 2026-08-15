@@ -157,8 +157,12 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             setShowSetVideo(false);
             setVideoRefreshKey((key) => key + 1);
             toast.success("ویدیو تنظیم شد.");
-        } catch {
-            toast.error("تنظیم ویدیو ناموفق بود. لطفاً دوباره تلاش کنید.");
+        } catch (error: unknown) {
+            const message =
+                (error as { response?: { data?: { message?: string } } }).response
+                    ?.data?.message || "تنظیم ویدیو ناموفق بود. لطفاً دوباره تلاش کنید.";
+            toast.error(message);
+            throw new Error(message);
         } finally {
             setSettingVideo(false);
         }

@@ -12,6 +12,11 @@ import { Play, RotateCcw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DRIFT_THRESHOLD = 2;
+// After a proxy failure the player falls back to the direct URL, but only
+// briefly: once this cooldown elapses the proxy is re-armed automatically so
+// a transient failure (e.g. a throttle 500 from a database lock) recovers
+// without anyone re-setting the video.
+const PROXY_RETRY_COOLDOWN_MS = 10_000;
 
 export interface SyncedVideoJsPlayerSubtitles {
     cues: SubtitleCue[];
@@ -68,23 +73,55 @@ export function SyncedVideoJsPlayer({
     const [ended, setEnded] = useState(false);
     const [autoplayBlocked, setAutoplayBlocked] = useState(false);
     const [proxyFailed, setProxyFailed] = useState(false);
+    // When the last proxy error happened, so the cooldown effect can compute
+    // the exact remaining wait regardless of when the effect re-runs.
+    const proxyFailedAtRef = useRef(0);
 
     useEffect(() => {
         setProxyFailed(false);
     }, [state.videoUrl]);
 
+    // Track the last known video URL to bust cache only when the URL genuinely changes,
+    // not on every stateVersion bump (which happens on play/pause/seek and causes AbortError).
+    const videoUrl = state.videoUrl ?? initialVideoUrl ?? null;
+    const [versionState, setVersionState] = useState(() => ({
+        url: videoUrl,
+        version: 1,
+    }));
+
+    // Adjusting state during render (guarded by the URL comparison) is React's
+    // documented pattern for deriving state from a changing prop; it bumps the
+    // proxy cache-bust only for a genuinely new video URL.
+    if (videoUrl !== versionState.url) {
+        setVersionState((prev) => ({ url: videoUrl, version: prev.version + 1 }));
+    }
+
     const sourceUrl: string | undefined =
         state.playbackMode === "direct" || proxyFailed
-            ? state.videoUrl || initialVideoUrl || undefined
-            : proxyUrl(roomId, state.stateVersion || undefined);
-
-    const videoUrl = state.videoUrl ?? initialVideoUrl ?? null;
+            ? videoUrl || undefined
+            : proxyUrl(roomId, versionState.version);
 
     const handleVideoError = useCallback(() => {
         if (!proxyFailed && state.videoUrl) {
+            proxyFailedAtRef.current = Date.now();
             setProxyFailed(true);
         }
     }, [proxyFailed, state.videoUrl]);
+
+    // Re-arm the proxy after the cooldown so a transient proxy failure doesn't
+    // strand the room on a CORS-blocked direct URL permanently. Error events
+    // from the direct fallback itself must NOT extend the wait — they are
+    // expected while the fallback is active.
+    useEffect(() => {
+        if (!proxyFailed) return;
+        const remaining = PROXY_RETRY_COOLDOWN_MS - (Date.now() - proxyFailedAtRef.current);
+        if (remaining <= 0) {
+            setProxyFailed(false);
+            return;
+        }
+        const timer = window.setTimeout(() => setProxyFailed(false), remaining);
+        return () => window.clearTimeout(timer);
+    }, [proxyFailed]);
 
     // Apply the authoritative room state to this client. The host is
     // authoritative for its own playback — it never gets yanked backwards on

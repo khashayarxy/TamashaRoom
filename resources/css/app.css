@@ -187,5 +187,29 @@ video::-webkit-media-controls-enclosure {
   overflow: hidden;
 }
 
+/* Default: hide all icons in the play button */
+.media-button--play .media-icon {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* State 1: Ended -> Show Restart */
+.media-button--play[data-ended] .media-icon--restart {
+  display: block !important;
+  opacity: 1 !important;
+}
+
+/* State 2: Paused (and not ended) -> Show Play */
+.media-button--play[data-paused]:not([data-ended]) .media-icon--play {
+  display: block !important;
+  opacity: 1 !important;
+}
+
+/* State 3: Playing/Buffering (not paused, not ended) -> Show Pause */
+.media-button--play:not([data-paused]):not([data-ended]) .media-icon--pause {
+  display: block !important;
+  opacity: 1 !important;
+}
+
 
 
