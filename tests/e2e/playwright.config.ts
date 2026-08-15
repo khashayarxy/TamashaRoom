@@ -17,6 +17,7 @@ export default defineConfig({
     workers: 1,
     reporter: "list",
     use: {
+        channel: 'chrome',
         baseURL,
         headless: true,
         // page.request runs on Node's TLS stack, which does not trust Herd's

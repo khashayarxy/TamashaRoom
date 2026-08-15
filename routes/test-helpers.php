@@ -52,15 +52,15 @@ Route::middleware('web')->group(function () {
             'last_seen_at' => now(),
         ]);
 
-        if ($request->boolean('with_video')) {
+        if ($request->boolean('with_video') || $request->has('video_url')) {
             $room->update([
-                'video_url' => 'https://www.example.com/video.mp4',
+                'video_url' => $request->input('video_url', 'https://www.example.com/video.mp4'),
                 'is_playing' => true,
                 'position_seconds' => 0,
                 'duration_seconds' => 120,
                 'playback_rate' => 1,
                 'state_version' => 1,
-                'playback_mode' => 'direct',
+                'playback_mode' => 'proxy', // Since they are external E: drive URLs over proxy
             ]);
         }
 

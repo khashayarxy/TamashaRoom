@@ -89,6 +89,10 @@ playwright.edge.config.ts
 /tests/fixtures/local-video-paths.md
 /tests/fixtures/media-server.cjs
 
+# Machine-local media fixtures for the scoped playback tests. Never committed —
+# contains absolute E:\ paths and copyrighted filenames; git must not walk it.
+/test-media
+
 # ─── Debug Artifacts ──────────────────────────────────────────────────────
 *-probe.cjs
 debug-*.cjs
