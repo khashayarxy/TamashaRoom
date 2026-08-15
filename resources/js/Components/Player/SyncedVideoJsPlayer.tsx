@@ -93,7 +93,10 @@ export function SyncedVideoJsPlayer({
     // documented pattern for deriving state from a changing prop; it bumps the
     // proxy cache-bust only for a genuinely new video URL.
     if (videoUrl !== versionState.url) {
-        setVersionState((prev) => ({ url: videoUrl, version: prev.version + 1 }));
+        setVersionState((prev) => ({
+            url: videoUrl,
+            version: prev.version + 1,
+        }));
     }
 
     const sourceUrl: string | undefined =
@@ -114,7 +117,8 @@ export function SyncedVideoJsPlayer({
     // expected while the fallback is active.
     useEffect(() => {
         if (!proxyFailed) return;
-        const remaining = PROXY_RETRY_COOLDOWN_MS - (Date.now() - proxyFailedAtRef.current);
+        const remaining =
+            PROXY_RETRY_COOLDOWN_MS - (Date.now() - proxyFailedAtRef.current);
         if (remaining <= 0) {
             setProxyFailed(false);
             return;

@@ -793,20 +793,28 @@ describe("SyncedVideoJsPlayer", () => {
 
         it("appends incrementing version to proxyUrl when videoUrl changes", () => {
             vi.mocked(usePlaybackSync).mockReturnValue({
-                state: makeState({ videoUrl: "https://example.com/video1.mp4", playbackMode: "proxy" }),
+                state: makeState({
+                    videoUrl: "https://example.com/video1.mp4",
+                    playbackMode: "proxy",
+                }),
                 sync: mockSync,
                 syncImmediate: mockSyncImmediate,
                 loading: false,
                 error: null,
             });
-            const { rerender } = render(<SyncedVideoJsPlayer roomId={100} canControl={true} />);
-            
+            const { rerender } = render(
+                <SyncedVideoJsPlayer roomId={100} canControl={true} />,
+            );
+
             // Initial render with video1 uses v=1
             expect(testState.props?.src).toBe("/proxy/video/100?v=1");
-            
+
             // Update with SAME video URL -> should still be v=1
             vi.mocked(usePlaybackSync).mockReturnValue({
-                state: makeState({ videoUrl: "https://example.com/video1.mp4", playbackMode: "proxy" }),
+                state: makeState({
+                    videoUrl: "https://example.com/video1.mp4",
+                    playbackMode: "proxy",
+                }),
                 sync: mockSync,
                 syncImmediate: mockSyncImmediate,
                 loading: false,
@@ -817,7 +825,10 @@ describe("SyncedVideoJsPlayer", () => {
 
             // Update with NEW video URL -> should increment to v=2
             vi.mocked(usePlaybackSync).mockReturnValue({
-                state: makeState({ videoUrl: "https://example.com/video2.mp4", playbackMode: "proxy" }),
+                state: makeState({
+                    videoUrl: "https://example.com/video2.mp4",
+                    playbackMode: "proxy",
+                }),
                 sync: mockSync,
                 syncImmediate: mockSyncImmediate,
                 loading: false,

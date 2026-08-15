@@ -45,7 +45,11 @@ export function SetVideoDialog({
         try {
             await onSetVideo(videoUrl.trim());
         } catch (err: unknown) {
-            setError(err instanceof Error && err.message ? err.message : "خطایی رخ داد.");
+            setError(
+                err instanceof Error && err.message
+                    ? err.message
+                    : "خطایی رخ داد.",
+            );
         }
     };
 
@@ -65,7 +69,10 @@ export function SetVideoDialog({
 
                 <form onSubmit={handleSubmit} className="space-y-4 mt-2">
                     {error && (
-                        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" dir="rtl">
+                        <div
+                            className="rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+                            dir="rtl"
+                        >
                             {error}
                         </div>
                     )}

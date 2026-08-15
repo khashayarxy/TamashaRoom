@@ -79,11 +79,15 @@ function CustomErrorDescription() {
     const code = (error as { code?: number }).code;
     let message = "خطای ناشناخته در پخش ویدیو.";
     if (code === 1) message = "پخش ویدیو لغو شد.";
-    if (code === 2) message = "خطای شبکه. لطفاً اتصال اینترنت خود را بررسی کنید.";
+    if (code === 2)
+        message = "خطای شبکه. لطفاً اتصال اینترنت خود را بررسی کنید.";
     if (code === 3) message = "خطا در رمزگشایی ویدیو.";
-    if (code === 4) message = "فرمت این ویدیو پشتیبانی نمی‌شود یا لینک نامعتبر است.";
+    if (code === 4)
+        message = "فرمت این ویدیو پشتیبانی نمی‌شود یا لینک نامعتبر است.";
 
-    return <p className="media-error__description text-center mt-2">{message}</p>;
+    return (
+        <p className="media-error__description text-center mt-2">{message}</p>
+    );
 }
 
 const customVideoFeatures = videoFeatures.filter(
@@ -766,7 +770,9 @@ function TamashaVideoSkin({
                 <AlertDialog.Popup className="media-error text-center">
                     <div className="media-error__dialog media-surface text-center">
                         <div className="media-error__content text-center">
-                            <h3 className="media-error__title text-center text-lg font-bold mb-2">خطای پخش ویدیو</h3>
+                            <h3 className="media-error__title text-center text-lg font-bold mb-2">
+                                خطای پخش ویدیو
+                            </h3>
                             <CustomErrorDescription />
                         </div>
                         <div className="media-error__actions flex justify-center">

@@ -159,8 +159,9 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             toast.success("ویدیو تنظیم شد.");
         } catch (error: unknown) {
             const message =
-                (error as { response?: { data?: { message?: string } } }).response
-                    ?.data?.message || "تنظیم ویدیو ناموفق بود. لطفاً دوباره تلاش کنید.";
+                (error as { response?: { data?: { message?: string } } })
+                    .response?.data?.message ||
+                "تنظیم ویدیو ناموفق بود. لطفاً دوباره تلاش کنید.";
             toast.error(message);
             throw new Error(message);
         } finally {

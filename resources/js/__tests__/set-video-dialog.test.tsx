@@ -23,7 +23,9 @@ describe("SetVideoDialog", () => {
         const submitBtn = screen.getByRole("button", { name: "تنظیم ویدیو" });
         fireEvent.click(submitBtn);
 
-        expect(handleSetVideo).toHaveBeenCalledWith("https://example.com/movie.mp4");
+        expect(handleSetVideo).toHaveBeenCalledWith(
+            "https://example.com/movie.mp4",
+        );
     });
 
     it("selects input text on focus and double click", async () => {
@@ -67,7 +69,9 @@ describe("SetVideoDialog", () => {
         );
 
         const input = screen.getByLabelText("آدرس ویدیو") as HTMLInputElement;
-        fireEvent.change(input, { target: { value: "https://example.com/typed-url.mp4" } });
+        fireEvent.change(input, {
+            target: { value: "https://example.com/typed-url.mp4" },
+        });
         expect(input.value).toBe("https://example.com/typed-url.mp4");
 
         // Re-render with new initialUrl while open
