@@ -1,4 +1,12 @@
-{
+{"mcp": {"laravel-boost": {
+    "type": "local",
+    "enabled": true,
+    "command": [
+        "php",
+        "artisan",
+        "boost:mcp"
+    ]
+}},
   "$schema": "https://opencode.ai/config.json",
 
   // Provider setup:
