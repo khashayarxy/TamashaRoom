@@ -1,0 +1,14 @@
+# Laravel Boost ships a bundled laravel-best-practices skill doc that uses fake
+# placeholder secrets (e.g. STRIPE_SECRET=sk_live_abc123, wJalrXUtnFEMI...) as
+# counter-examples of what NOT to commit. These are documentation, not real
+# credentials. The allowlist is AND-scoped: a finding is suppressed only when it
+# is in this exact file AND its secret value matches one of the two documented
+# placeholders. All default rules remain fully enabled.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Laravel Boost bundled laravel-best-practices docs counter-example (fake placeholder secrets only)"
+condition = "AND"
+paths = ['^\.skills/laravel-best-practices/rules/config\.md$']
+regexes = ['sk_live_abc123', 'wJalrXUtnFEMI']
