@@ -282,9 +282,12 @@ export function RoomChat({
             >
                 <input
                     type="text"
+                    id="chat-message"
+                    name="chat-message"
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="پیام خود را بنویسید..."
+                    aria-label="پیام خود را بنویسید..."
                     className="flex-1 h-9 rounded-xl border border-input bg-transparent px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     maxLength={500}
                 />

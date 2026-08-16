@@ -152,7 +152,10 @@ export function SubtitleSettingsDialog({
                             {/* Text Size Slider */}
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="text-xs font-medium text-foreground">
+                                    <label
+                                        htmlFor="subtitle-size"
+                                        className="text-xs font-medium text-foreground"
+                                    >
                                         اندازه متن
                                     </label>
                                     <span className="text-xs text-muted-foreground font-mono">
@@ -164,6 +167,7 @@ export function SubtitleSettingsDialog({
                                         بزرگ
                                     </span>
                                     <input
+                                        id="subtitle-size"
                                         type="range"
                                         min={14}
                                         max={36}
@@ -286,7 +290,10 @@ export function SubtitleSettingsDialog({
                             {/* Background Opacity Slider */}
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="text-xs font-medium text-foreground">
+                                    <label
+                                        htmlFor="subtitle-bg-opacity"
+                                        className="text-xs font-medium text-foreground"
+                                    >
                                         شفافیت پس‌زمینه
                                     </label>
                                     <span className="text-xs text-muted-foreground font-mono">
@@ -298,6 +305,7 @@ export function SubtitleSettingsDialog({
                                         تیره
                                     </span>
                                     <input
+                                        id="subtitle-bg-opacity"
                                         type="range"
                                         min={0}
                                         max={100}
@@ -321,7 +329,10 @@ export function SubtitleSettingsDialog({
                             {/* Subtitle Offset / Timing Slider */}
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="text-xs font-medium text-foreground">
+                                    <label
+                                        htmlFor="subtitle-offset"
+                                        className="text-xs font-medium text-foreground"
+                                    >
                                         هم‌زمانی زیرنویس
                                     </label>
                                     <span className="text-xs text-muted-foreground">
@@ -342,6 +353,7 @@ export function SubtitleSettingsDialog({
                                         زودتر
                                     </span>
                                     <input
+                                        id="subtitle-offset"
                                         type="range"
                                         min={-5000}
                                         max={5000}
@@ -404,7 +416,10 @@ export function SubtitleSettingsDialog({
                             {/* Vertical Position Offset Slider */}
                             <div>
                                 <div className="flex items-center justify-between mb-1">
-                                    <label className="text-xs font-medium text-foreground">
+                                    <label
+                                        htmlFor="subtitle-voffset"
+                                        className="text-xs font-medium text-foreground"
+                                    >
                                         فاصله عمودی (ارتفاع)
                                     </label>
                                     <span className="text-xs text-muted-foreground font-mono">
@@ -416,6 +431,7 @@ export function SubtitleSettingsDialog({
                                         بالاتر
                                     </span>
                                     <input
+                                        id="subtitle-voffset"
                                         type="range"
                                         min={-25}
                                         max={75}

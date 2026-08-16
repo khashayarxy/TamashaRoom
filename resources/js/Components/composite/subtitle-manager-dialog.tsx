@@ -69,8 +69,11 @@ export function SubtitleManagerDialog({
                     <div className="py-2 shrink-0">
                         <input
                             ref={fileInputRef}
+                            id="subtitle-upload-input"
+                            name="subtitle-upload"
                             type="file"
                             accept=".srt,.vtt"
+                            aria-label="آپلود زیرنویس جدید"
                             onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) void onUploadTrack(file);
