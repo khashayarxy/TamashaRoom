@@ -32,7 +32,11 @@ import {
 } from "@videojs/react";
 import "@videojs/react/i18n/locales/fa/register";
 import { Video, videoFeatures } from "@videojs/react/video";
-import { playbackRateFeature, remotePlaybackFeature } from "@videojs/core/dom";
+import {
+    playbackRateFeature,
+    pipFeature,
+    remotePlaybackFeature,
+} from "@videojs/core/dom";
 import {
     AirPlayEnterIcon,
     AirPlayExitIcon,
@@ -70,7 +74,11 @@ import {
     useState,
 } from "react";
 
-// Exclude playbackRateFeature and remotePlaybackFeature so Video.js never registers or renders playback speed or cast options
+// Exclude playbackRateFeature, remotePlaybackFeature, and pipFeature so Video.js never
+// registers playback-speed, cast, or picture-in-picture options. The disablePictureInPicture
+// attribute alone is not enough: the pip feature still wires PiP state/capability checks into
+// media attach, which fires a Permissions-Policy violation in the console on every Play click
+// in Vivaldi. We do not use PiP anywhere, so drop the feature entirely.
 
 function CustomErrorDescription() {
     const error = usePlayer((s) => s.error);
@@ -91,7 +99,10 @@ function CustomErrorDescription() {
 }
 
 const customVideoFeatures = videoFeatures.filter(
-    (f) => f !== playbackRateFeature && f !== remotePlaybackFeature,
+    (f) =>
+        f !== playbackRateFeature &&
+        f !== remotePlaybackFeature &&
+        f !== pipFeature,
 );
 
 const Player = createPlayer({ features: customVideoFeatures });
