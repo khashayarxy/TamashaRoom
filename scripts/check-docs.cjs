@@ -24,6 +24,22 @@ const SKILLS_DIR = fs.existsSync(path.join(ROOT, ".skills"))
     : path.join(ROOT, ".opencode", "skills");
 const EXCLUDED_DOCS = new Set(["TASK.md"]);
 
+// Boost-managed skills (third-party content synced by `php artisan boost:install`)
+// are excluded from the path-reference check: their generic Laravel/Tailwind
+// examples reference files that don't exist in this project (e.g. `tailwind.config.js`,
+// `app/Rules`), and editing vendor content would diverge from upstream.
+let boostSkillDirs = new Set();
+try {
+    const boostJson = JSON.parse(
+        fs.readFileSync(path.join(ROOT, "boost.json"), "utf8"),
+    );
+    if (Array.isArray(boostJson.skills)) {
+        boostSkillDirs = new Set(boostJson.skills);
+    }
+} catch {
+    // No or malformed boost.json — treat every skill as project-owned.
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -185,6 +201,10 @@ for (const file of files) {
     const skipDocs = rel.startsWith("docs") && EXCLUDED_DOCS.has(base);
     if (skipDocs) continue;
 
+    const relPosix = rel.split(path.sep).join("/");
+    const boostMatch = /^\.skills\/([^/]+)\//.exec(relPosix);
+    const isBoostManaged = boostMatch !== null && boostSkillDirs.has(boostMatch[1]);
+
     const content = fs.readFileSync(file, "utf8");
     const lines = content.split("\n");
 
@@ -205,20 +225,22 @@ for (const file of files) {
 
         // --- Check 2: broken file-path references ---
         const backticks = [...line.matchAll(/`([^`]+)`/g)];
-        for (const m of backticks) {
-            const token = m[1];
-            if (isNonLiteralToken(token)) continue;
-            // Skip negative references ("There is no `docs/DESIGN.md`",
-            // "not a `tailwind.config.ts`").
-            if (
-                new RegExp(
-                    `(not a |no |without )\`${escapeRegExp(token.trim())}\``,
-                ).test(line)
-            ) {
-                continue;
-            }
-            if (isPathToken(token) && !resolvePath(token)) {
-                report(rel, lineNo, "path", `unresolved path reference: \`${token}\``);
+        if (!isBoostManaged) {
+            for (const m of backticks) {
+                const token = m[1];
+                if (isNonLiteralToken(token)) continue;
+                // Skip negative references ("There is no `docs/DESIGN.md`",
+                // "not a `tailwind.config.ts`").
+                if (
+                    new RegExp(
+                        `(not a |no |without )\`${escapeRegExp(token.trim())}\``,
+                    ).test(line)
+                ) {
+                    continue;
+                }
+                if (isPathToken(token) && !resolvePath(token)) {
+                    report(rel, lineNo, "path", `unresolved path reference: \`${token}\``);
+                }
             }
         }
 
