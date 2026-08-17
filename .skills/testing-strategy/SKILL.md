@@ -48,6 +48,22 @@ kicks/transfers ownership; subtitle upload and rendering. These involve
 multiple systems (auth, polling, Eloquent) and are exactly where bugs hide
 that unit tests won't catch.
 
+`playback-long-running.spec.ts` is a local-only soak test (requires
+`test-media-server.cjs` on 127.0.0.1:8081 serving `E:\Movies` fixtures; skipped
+on CI). It defaults to 2 minutes for fast iteration and overrides via
+`LONG_RUN_DURATION_MINUTES` (e.g. `$env:LONG_RUN_DURATION_MINUTES=30` for a full
+pre-release soak); its `beforeAll` fails fast in seconds with a clear message if
+the media server isn't reachable. **Keep the soak spec on the resolved base URL
+(Herd) — do NOT pin it to `127.0.0.1:8000`.** The soak spec uses the bare
+`page` fixture and inherits `baseURL` from `tests/playwright-base-url.mjs`
+(`resolveBaseUrl()`, i.e. `https://tamasharoom.test` when Herd is reachable).
+Pinning to `http://127.0.0.1:8000` fails deterministically at minute 1 with
+`net::ERR_CONTENT_LENGTH_MISMATCH` on `/proxy/video/{room}`: the PHP built-in
+dev server (`php artisan serve`) cannot sustain Content-Length-honoring
+long-duration proxy streaming, while Herd (Apache + PHP-FPM) relays it
+correctly. See `docs/TASK.md` (2026-08-17 entry) and TAM-015 in
+`docs/ai/ISSUE_REGISTER.md`.
+
 ## What Makes a Component Testable
 
 A component you can't test in under 5 minutes needs redesign, not a
