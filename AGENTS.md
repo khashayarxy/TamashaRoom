@@ -146,6 +146,13 @@ Skill definitions are tracked in git under `.skills/`. Local agent tooling disco
 | `blocker-resilience-rules` | Handling ad-blockers, tracking protection, or client-blocked scripts, CDNs, embeds, or WebSockets |
 | `skill-maintenance` | Adding, editing, merging, or removing a skill; updating the AGENTS.md skill table |
 
+**Intentionally excluded from the table:** the five Boost-managed skills —
+`echo-development`, `inertia-react-development`, `infer-conventions`,
+`laravel-best-practices`, `tailwindcss-development` — are third-party guidance
+synced by `php artisan boost:update` (see `boost.json` `skills[]`) and skipped
+by `npm run check:docs`. They are regenerated, not hand-edited, and where they
+conflict with a project skill above, the project skill wins.
+
 ## Current Status
 
 See `docs/TASK.md` for the itemized list and **canonical test counts** (do not
