@@ -1,103 +1,138 @@
 import { test, expect, type Page } from "@playwright/test";
 
 async function getXsrfToken(page: Page): Promise<string | undefined> {
-  const cookies = await page.context().cookies();
-  return cookies.find((c) => c.name === "XSRF-TOKEN")?.value;
+    const cookies = await page.context().cookies();
+    return cookies.find((c) => c.name === "XSRF-TOKEN")?.value;
+}
+
+/**
+ * See tap-to-play.spec.ts: `php artisan serve` is a single PHP process, and
+ * the player's initial proxy URL for a `local_video=1` (direct-mode) room
+ * self-requests the same server and deadlocks it. Fail the proxy URL fast so
+ * the player falls back to the direct URL instead of stalling the server.
+ */
+async function installProxyFallbackMock(page: Page): Promise<void> {
+    await page.route(/\/proxy\/video\/\d+/, async (route) => {
+        await route.fulfill({
+            status: 502,
+            contentType: "video/mp4",
+            body: "",
+        });
+    });
 }
 
 test.describe("Room creation and joining", () => {
-  test("Host can create a room and see the room page", async ({ page }) => {
-    const resp = await page.request.post("/__test/setup-verified-room");
-    expect(resp.ok()).toBeTruthy();
-    const { room_url } = await resp.json();
+    test("Host can create a room and see the room page", async ({ page }) => {
+        const resp = await page.request.post("/__test/setup-verified-room");
+        expect(resp.ok()).toBeTruthy();
+        const { room_url } = await resp.json();
 
-    await page.goto(room_url);
-    await page.waitForLoadState("networkidle");
+        await page.goto(room_url);
+        await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { name: "Test Room" })).toBeVisible();
-  });
-
-  test("Guest joins room via invite code", async ({ browser }) => {
-    const hostCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    const hostPage = await hostCtx.newPage();
-    const resp = await hostPage.request.post("/__test/setup-verified-room");
-    expect(resp.ok()).toBeTruthy();
-    const { room_url, invite_code } = await resp.json();
-
-    await hostPage.goto(room_url);
-    await hostPage.waitForLoadState("networkidle");
-
-    const guestCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    const guestPage = await guestCtx.newPage();
-    const joinResp = await guestPage.request.post("/__test/join-room", {
-      data: { invite_code },
+        await expect(
+            page.getByRole("heading", { name: "Test Room" }),
+        ).toBeVisible();
     });
-    expect(joinResp.ok()).toBeTruthy();
 
-    await guestPage.goto(room_url);
-    await guestPage.waitForLoadState("networkidle");
+    test("Guest joins room via invite code", async ({ browser }) => {
+        const hostCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        const hostPage = await hostCtx.newPage();
+        const resp = await hostPage.request.post("/__test/setup-verified-room");
+        expect(resp.ok()).toBeTruthy();
+        const { room_url, invite_code } = await resp.json();
 
-    await expect(guestPage.getByRole("heading", { name: "Test Room" })).toBeVisible();
-    await hostCtx.close();
-    await guestCtx.close();
-  });
+        await hostPage.goto(room_url);
+        await hostPage.waitForLoadState("networkidle");
 
-  test("Playback state propagates from host to guest", async ({ browser }) => {
-    test.setTimeout(30000);
+        const guestCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        const guestPage = await guestCtx.newPage();
+        const joinResp = await guestPage.request.post("/__test/join-room", {
+            data: { invite_code },
+        });
+        expect(joinResp.ok()).toBeTruthy();
 
-    const hostCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    const hostPage = await hostCtx.newPage();
-    const resp = await hostPage.request.post(
-      "/__test/setup-verified-room?local_video=1",
-    );
-    expect(resp.ok()).toBeTruthy();
-    const { room_url, room_id, invite_code, video_url } = await resp.json();
+        await guestPage.goto(room_url);
+        await guestPage.waitForLoadState("networkidle");
 
-    await hostPage.goto(room_url);
-    await hostPage.waitForLoadState("networkidle");
-
-    const guestCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    const guestPage = await guestCtx.newPage();
-    const joinResp = await guestPage.request.post("/__test/join-room", {
-      data: { invite_code },
+        await expect(
+            guestPage.getByRole("heading", { name: "Test Room" }),
+        ).toBeVisible();
+        await hostCtx.close();
+        await guestCtx.close();
     });
-    expect(joinResp.ok()).toBeTruthy();
 
-    await guestPage.goto(room_url);
-    // The polling hook fetches continuously, so `waitForLoadState("networkidle")`
-    // never settles once the guest starts streaming the room's video. Wait for
-    // the real media element instead (same pattern as playback-sync-verification).
-    await guestPage.waitForSelector("video", { timeout: 15000 });
+    test("Playback state propagates from host to guest", async ({
+        browser,
+    }) => {
+        test.setTimeout(30000);
 
-    // Establish the video URL via the host's session
-    const xsrfToken = await getXsrfToken(hostPage);
+        const hostCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        const hostPage = await hostCtx.newPage();
+        const resp = await hostPage.request.post(
+            "/__test/setup-verified-room?local_video=1",
+        );
+        expect(resp.ok()).toBeTruthy();
+        const { room_url, room_id, invite_code, video_url } = await resp.json();
 
-    // Host changes playback state
-    const patchResp = await hostPage.request.patch(`/playback/${room_id}`, {
-      data: {
-        is_playing: true,
-        position_seconds: 10,
-        duration_seconds: 120,
-        playback_rate: 1,
-        client_timestamp: Date.now() / 1000,
-        _token: xsrfToken,
-      },
+        await installProxyFallbackMock(hostPage);
+        await hostPage.goto(room_url);
+        // The polling hook fetches continuously, so `waitForLoadState("networkidle")`
+        // never settles once the host starts streaming the room's video. Wait for
+        // the real media element instead (same pattern as playback-sync-verification).
+        await hostPage.waitForSelector("video", { timeout: 15000 });
+
+        const guestCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        const guestPage = await guestCtx.newPage();
+        const joinResp = await guestPage.request.post("/__test/join-room", {
+            data: { invite_code },
+        });
+        expect(joinResp.ok()).toBeTruthy();
+
+        await installProxyFallbackMock(guestPage);
+        await guestPage.goto(room_url);
+        await guestPage.waitForSelector("video", { timeout: 15000 });
+
+        // Establish the video URL via the host's session
+        const xsrfToken = await getXsrfToken(hostPage);
+
+        // Host changes playback state
+        const patchResp = await hostPage.request.patch(`/playback/${room_id}`, {
+            data: {
+                is_playing: true,
+                position_seconds: 10,
+                duration_seconds: 120,
+                playback_rate: 1,
+                client_timestamp: Date.now() / 1000,
+                _token: xsrfToken,
+            },
+        });
+        expect(patchResp.ok()).toBeTruthy();
+
+        // Poll until guest sees the updated state (max ~15s)
+        let guestState: Record<string, unknown> = {};
+        for (let i = 0; i < 6; i++) {
+            await guestPage.waitForTimeout(2500);
+            const stateResp = await guestPage.request.get(
+                `/playback/${room_id}/state`,
+                { timeout: 5000 },
+            );
+            expect(stateResp.ok()).toBeTruthy();
+            guestState = await stateResp.json();
+            if (guestState.is_playing === true) break;
+        }
+        expect(guestState.is_playing).toBe(true);
+        expect(guestState.video_url).toBe(video_url);
+
+        await hostCtx.close();
+        await guestCtx.close();
     });
-    expect(patchResp.ok()).toBeTruthy();
-
-    // Poll until guest sees the updated state (max ~15s)
-    let guestState: Record<string, unknown> = {};
-    for (let i = 0; i < 6; i++) {
-      await guestPage.waitForTimeout(2500);
-      const stateResp = await guestPage.request.get(`/playback/${room_id}/state`, { timeout: 5000 });
-      expect(stateResp.ok()).toBeTruthy();
-      guestState = await stateResp.json();
-      if (guestState.is_playing === true) break;
-    }
-    expect(guestState.is_playing).toBe(true);
-    expect(guestState.video_url).toBe(video_url);
-
-    await hostCtx.close();
-    await guestCtx.close();
-  });
 });

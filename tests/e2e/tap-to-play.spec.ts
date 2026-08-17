@@ -30,118 +30,163 @@ const AUTOPLAY_BLOCK_INIT = `
 `;
 
 async function createRoomWithVideo(page: Page): Promise<{
-  room_url: string;
-  invite_code: string;
+    room_url: string;
+    invite_code: string;
 }> {
-  const resp = await page.request.post("/__test/setup-verified-room?local_video=1");
-  expect(resp.ok()).toBeTruthy();
-  return await resp.json();
+    const resp = await page.request.post(
+        "/__test/setup-verified-room?local_video=1",
+    );
+    expect(resp.ok()).toBeTruthy();
+    return await resp.json();
 }
 
 async function joinAsGuest(page: Page, inviteCode: string): Promise<void> {
-  const resp = await page.request.post("/__test/join-room?force_new=1", {
-    data: { invite_code: inviteCode },
-  });
-  expect(resp.ok()).toBeTruthy();
+    const resp = await page.request.post("/__test/join-room?force_new=1", {
+        data: { invite_code: inviteCode },
+    });
+    expect(resp.ok()).toBeTruthy();
+}
+
+/**
+ * `php artisan serve` is a single PHP process. The guest's player first loads
+ * the room's proxy URL (`/proxy/video/{room}`) — the frontend's initial
+ * playback mode is `proxy` before the state GET reports `direct` — so for a
+ * `local_video=1` room the proxy tries to fetch the room's `video_url`, which
+ * is the same dev server (`http://127.0.0.1:8000/videos/sample.mp4`). That
+ * self-request deadlocks the one process and stalls the subsequent direct
+ * `/videos/...` load, so the video never reaches `ready` and the tap-to-play
+ * overlay never appears.
+ *
+ * In production (cPanel Apache + PHP-FPM) the proxy runs in a separate
+ * process and the same request is served normally. This mock replicates that
+ * contract for the E2E suite by failing the proxy URL fast — the same empty
+ * `video/mp4` 502 the real proxy emits when its upstream is unreachable — so
+ * the player falls back to the direct URL instead of stalling the dev server.
+ */
+async function installProxyFallbackMock(page: Page): Promise<void> {
+    await page.route(/\/proxy\/video\/\d+/, async (route) => {
+        await route.fulfill({
+            status: 502,
+            contentType: "video/mp4",
+            body: "",
+        });
+    });
 }
 
 test.describe("Guest tap-to-play", () => {
-  test("autoplay blocked -> overlay shown -> click starts local playback without mutating server state", async ({
-    browser,
-  }) => {
-    test.setTimeout(60000);
+    test("autoplay blocked -> overlay shown -> click starts local playback without mutating server state", async ({
+        browser,
+    }) => {
+        test.setTimeout(60000);
 
-    const hostCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    const host = await hostCtx.newPage();
-    const { room_url, invite_code } = await createRoomWithVideo(host);
+        const hostCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        const host = await hostCtx.newPage();
+        const { room_url, invite_code } = await createRoomWithVideo(host);
 
-    const guestCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    await guestCtx.addInitScript({ content: AUTOPLAY_BLOCK_INIT });
-    const guest = await guestCtx.newPage();
+        const guestCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        await guestCtx.addInitScript({ content: AUTOPLAY_BLOCK_INIT });
+        const guest = await guestCtx.newPage();
 
-    const playbackMutations: string[] = [];
-    guest.on("request", (req) => {
-      if (
-        /\/playback\/\d+$/.test(req.url()) &&
-        ["PATCH", "POST", "DELETE"].includes(req.method())
-      ) {
-        playbackMutations.push(`${req.method()} ${req.url()}`);
-      }
+        const playbackMutations: string[] = [];
+        guest.on("request", (req) => {
+            if (
+                /\/playback\/\d+$/.test(req.url()) &&
+                ["PATCH", "POST", "DELETE"].includes(req.method())
+            ) {
+                playbackMutations.push(`${req.method()} ${req.url()}`);
+            }
+        });
+
+        await joinAsGuest(guest, invite_code);
+        await installProxyFallbackMock(guest);
+        await guest.goto(room_url, { waitUntil: "domcontentloaded" });
+
+        // The guest's unmuted video cannot autoplay without a gesture: the overlay
+        // is shown and the video stays paused.
+        const overlay = guest.getByRole("button", { name: "شروع پخش" });
+        await expect(overlay).toBeVisible({ timeout: 20000 });
+        expect(
+            await guest.evaluate(() => document.querySelector("video")?.paused),
+        ).toBe(true);
+
+        // Clicking the overlay grants the gesture and starts local playback.
+        await overlay.click();
+        await expect(overlay).toBeHidden({ timeout: 5000 });
+
+        await expect
+            .poll(
+                () =>
+                    guest.evaluate(() => {
+                        const video = document.querySelector("video");
+                        return video
+                            ? { paused: video.paused, t: video.currentTime }
+                            : null;
+                    }),
+                { timeout: 15000 },
+            )
+            .toEqual(expect.objectContaining({ paused: false }));
+
+        // Playback position actually advances (real media, not a stub). Poll
+        // rather than wait a fixed window: under full-suite single-worker load the
+        // video's first frames can buffer slower than a fixed delay, but the
+        // assertion is unchanged — playback must genuinely move forward.
+        const t1 = await guest.evaluate(
+            () => document.querySelector("video")?.currentTime ?? 0,
+        );
+        await expect
+            .poll(
+                () =>
+                    guest.evaluate(
+                        () => document.querySelector("video")?.currentTime ?? 0,
+                    ),
+                { timeout: 8000 },
+            )
+            .toBeGreaterThan(t1);
+
+        // The guest's local play is purely local: no playback mutation request
+        // (PATCH/POST/DELETE to /playback/{room}) is ever sent.
+        expect(playbackMutations).toEqual([]);
+
+        await hostCtx.close();
+        await guestCtx.close();
     });
 
-    await joinAsGuest(guest, invite_code);
-    await guest.goto(room_url, { waitUntil: "domcontentloaded" });
+    test("overlay reappears for a fresh guest session (autoplay blocked again)", async ({
+        browser,
+    }) => {
+        test.setTimeout(60000);
 
-    // The guest's unmuted video cannot autoplay without a gesture: the overlay
-    // is shown and the video stays paused.
-    const overlay = guest.getByRole("button", { name: "شروع پخش" });
-    await expect(overlay).toBeVisible({ timeout: 20000 });
-    expect(
-      await guest.evaluate(() => document.querySelector("video")?.paused),
-    ).toBe(true);
+        const hostCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        const host = await hostCtx.newPage();
+        const { room_url, invite_code } = await createRoomWithVideo(host);
 
-    // Clicking the overlay grants the gesture and starts local playback.
-    await overlay.click();
-    await expect(overlay).toBeHidden({ timeout: 5000 });
+        const guestCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
+        await guestCtx.addInitScript({ content: AUTOPLAY_BLOCK_INIT });
+        const guest = await guestCtx.newPage();
+        await joinAsGuest(guest, invite_code);
+        await installProxyFallbackMock(guest);
 
-    await expect
-      .poll(
-        () =>
-          guest.evaluate(() => {
-            const video = document.querySelector("video");
-            return video ? { paused: video.paused, t: video.currentTime } : null;
-          }),
-        { timeout: 15000 },
-      )
-      .toEqual(expect.objectContaining({ paused: false }));
+        // A fresh session/context has no prior gesture, so the browser would block
+        // autoplay again and the overlay must reappear.
+        await guest.goto(room_url, { waitUntil: "domcontentloaded" });
+        await expect(
+            guest.getByRole("button", { name: "شروع پخش" }),
+        ).toBeVisible({
+            timeout: 20000,
+        });
+        expect(
+            await guest.evaluate(() => document.querySelector("video")?.paused),
+        ).toBe(true);
 
-    // Playback position actually advances (real media, not a stub). Poll
-    // rather than wait a fixed window: under full-suite single-worker load the
-    // video's first frames can buffer slower than a fixed delay, but the
-    // assertion is unchanged — playback must genuinely move forward.
-    const t1 = await guest.evaluate(
-      () => document.querySelector("video")?.currentTime ?? 0,
-    );
-    await expect
-      .poll(
-        () => guest.evaluate(() => document.querySelector("video")?.currentTime ?? 0),
-        { timeout: 8000 },
-      )
-      .toBeGreaterThan(t1);
-
-    // The guest's local play is purely local: no playback mutation request
-    // (PATCH/POST/DELETE to /playback/{room}) is ever sent.
-    expect(playbackMutations).toEqual([]);
-
-    await hostCtx.close();
-    await guestCtx.close();
-  });
-
-  test("overlay reappears for a fresh guest session (autoplay blocked again)", async ({
-    browser,
-  }) => {
-    test.setTimeout(60000);
-
-    const hostCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    const host = await hostCtx.newPage();
-    const { room_url, invite_code } = await createRoomWithVideo(host);
-
-    const guestCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
-    await guestCtx.addInitScript({ content: AUTOPLAY_BLOCK_INIT });
-    const guest = await guestCtx.newPage();
-    await joinAsGuest(guest, invite_code);
-
-    // A fresh session/context has no prior gesture, so the browser would block
-    // autoplay again and the overlay must reappear.
-    await guest.goto(room_url, { waitUntil: "domcontentloaded" });
-    await expect(guest.getByRole("button", { name: "شروع پخش" })).toBeVisible({
-      timeout: 20000,
+        await hostCtx.close();
+        await guestCtx.close();
     });
-    expect(
-      await guest.evaluate(() => document.querySelector("video")?.paused),
-    ).toBe(true);
-
-    await hostCtx.close();
-    await guestCtx.close();
-  });
 });
