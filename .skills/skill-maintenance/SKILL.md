@@ -32,8 +32,8 @@ After a development task, harvest only the reusable knowledge it produced:
 - Review the completed diff for what a future task should do differently,
   not what changed. Never extract task history, commit hashes, filenames,
   temporary decisions, one-off fixes, or details unlikely to recur.
-- Check existing skills **and** project docs (`docs/SYSTEM.md`, `DESIGN.md`,
-  `FRONTEND_CONTRACT.md`) before adding anything (see "Detecting Overlap").
+- Check existing skills **and** project docs (`docs/SYSTEM.md`, `docs/MAP.md`)
+  before adding anything (see "Detecting Overlap").
   Prefer updating the skill that owns the concept; create a new skill only
   when no suitable owner exists and the knowledge is broadly reusable (see
   "When a New Skill Is Justified").

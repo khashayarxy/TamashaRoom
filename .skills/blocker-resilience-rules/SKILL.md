@@ -20,7 +20,7 @@ Whenever designing or adding a feature that:
 
 ## 2. Established Detection Pattern
 
-Follow the canonical implementation in [`resources/views/app.blade.php`](file:///c:/Users/Khashayar/Documents/TamashaRoom/resources/views/app.blade.php):
+Follow the canonical implementation in `resources/views/app.blade.php`:
 
 - **Immediate Detection (`onerror`):** Attach inline `onerror` event handlers to critical resource tags (`<script>`, `<link>`). Blocker-intercepted requests often reject immediately; inline handlers trigger fallback UI with near-zero latency.
 - **Watchdog Timeout Fallback:** Pair `onerror` with a secondary watchdog timer (e.g. 3.5 seconds) to catch silent request stalls where the browser blocker suppresses error events and leaves the promise/tag hanging.
@@ -42,7 +42,7 @@ Follow the canonical implementation in [`resources/views/app.blade.php`](file://
 ## 4. Testing Standards
 
 Every blocker detection mechanism must have automated coverage in Playwright:
-- **Blocked Path:** Simulate request aborts (`page.route('**/*.js', route => route.abort())`) to verify that the fallback banner appears promptly and accurately (see [`tests/e2e/fallback-loading.spec.ts`](file:///c:/Users/Khashayar/Documents/TamashaRoom/tests/e2e/fallback-loading.spec.ts)).
+- **Blocked Path:** Simulate request aborts (`page.route('**/*.js', route => route.abort())`) to verify that the fallback banner appears promptly and accurately (see `tests/e2e/fallback-loading.spec.ts`).
 - **Normal Path (No False Positives):** Verify that slow or throttled networks that eventually resolve do *not* flash false blocker warnings.
 
 ## 5. Live Verification & Debugging Discipline

@@ -29,9 +29,9 @@ git pull origin master
 # 2. Install PHP dependencies (no dev deps, optimized autoloader)
 composer install --no-dev --optimize-autoloader
 
-# 3. Install and build frontend assets (Node 22 is build-time only; run
-#    off-server and upload the resulting public/build/ — Node is not needed
-#    on cPanel)
+# 3. Install and build frontend assets (Node 22 or higher is build-time only;
+#    run off-server and upload the resulting public/build/ — Node is not
+#    needed on cPanel)
 npm ci
 npm run build
 

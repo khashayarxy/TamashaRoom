@@ -23,10 +23,11 @@ test. Full detail: `docs/SYSTEM.md` for the relevant subsystems.
 - `storage/logs/laravel.log` — application log; check the timestamp of the
   failure. Production uses `LOG_CHANNEL=daily` (14-day rotation).
 - **Sentry** (if `SENTRY_DSN` set) — production errors and traces.
-- The exception handler (`bootstrap/app.php:48-66`):
+- The exception handler (`bootstrap/app.php:55-107`):
   - `shouldRenderJsonWhen` — `api/*` or `expectsJson()` requests get JSON.
   - `VideoUrlValidationException` renders as 422 JSON.
-  - Non-HTTP exceptions with `APP_DEBUG=false` render generic `Server Error`.
+  - Non-HTTP exceptions with `APP_DEBUG=false` render generic `Server Error`
+    (`bootstrap/app.php:101-107`).
 - `APP_DEBUG` is **false in production** — a "Server Error" with a log
   message means check the log, not the response body.
 

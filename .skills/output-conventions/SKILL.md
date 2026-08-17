@@ -89,7 +89,7 @@ refactor(presence): extract usePresenceHeartbeat from MemberList
 ## Before Any Code Is Delivered
 
 - Formatted with Prettier (`npm run format:check`) and Pint
-  (`./vendor/bin/pint --test`); zero ESLint errors (`npm run lint`);
+  (`./vendor/bin/pint`); zero ESLint errors (`npm run lint`);
   TypeScript strict-clean (`npm run type-check`).
 - File names kebab-case (Layouts/Pages PascalCase); imports grouped and ordered.
 - No `console.log` — enforced by ESLint (`no-console`); `console.error` and
