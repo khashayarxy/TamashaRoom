@@ -363,6 +363,25 @@
 
 ---
 
+### TAM-015 — System proxy (Happ/Xray) breaks Chrome↔Herd HTTPS connections
+
+- **ID:** TAM-015
+- **Title:** Chrome gets `ERR_CONNECTION_CLOSED` on every `https://tamasharoom.test` URL while Node/curl succeed
+- **Category:** Testing / Environment
+- **Severity:** P3
+- **Verification:** CONFIRMED (diagnosed and fixed 2026-08-17)
+- **Status:** RESOLVED (2026-08-17)
+- **Confidence:** High
+- **Area:** Windows system proxy settings (`HKCU\...\Internet Settings`), Playwright browser launch
+- **Evidence:** The E2E soak test (`playback-long-running.spec.ts`) failed with `ERR_CONNECTION_CLOSED` navigating to `https://tamasharoom.test/rooms/{id}`, while the config's `resolveBaseUrl()` probe (Node) and plain `fetch` got 200 on the same URLs — even `/login` failed in Chrome but not Node. Root cause: the machine has a **system proxy enabled** (`ProxyEnable=1`, `ProxyServer=127.0.0.1:10809`) installed by the **Happ app (FlyFrogLLC)**, which bundles an Xray proxy (`C:\Program Files\FlyFrogLLC\Happ\core\xray.exe`). Chrome honors the Windows system proxy (WinINET); Node/curl do not unless env vars are set. `tamasharoom.test` was **not** in `ProxyOverride`, so Chrome tunneled `.test` traffic through Xray, whose remote routing cannot reach the local Herd site → connection closed. Reproduced directly: `curl -x http://127.0.0.1:10809 https://tamasharoom.test/login` → "200 Connection established" then TLS handshake fails, exactly matching Chrome's error. `--no-proxy-server` and `--disable-http2` did not help (WinINET proxy takes precedence). Herd itself was healthy throughout (nginx workers up, cert valid to 2027-08-09, HTTP/1.1 200 via curl).
+- **Fix:** Added `tamasharoom.test;*.test` to the WinINET `ProxyOverride` bypass list (system setting, not a repo change). Chrome then loads `https://tamasharoom.test/login` with status 200.
+- **Impact:** Resolved — Chrome/Playwright can reach the Herd base URL again; the soak test's real blocker was this proxy, not the test or Herd.
+- **Production blocking:** No.
+- **Recommended direction:** None beyond the bypass entry. If the Happ/Xray proxy is toggled off/on or reinstalled, verify `tamasharoom.test` (or `*.test`) remains in `ProxyOverride`. Note: this is separate from and compatible with the soak-test base-URL decision (see `docs/TASK.md` 2026-08-17 note — the soak must stay on Herd; the PHP built-in server cannot sustain long proxy streaming).
+- **Verification source:** Live reproduction 2026-08-17 (Playwright Chromium vs. `curl -x` through the proxy); registry read/update of `HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings`; successful Chrome load of `https://tamasharoom.test/login` (200) after the fix.
+
+---
+
 ### TAM-100 — "SRT uploads rejected" (originally reported as a proxy failure)
 
 - **ID:** TAM-100
@@ -453,4 +472,4 @@ Order by severity × verification confidence × production impact:
     in .env.example), TAM-009 (TLS verification enabled, Batch 1), TAM-010 (a11y
     "Verify email" registration flow + invalid `role="bar"` progress markup),
     TAM-011 (fake-URL revert race), TAM-012 (CI clipboard permission), TAM-013 (CI contrast timeout),
-    TAM-014 (CI stale-session cookie race), TAM-200 (a11y count verified).
+    TAM-014 (CI stale-session cookie race), TAM-015 (Happ/Xray system proxy breaking Chrome↔Herd), TAM-200 (a11y count verified).
