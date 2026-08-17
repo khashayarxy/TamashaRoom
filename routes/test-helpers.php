@@ -75,7 +75,7 @@ Route::middleware('web')->group(function () {
                 'video_url' => $request->getSchemeAndHttpHost().'/videos/'.$videoFile,
                 'is_playing' => true,
                 'position_seconds' => 0,
-                'duration_seconds' => $videoFile === 'sample.mp4' ? 11 : 95,
+                'duration_seconds' => $videoFile === 'sample.mp4' ? 11 : 190,
                 'playback_rate' => 1,
                 'state_version' => 1,
                 'playback_mode' => 'direct',

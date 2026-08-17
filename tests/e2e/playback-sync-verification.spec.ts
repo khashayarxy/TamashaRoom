@@ -86,8 +86,9 @@ async function createLocalRoom(page: Page): Promise<{
     invite_code: string;
 }> {
     await installRangeMock(page);
-    // sync-sample.webm is a ~95s fixture (public/videos) long enough to survive
-    // the full host-advances-60s window in test 2.2 without hitting the end.
+    // sync-sample.webm is a ~190s fixture (public/videos): long enough that the
+    // host, already ~35s in when the guest hides, never hits the end during
+    // test 2.2's host-advances-60s background window.
     const resp = await page.request.post(
         "/__test/setup-verified-room?local_video=1&video_file=sync-sample.webm",
     );
@@ -268,7 +269,9 @@ test.describe("Playback sync drift + out-of-order PATCH guard", () => {
     test("2.2 guest backgrounded 60s corrects to owner's CURRENT position on return", async ({
         browser,
     }) => {
-        test.setTimeout(120000);
+        // Setup+convergence (~60s under single-worker load) + a genuine 60s
+        // background window + restore checks needs more than the default 120s.
+        test.setTimeout(180000);
 
         const hostCtx = await browser.newContext({
             baseURL: "http://127.0.0.1:8000",
