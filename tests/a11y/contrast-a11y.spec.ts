@@ -118,17 +118,14 @@ async function disableTransitions(page: Page): Promise<void> {
  */
 async function revealPlayerControls(page: Page): Promise<void> {
     const mediaError = page.locator(".media-error");
-    // The mock video URL (https://www.example.com/video.mp4, proxy mode) cannot
-    // play, so a media-error dialog can open any time after the player mounts —
-    // on slow CI it may appear after the room's dialogs are done. Wait for it
-    // if it appears, then dismiss it; while open it forces the controls to
-    // `visibility: hidden`, so no click (forced or not) can reach the gear.
-    await mediaError
-        .waitFor({ state: "visible", timeout: 8_000 })
-        .catch(() => {});
+    // The room fixture's media source is mocked to load successfully
+    // (installPlayableVideoMock in room-nav.ts), so no error dialog should
+    // appear. If one somehow does, dismiss it defensively before revealing.
     if (await mediaError.isVisible()) {
-        await page.locator(".media-error button").click();
-        await mediaError.waitFor({ state: "hidden" });
+        await page
+            .locator(".media-error button")
+            .click({ timeout: 5_000 });
+        await mediaError.waitFor({ state: "hidden", timeout: 5_000 });
     }
 
     const player = page.locator(".media-default-skin--video");
