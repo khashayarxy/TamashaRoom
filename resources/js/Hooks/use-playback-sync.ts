@@ -73,6 +73,7 @@ export function usePlaybackSync({
     const lastPollRef = useRef(0);
     const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingSyncRef = useRef<Partial<PlaybackState> | null>(null);
     const cancelledRef = useRef(false);
     const activeControllerRef = useRef<AbortController | null>(null);
     const requestIdRef = useRef(0);
@@ -249,6 +250,7 @@ export function usePlaybackSync({
             if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
             if (debounceTimerRef.current)
                 clearTimeout(debounceTimerRef.current);
+            pendingSyncRef.current = null;
             document.removeEventListener("visibilitychange", handleVisibility);
             if (reconnectCleanupRef.current) {
                 reconnectCleanupRef.current.pusher.connection.unbind(
@@ -324,11 +326,21 @@ export function usePlaybackSync({
     const debouncedSync = useCallback(
         (partial: Partial<PlaybackState>) => {
             if (cancelledRef.current) return;
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current);
-            }
+
+            // Coalesce: keep only the latest pending sync and do NOT re-arm the
+            // timer on every call. Re-arming on each ~1s timeupdate would
+            // perpetually reset DEBOUNCE_MS and starve the PATCH — the host's
+            // position would never reach the server during continuous playback.
+            pendingSyncRef.current = partial;
+            if (debounceTimerRef.current) return;
+
             debounceTimerRef.current = setTimeout(() => {
-                sync(partial);
+                debounceTimerRef.current = null;
+                const latest = pendingSyncRef.current;
+                pendingSyncRef.current = null;
+                if (latest) {
+                    void sync(latest);
+                }
             }, DEBOUNCE_MS);
         },
         [sync],
@@ -340,7 +352,9 @@ export function usePlaybackSync({
 
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
             }
+            pendingSyncRef.current = null;
             void sync(partial).then(() => {
                 if (!cancelledRef.current) {
                     void fetchState();
