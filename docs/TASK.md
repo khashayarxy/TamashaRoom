@@ -2,6 +2,15 @@
 
 ## Completed
 
+### CI A11y Control-Bar Fix + CI-Green Push Workflow (2026-08-17)
+
+**Batch scope:** fixed the CI-only a11y failure on `contrast-a11y.spec.ts` "Room dialogs (settings + subtitle settings + confirm)" — clicking `.media-button--settings` threw "Element is not visible" even with `force: true`. Root cause (KI-020): Video.js (@videojs/react) auto-hides the control bar ~2s after the last pointer move (`.media-controls--root` loses its `data-visible` attribute), and while a media-error dialog is open the skin forces `.media-error[data-open] ~ .media-controls * { visibility: hidden }` — which `force: true` cannot pierce (Playwright still needs a visible box for scroll-into-view). The mock video URL (`https://www.example.com/video.mp4`, proxy mode) cannot play, and on slow CI the error dialog opens asynchronously — often AFTER the test's one-shot `isVisible()` dismiss check. Also made post-push CI polling a standing workflow rule.
+
+- [x] **Control-bar reveal fix (`tests/a11y/contrast-a11y.spec.ts`).** Added `revealPlayerControls(page)`: waits for (up to 8s) and dismisses any media-error dialog, hovers the player container, then waits for `.media-controls--root[data-visible]` — the framework's own visible-state attribute (`ControlsDataAttrs.visible`) — before a normal, non-forced click. Replaced both `force: true` clicks (gear + "تنظیمات زیرنویس") with the reveal + normal clicks.
+- [x] **Standing workflow rule (`.skills/git-workflow/SKILL.md`).** After every push, poll the triggered GitHub Actions run (`gh run watch` / `gh run view`) until it reaches `status: completed`; a commit/push cycle is not finished until CI is green. On failure: read the failing step's actual log (`gh run view --log --job`), diagnose, fix, run the failing suite locally (twice for a11y), commit, push, and wait for that run too.
+- [x] **KI-020 recorded (`.skills/debugging/SKILL.md`).** Auto-hiding control bar + media-error `visibility: hidden` trap with the `revealPlayerControls` remedy; `force: true` cannot pierce `visibility: hidden`.
+- [x] **Verification.** `npm run test:a11y:contrast` **8/8 passed twice in a row** (48.6s and 35.4s); full `npm run test:a11y` **19/19 passed** (56.2s). Pushed to `origin/master`; the CI run for this commit was polled to green per the new git-workflow rule (details in the commit).
+
 ### E2E Playback-Sync, Tap-to-Play, and Long-Running Test Fixes (2026-08-16)
 
 **Batch scope:** fixed the remaining E2E failures. Two root causes: (1) a genuine app regression — the `ca6c230` debounce change (`DEBOUNCE_MS` 1000→3000) starved the host's playback PATCH (the player's ~1s `timeupdate` re-armed the 3s timer forever), freezing server position; (2) a test-infrastructure deadlock — for direct-mode (`local_video=1`) rooms the guest player first requests `/proxy/video/{room}`, which on the single-process `php artisan serve` self-requests the same dev server and deadlocks it, so the fallback direct `/videos/...` load never completed and the tap-to-play overlay never appeared. Also refactored the local-only long-running soak test to a configurable 2-minute default.

@@ -58,6 +58,32 @@ and the repo was audited for exactly these failure modes before first push.
 2. Confirm no secrets/artifacts staged (`git diff --cached --name-only`).
 3. Push only `master` to `origin`: `git push origin master`.
 
+## After Any Push — CI Is Part of the Commit Cycle
+
+- **A commit/push cycle is not finished until the triggered GitHub Actions
+  run is green.** The push `master` to `origin` triggers the `CI` workflow
+  (see `.github/workflows/ci.yml`); polling it is mandatory, not optional.
+- Right after pushing, identify the run: `gh run list --limit 1 --json
+  databaseId,status,conclusion,headSha` (match `headSha` to the pushed commit
+  if multiple runs are in flight).
+- Poll until it reaches a terminal state:
+  `gh run watch <databaseId> --exit-status` (blocking) or poll
+  `gh run view <databaseId> --json status,conclusion` until
+  `status == "completed"`. On `conclusion == "success"`, the cycle is done.
+- **If the run fails:** download the log
+  (`gh run view <databaseId> --log --job <jobId>`) and read the failing
+  step's actual error before changing anything — do not guess. Diagnose, fix,
+  run the relevant local checks (per `testing-strategy` verification
+  escalation, always including the failing suite locally), commit the fix
+  (with its `docs/TASK.md` update), push again, and wait for THAT run to go
+  green too. Repeat until green.
+- Log download can hit `net/http: TLS handshake timeout` on networks behind a
+  system proxy (TAM-015); retry once or twice — it usually succeeds — or pull
+  the annotations instead: `gh api repos/khashayarxy/TamashaRoom/check-runs/<jobId>/annotations`.
+- The a11y step failures are often timing-sensitive, not logic regressions.
+  Before concluding a fix, reproduce the failing spec locally at least twice
+  in a row (`npm run test:a11y:contrast`) to confirm it is not flaky.
+
 ## Destructive-Command Guardrails
 
 - **Never** `git push --force` / `--force-with-lease` unless the user

@@ -103,6 +103,39 @@ async function disableTransitions(page: Page): Promise<void> {
     });
 }
 
+/**
+ * Reveal the player control bar before clicking one of its buttons.
+ *
+ * Video.js (@videojs/react) auto-hides the control bar ~2s after the last
+ * pointer move over the player: `.media-controls--root` loses its
+ * `data-visible` attribute (its `ControlsDataAttrs.visible` state) and the
+ * bars fade to `opacity: 0` + `pointer-events: none`. The bars are additionally
+ * forced `visibility: hidden` while a media-error dialog is open. `force: true`
+ * cannot pierce either state — Playwright still needs a visible box to
+ * scroll-into-view and dispatch the click. So instead: dismiss any media-error
+ * dialog, then hover the player and wait for the framework's own visible-state
+ * attribute before clicking.
+ */
+async function revealPlayerControls(page: Page): Promise<void> {
+    const mediaError = page.locator(".media-error");
+    // The mock video URL (https://www.example.com/video.mp4, proxy mode) cannot
+    // play, so a media-error dialog can open any time after the player mounts —
+    // on slow CI it may appear after the room's dialogs are done. Wait for it
+    // if it appears, then dismiss it; while open it forces the controls to
+    // `visibility: hidden`, so no click (forced or not) can reach the gear.
+    await mediaError
+        .waitFor({ state: "visible", timeout: 8_000 })
+        .catch(() => {});
+    if (await mediaError.isVisible()) {
+        await page.locator(".media-error button").click();
+        await mediaError.waitFor({ state: "hidden" });
+    }
+
+    const player = page.locator(".media-default-skin--video");
+    await player.hover();
+    await page.locator(".media-controls--root[data-visible]").waitFor();
+}
+
 test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
     test("Welcome landing page", async ({ page }) => {
         await page.goto("/");
@@ -256,14 +289,14 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             }
 
             // Open the player gear/settings menu, then trigger subtitle settings.
-            // Using force: true ensures the click reaches the button even if
-            // the control bar is in an idle fade transition.
-            await page
-                .locator(".media-button--settings")
-                .click({ force: true });
+            // Reveal the auto-hiding control bar first (dismiss any media-error
+            // dialog, hover the player, wait for `[data-visible]`), then click
+            // normally — `force: true` cannot pierce the hidden control bar.
+            await revealPlayerControls(page);
+            await page.locator(".media-button--settings").click();
             await page
                 .getByRole("button", { name: "تنظیمات زیرنویس" })
-                .click({ force: true });
+                .click();
             await page
                 .getByRole("heading", { name: "تنظیمات زیرنویس" })
                 .waitFor();
