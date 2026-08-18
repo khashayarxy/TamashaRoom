@@ -1,8 +1,11 @@
-import { buttonVariants } from "@/Components/ui/button";
-import { PageProps } from "@/types";
 import { Head, Link } from "@inertiajs/react";
-import { Copy, Moon, Play, Sun, Tv, User } from "lucide-react";
+import { Moon, Play, Sun, Tv } from "lucide-react";
+
+import { buttonVariants } from "@/Components/ui/button";
+import { toPersianDigits } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
+
+import type { PageProps } from "@/types";
 
 export default function Welcome({ auth }: PageProps) {
     const { dark, toggle } = useThemeStore();
@@ -78,22 +81,27 @@ export default function Welcome({ auth }: PageProps) {
                         </nav>
                     </header>
 
-                    <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-20 pt-10 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:pb-28 lg:pt-16">
-                        <div>
-                            <span className="inline-block rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-background dark:text-card-foreground">
-                                تماشای هم‌زمان با دوستان
+                    <div className="mx-auto flex max-w-7xl flex-col gap-16 px-4 pb-24 pt-10 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:pb-32 lg:pt-16">
+                        <div className="max-w-2xl">
+                            <span className="inline-flex items-center gap-2 rounded-full bg-destructive/15 px-3 py-1 text-xs font-semibold text-background dark:text-card-foreground">
+                                <span
+                                    aria-hidden="true"
+                                    className="h-1.5 w-1.5 rounded-full bg-success"
+                                />
+                                پخش زنده با دوستات
                             </span>
                             <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-background sm:text-5xl dark:text-card-foreground lg:text-6xl">
-                                با هم ببینیم،
-                                <br />
-                                حتی اگه دورید
+                                با هم، همون لحظه
                             </h1>
-                            <p className="mt-6 max-w-lg text-lg leading-relaxed text-background/70 dark:text-card-foreground/70">
-                                تماشاروم اتاق‌های خصوصی برای تماشای هم‌زمان فیلم
-                                و ویدیو با دوستان و خانواده است. بساز، دعوت کن،
-                                لذت ببر.
+                            <span
+                                aria-hidden="true"
+                                className="mt-5 block h-0.5 w-16 rounded-full bg-primary"
+                            />
+                            <p className="mt-5 max-w-md text-lg leading-relaxed text-background/70 dark:text-card-foreground/70">
+                                یک اتاق بساز، لینک رو بفرست؛ پخش و مکث برای همه
+                                یکی میشه.
                             </p>
-                            <div className="mt-8 flex flex-wrap gap-4">
+                            <div className="mt-8 flex flex-wrap items-center gap-4">
                                 <Link
                                     href={primaryCta.href}
                                     className={buttonVariants({
@@ -107,10 +115,7 @@ export default function Welcome({ auth }: PageProps) {
                                 {!auth.user && (
                                     <Link
                                         href={route("login")}
-                                        className={buttonVariants({
-                                            variant: "outline",
-                                            size: "lg",
-                                        })}
+                                        className="text-sm font-medium text-background/70 underline-offset-4 transition-colors hover:text-background hover:underline dark:text-card-foreground/70 dark:hover:text-card-foreground"
                                     >
                                         ورود
                                     </Link>
@@ -118,125 +123,60 @@ export default function Welcome({ auth }: PageProps) {
                             </div>
                         </div>
 
-                        <div className="relative lg:ps-4" aria-hidden="true">
-                            <div className="rounded-3xl border border-background/10 bg-card p-3 shadow-lg dark:border-card-foreground/10">
-                                <div className="relative aspect-video overflow-hidden rounded-xl bg-gradient-to-br from-foreground via-foreground to-black dark:from-black dark:via-foreground/80 dark:to-black">
-                                    <div className="absolute end-4 top-4 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
-                                        هم‌زمان
+                        <div
+                            aria-hidden="true"
+                            className="relative mx-auto w-full max-w-md lg:mx-0"
+                        >
+                            <div className="rounded-xl border border-primary/60 p-3">
+                                <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg bg-black/40">
+                                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
+                                        <Play
+                                            className="h-6 w-6"
+                                            fill="currentColor"
+                                        />
+                                    </span>
+                                    <span className="absolute end-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-background dark:text-card-foreground">
+                                        <span
+                                            aria-hidden="true"
+                                            className="h-1.5 w-1.5 rounded-full bg-success"
+                                        />
+                                        {toPersianDigits("3 نفر آنلاین")}
+                                    </span>
+                                </div>
+                                <div className="mt-3 px-1">
+                                    <div className="relative h-1.5 overflow-hidden rounded-full bg-black/40">
+                                        <span className="absolute start-0 top-0 h-full w-[35%] rounded-full bg-destructive" />
                                     </div>
-
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-lg ring-1 ring-primary/40">
-                                            <Play className="h-7 w-7 translate-x-px" />
-                                        </div>
-                                    </div>
-
-                                    <div className="absolute bottom-4 start-4 flex items-center gap-3">
-                                        <div className="flex -space-x-2 space-x-reverse">
-                                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/25 ring-2 ring-primary/40">
-                                                <User className="h-4 w-4 text-background dark:text-card-foreground" />
-                                            </span>
-                                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/25 ring-2 ring-primary/40">
-                                                <User className="h-4 w-4 text-background dark:text-card-foreground" />
-                                            </span>
-                                        </div>
-                                        <span className="text-xs font-medium text-background/80 dark:text-card-foreground/80">
-                                            ۲ دوست آنلاین
+                                    <div className="mt-2 flex items-center justify-between text-xs text-background/80 dark:text-card-foreground/80">
+                                        <span dir="ltr">
+                                            {toPersianDigits("04:12")}
+                                        </span>
+                                        <span dir="ltr">
+                                            {toPersianDigits("01:24:00")}
                                         </span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="absolute -top-6 -end-6 hidden rounded-2xl bg-primary p-3 shadow-lg sm:block">
-                                <div className="flex items-center gap-2 text-primary-foreground">
-                                    <Copy className="h-4 w-4" />
-                                    <span className="text-sm font-semibold">
-                                        کد دعوت
-                                    </span>
-                                    <span
-                                        dir="ltr"
-                                        className="rounded-md bg-black/20 px-2 py-0.5 font-mono text-xs"
-                                    >
-                                        TR-7K2M
-                                    </span>
-                                </div>
+                            <div className="absolute -bottom-5 end-3 flex items-center gap-2 rounded-xl border border-destructive bg-black/30 px-3 py-2 dark:bg-white/10">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground">
+                                    س
+                                </span>
+                                <span className="text-xs font-semibold text-background dark:text-card-foreground">
+                                    واااای اینجاشو دیدی؟!
+                                </span>
                             </div>
                         </div>
                     </div>
-
-                    <div
-                        className="absolute -bottom-16 -start-16 h-64 w-64 rounded-3xl bg-primary/10 blur-3xl"
-                        aria-hidden="true"
-                    />
                 </section>
 
-                <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-                    <div className="max-w-2xl">
-                        <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                            چگونه کار می‌کند
-                        </span>
-                        <h2 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl">
-                            سه قدم تا تماشای مشترک
-                        </h2>
-                    </div>
-
-                    <ol className="relative mt-14 grid gap-10 lg:grid-cols-3 lg:gap-8">
-                        <div
-                            className="absolute start-0 end-0 top-6 hidden border-t border-dashed border-border lg:block"
-                            aria-hidden="true"
-                        />
-                        <li className="relative flex gap-4 lg:block">
-                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary dark:text-accent-foreground">
-                                ۱
-                            </span>
-                            <div className="lg:mt-6">
-                                <h3 className="text-xl font-bold">
-                                    یک اتاق بساز
-                                </h3>
-                                <p className="mt-2 max-w-xs leading-relaxed text-muted-foreground">
-                                    فقط یک نام کافی است؛ اتاق شما در چند ثانیه
-                                    آماده می‌شود.
-                                </p>
-                            </div>
-                        </li>
-                        <li className="relative flex gap-4 lg:block">
-                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary dark:text-accent-foreground">
-                                ۲
-                            </span>
-                            <div className="lg:mt-6">
-                                <h3 className="text-xl font-bold">
-                                    دعوت را بفرست
-                                </h3>
-                                <p className="mt-2 max-w-xs leading-relaxed text-muted-foreground">
-                                    کد دعوت را برای دوستانت بفرست؛ آنها با یک
-                                    لینک وارد می‌شوند.
-                                </p>
-                            </div>
-                        </li>
-                        <li className="relative flex gap-4 lg:block">
-                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-background text-xl font-bold text-primary dark:text-accent-foreground">
-                                ۳
-                            </span>
-                            <div className="lg:mt-6">
-                                <h3 className="text-xl font-bold">
-                                    با هم ببینید
-                                </h3>
-                                <p className="mt-2 max-w-xs leading-relaxed text-muted-foreground">
-                                    پخش، مکث و زمان ویدیو برای همه هماهنگ است؛
-                                    همراه چت لحظه‌ای و زیرنویس.
-                                </p>
-                            </div>
-                        </li>
-                    </ol>
-                </section>
-
-                <section className="relative overflow-hidden bg-foreground text-background dark:bg-card dark:text-card-foreground">
-                    <div className="relative mx-auto flex max-w-7xl flex-col gap-10 px-4 py-20 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-24">
+                <section className="border-t border-border">
+                    <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-20 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-24">
                         <div className="max-w-xl">
-                            <h2 className="text-3xl font-bold leading-tight text-background sm:text-4xl dark:text-card-foreground">
+                            <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
                                 امشب می‌بینیم؟
                             </h2>
-                            <p className="mt-4 text-lg leading-relaxed text-background/70 dark:text-card-foreground/70">
+                            <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
                                 یک اتاق بساز، دوستانت را دعوت کن و با هم فیلم
                                 ببینید. رایگان است.
                             </p>
@@ -251,26 +191,11 @@ export default function Welcome({ auth }: PageProps) {
                             >
                                 {auth.user ? "رفتن به داشبورد" : "شروع کنید"}
                             </Link>
-                            {!auth.user && (
-                                <Link
-                                    href={route("login")}
-                                    className={buttonVariants({
-                                        variant: "outline",
-                                        size: "lg",
-                                    })}
-                                >
-                                    ورود
-                                </Link>
-                            )}
                         </div>
                     </div>
-                    <div
-                        className="absolute -bottom-16 -end-16 h-64 w-64 rounded-3xl bg-primary/15 blur-3xl"
-                        aria-hidden="true"
-                    />
                 </section>
 
-                <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
+                <footer className="py-8 text-center text-sm text-muted-foreground">
                     تماشاروم &copy; {new Date().getFullYear()}
                 </footer>
             </div>
