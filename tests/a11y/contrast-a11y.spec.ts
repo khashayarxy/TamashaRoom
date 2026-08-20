@@ -122,9 +122,7 @@ async function revealPlayerControls(page: Page): Promise<void> {
     // (installPlayableVideoMock in room-nav.ts), so no error dialog should
     // appear. If one somehow does, dismiss it defensively before revealing.
     if (await mediaError.isVisible()) {
-        await page
-            .locator(".media-error button")
-            .click({ timeout: 5_000 });
+        await page.locator(".media-error button").click({ timeout: 5_000 });
         await mediaError.waitFor({ state: "hidden", timeout: 5_000 });
     }
 
@@ -203,7 +201,12 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
         ] as const) {
             await gotoRoom(page, params);
             await setTheme(page, dark);
-            await page.getByRole("button", { name: "زیرنویس" }).click();
+            // Exact name: the player gear menu's "تنظیمات زیرنویس" item shares
+            // the "زیرنویس" substring and can be in the a11y tree when the menu
+            // was left open, making the substring locator ambiguous.
+            await page
+                .getByRole("button", { name: "زیرنویس", exact: true })
+                .click();
             await page.getByRole("button", { name: "بدون زیرنویس" }).waitFor();
             const violations = await contrastViolations(page);
             expect(
@@ -268,7 +271,9 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             // Entry point is the player gear menu → "تنظیمات زیرنویس".
             // The standalone "تنظیمات" button was removed in c5d5b2f when
             // the subtitle settings trigger moved into the player gear menu.
-            await page.getByRole("button", { name: "زیرنویس" }).click();
+            await page
+                .getByRole("button", { name: "زیرنویس", exact: true })
+                .click();
             await page.getByRole("button", { name: "بدون زیرنویس" }).waitFor();
             await page.getByRole("button", { name: "فارسی" }).click();
             await page
@@ -291,9 +296,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             // normally — `force: true` cannot pierce the hidden control bar.
             await revealPlayerControls(page);
             await page.locator(".media-button--settings").click();
-            await page
-                .getByRole("button", { name: "تنظیمات زیرنویس" })
-                .click();
+            await page.getByRole("button", { name: "تنظیمات زیرنویس" }).click();
             await page
                 .getByRole("heading", { name: "تنظیمات زیرنویس" })
                 .waitFor();
@@ -325,8 +328,12 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             await page.keyboard.press("Escape");
             await page.locator("dialog[open]").waitFor({ state: "hidden" });
 
-            // Confirm dialog (subtitle track delete)
-            await page.getByRole("button", { name: "زیرنویس" }).click();
+            // Confirm dialog (subtitle track delete).
+            // The gear menu may still be open here (its "تنظیمات زیرنویس" item
+            // would match the substring), so the top-bar button needs an exact name.
+            await page
+                .getByRole("button", { name: "زیرنویس", exact: true })
+                .click();
             await page.getByRole("button", { name: "بدون زیرنویس" }).waitFor();
             await page
                 .getByRole("button", { name: "حذف", exact: true })

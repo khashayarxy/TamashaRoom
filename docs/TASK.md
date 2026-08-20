@@ -2,6 +2,14 @@
 
 ## Completed
 
+### Test-Flake Fixes: contrast-a11y Strict-Locator + chat.spec Tab-Switch Timeout (2026-08-20)
+
+**Batch scope:** resolved the two known pre-existing test flakes tracked in Pending. Both were confirmed on the unmodified codebase; neither was related to the 2026-08-13 video-proxy fix.
+
+- [x] **`contrast-a11y.spec.ts` strict-locator collision (2 tests).** `getByRole('button', { name: 'زیرنویس' })` substring-matches both the top-bar subtitle-manager button and the player gear menu's «تنظیمات زیرنویس» item, which is in the a11y tree whenever the gear menu was left open mid-test. Fix: `exact: true` on all three «زیرنویس» locators (the "Room open states" click, both in "Room dialogs"), with explanatory comments. The player's own `aria-label="زیرنویس"` (VideoJsPlayer) was confirmed non-colliding in practice.
+- [x] **`chat.spec.ts` tab-switch timeout (1 test).** The message is appended to local state only after the POST round-trip resolves (`RoomChat` appends `data` after `api.post`), so the first render is network-bound and a 1-CPU box can exceed Playwright's default 5s expect timeout. Fix: `toBeVisible({ timeout: 10000 })` on the initial appearance; the meaningful 1.5s sub-poll assertion that proves the message survived the tab switch without refetch is **unchanged**.
+- [x] **Verification.** `chat.spec.ts` **3/3 passed × 3 consecutive runs** (13–14.5s); `contrast-a11y.spec.ts` **8/8 passed × 3 consecutive runs** (41–52s); full `npm run test:a11y` **19/19**; full e2e **24 passed, 5 failed** — all 5 pre-existing local-environment artifacts, none from these fixes: `subtitle.spec.ts` ×4 is the documented stale-session-cookie race (room nav 302 → /login → dashboard; passes in CI), `playback-long-running.spec.ts` needs the local `test-media-server.cjs` (skipped in CI). Frontend unit **255/255**, PHPUnit **286/286**, type-check/lint/format:check clean.
+
 ### Picture-in-Picture Control via `selectPiP` + `usePlayer` (2026-08-20)
 
 **Batch scope:** added a PiP toggle button to the custom Video.js v10 skin (`VideoJsPlayer.tsx`) using the official documented API — `usePlayer(selectPiP)` + `pip.togglePictureInPicture()` — with dynamic Persian aria-label via the v10 i18n system. Reverses the 2026-08-16 decision to drop `pipFeature` (that change was never committed).
@@ -812,10 +820,6 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [ ] **`APP_ENV=production`** — must be set on production; currently `local`
 
 ## Pending
-
-### Known pre-existing test issues (not introduced by the 2026-08-13 video-proxy fix)
-- [ ] **contrast-a11y.spec.ts strict-locator failures (2)** — `getByRole('button', { name: 'زیرنویس' })` substring-matches both the "زیرنویس" and "تنظیمات زیرنویس" toolbar buttons ("Room open states" + "Room dialogs"). Reproduced identically on the unmodified code; unrelated to the proxy fix. Fix: use `exact: true` (or `.first()`) and confirm intent.
-- [ ] **chat.spec.ts tab-switch timeout** — "Chat messages persist across the Chat/Members tab switch" intermittently times out on the 5s `toBeVisible` after send on this 1-CPU machine; passes on re-run. Pre-existing timing flake, unrelated to the proxy fix.
 
 ### Deployment
 - [ ] Run migrations on production database
