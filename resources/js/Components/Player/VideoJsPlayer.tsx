@@ -26,17 +26,14 @@ import {
     Gesture,
     StatusAnnouncer,
     Menu,
+    selectPiP,
     useQualityOptions,
     useAudioTrackOptions,
     useCaptionsOptions,
 } from "@videojs/react";
 import "@videojs/react/i18n/locales/fa/register";
 import { Video, videoFeatures } from "@videojs/react/video";
-import {
-    playbackRateFeature,
-    pipFeature,
-    remotePlaybackFeature,
-} from "@videojs/core/dom";
+import { playbackRateFeature, remotePlaybackFeature } from "@videojs/core/dom";
 import {
     AirPlayEnterIcon,
     AirPlayExitIcon,
@@ -48,6 +45,8 @@ import {
     FullscreenExitIcon,
     GearIcon,
     PauseIcon,
+    PipEnterIcon,
+    PipExitIcon,
     PlayIcon,
     QualityIcon,
     RestartIcon,
@@ -63,6 +62,7 @@ import {
     qualityText,
     settingsText,
 } from "@videojs/core/i18n/text/menu";
+import { enterText, exitText } from "@videojs/core/i18n/text/pip";
 import { shouldPreservePositionOnSourceChange } from "@/lib/player-source";
 import { cn, toPersianDigits } from "@/lib/utils";
 import { Subtitles } from "lucide-react";
@@ -74,11 +74,10 @@ import {
     useState,
 } from "react";
 
-// Exclude playbackRateFeature, remotePlaybackFeature, and pipFeature so Video.js never
-// registers playback-speed, cast, or picture-in-picture options. The disablePictureInPicture
-// attribute alone is not enough: the pip feature still wires PiP state/capability checks into
-// media attach, which fires a Permissions-Policy violation in the console on every Play click
-// in Vivaldi. We do not use PiP anywhere, so drop the feature entirely.
+// Exclude playbackRateFeature and remotePlaybackFeature so Video.js never
+// registers playback-speed or cast options. pipFeature IS included: the PiP
+// control reads its state via selectPiP (standard browser PiP; Document PiP
+// windowing is not exposed by @videojs/react v10).
 
 function CustomErrorDescription() {
     const error = usePlayer((s) => s.error);
@@ -99,10 +98,7 @@ function CustomErrorDescription() {
 }
 
 const customVideoFeatures = videoFeatures.filter(
-    (f) =>
-        f !== playbackRateFeature &&
-        f !== remotePlaybackFeature &&
-        f !== pipFeature,
+    (f) => f !== playbackRateFeature && f !== remotePlaybackFeature,
 );
 
 const Player = createPlayer({ features: customVideoFeatures });
@@ -625,6 +621,29 @@ function MediaAirPlayControl() {
     );
 }
 
+export function MediaPiPControl() {
+    const t = useTranslator();
+    const pip = usePlayer(selectPiP);
+
+    if (!pip || pip.pipAvailability !== "available") return null;
+
+    return (
+        <button
+            type="button"
+            onClick={() => void pip.togglePictureInPicture()}
+            aria-label={pip.pip ? t(exitText) : t(enterText)}
+            data-pip={pip.pip ? "" : undefined}
+            data-availability={pip.pipAvailability}
+            className={cn(
+                "media-button media-button--subtle media-button--icon media-button--pip",
+            )}
+        >
+            <PipEnterIcon className="media-icon media-icon--pip-enter" />
+            <PipExitIcon className="media-icon media-icon--pip-exit" />
+        </button>
+    );
+}
+
 function MediaFullscreenControl() {
     return (
         <FullscreenButton
@@ -637,7 +656,11 @@ function MediaFullscreenControl() {
     );
 }
 
-const TOP_STATUS_ACTIONS = ["toggleSubtitles", "toggleFullscreen"] as const;
+const TOP_STATUS_ACTIONS = [
+    "toggleSubtitles",
+    "toggleFullscreen",
+    "togglePictureInPicture",
+] as const;
 
 const CENTER_STATUS_ACTIONS = ["togglePaused"] as const;
 
@@ -846,10 +869,11 @@ function TamashaVideoSkin({
                     </div>
                 </div>
 
-                {/* 4. Secondary Control Group (Far Right): AirPlay, Fullscreen */}
+                {/* 4. Secondary Control Group (Far Right): AirPlay, PiP, Fullscreen */}
                 <div className="media-surface media-controls media-controls--secondary">
                     <div className="media-button-group">
                         <MediaAirPlayControl />
+                        <MediaPiPControl />
                         <MediaFullscreenControl />
                     </div>
                 </div>
@@ -861,6 +885,7 @@ function TamashaVideoSkin({
             <Hotkey keys="m" action="toggleMuted" />
             <Hotkey keys="f" action="toggleFullscreen" />
             <Hotkey keys="c" action="toggleSubtitles" />
+            <Hotkey keys="i" action="togglePictureInPicture" />
             <Hotkey keys="ArrowRight" action="seekStep" value={SEEK_TIME / 2} />
             <Hotkey keys="ArrowLeft" action="seekStep" value={-5} />
             <Hotkey keys="l" action="seekStep" value={SEEK_TIME} />
@@ -913,6 +938,8 @@ function TamashaVideoSkin({
                         <CaptionsOffIcon className="media-icon media-icon--captions-off" />
                         <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
                         <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
+                        <PipEnterIcon className="media-icon media-icon--pip-enter" />
+                        <PipExitIcon className="media-icon media-icon--pip-exit" />
                         <StatusIndicator.Value className="media-input-feedback-island__value" />
                     </div>
                 </StatusIndicator.Root>
@@ -968,7 +995,6 @@ export const VideoJsPlayer = forwardRef(function VideoJsPlayer(
                         crossOrigin="anonymous"
                         playsInline
                         preload="auto"
-                        disablePictureInPicture
                         className="bg-black"
                     >
                         {subtitleSrc ? (
