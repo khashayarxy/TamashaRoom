@@ -10,6 +10,18 @@
 - [x] **Fix (`app.blade.php`).** The error listener now matches **only TamashaRoom's own entry chunk**: `/build/assets/app` (production js/css/modulepreload), `@vite/` (dev HMR client), `/resources/js/app` (dev entry source). Removed the generic `type === "module"` catch-all so third-party scripts (Cloudflare beacon, analytics) can never flash the warning. `@vite/` is escaped as `@@vite/` in Blade so the directive isn't interpolated (a stale-compiled-view 500 during development exposed this and `view:clear` resolved it).
 - [x] **Verification.** `fallback-loading.spec.ts` **4/4 passed** (blocked bundle → immediate fallback still works via the `/build/assets/app` match; watchdog path; slow-but-successful → no fallback; Pusher blocked → no fallback). `SecurityTest` **23/23** (asserts `#tamasha-fallback` still renders). Frontend unit **255/255**; `npm run format:check` + `npm run lint` clean. Rendered HTML on the local server confirmed the listener carries `/build/assets/app` and no `type === "module"` clause.
 
+### Production Deployment to cPanel — Live at https://tamasharoom.ir (2026-08-20)
+
+**Batch scope:** deployed TamashaRoom to shared cPanel hosting (Apache, PHP 8.4.24, MySQL, single-core) — the first production deployment. Site is live and returning HTTP 200.
+
+- [x] **`.env` audit + cleanup.** Fixed the live `.env` contradiction: a trailing `SESSION_SECURE_COOKIE=false` overrode the correct `true` (last-definition-wins in dotenv). Removed forbidden `REDIS_*`/`MEMCACHED_*`/`AWS_*` blocks (S3 is out of scope). Removed dead config (`APP_MAINTENANCE_STORE` with `file` driver, `LOG_STACK` with `daily` channel, `PHP_CLI_SERVER_WORKERS`, inert SMTP `MAIL_HOST`/`PORT`/`USERNAME`/`PASSWORD` under `resend`). Confirmed `APP_DEBUG=false`, `APP_ENV=production`, `CACHE_STORE=file`, `QUEUE_CONNECTION=database`, `BROADCAST_CONNECTION=pusher`, `SESSION_DRIVER=database`, `FILESYSTEM_DISK=local`. All verified against the actual `config/*.php` consumers.
+- [x] **`.env.example` cleaned + committed (`1f404aa`)** — stripped forbidden `MEMCACHED_HOST`/`REDIS_*`/`AWS_*` blocks from the tracked dev template; production-template values (Part 2/Part 3 of the audit) were produced as server-side output.
+- [x] **Dependencies.** `composer install --no-dev --optimize-autoloader` on server (PHP 8.4.24, Composer via `php composer.phar`). Frontend built via cPanel Node.js 22 (`npm install --include=dev` + `npm run build`); Node.js app stopped after build so Apache serves `public/`.
+- [x] **Database.** `migrate:fresh --force` on the empty production MySQL DB (15 migrations). **Caution recorded:** `migrate:fresh` is destructive — only acceptable on a first, empty deployment; production migrations are `migrate --force` only thereafter.
+- [x] **Background work.** cPanel cron `* * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1`; `schedule:list` confirms `rooms:prune-inactive` (daily), `queue:work --stop-when-empty` (every minute), `presence:timeout` (every minute), `pusher:usage` (every 5 min). No persistent worker.
+- [x] **Cache.** `config:cache`, `route:cache`, `view:cache`, `optimize` all ran post-`.env` upload.
+- [x] **Deferred (tracked in Pending):** restore `tsc` in the production build (server `npm install` drifted `@videojs/react` beta types; local `type-check` passes clean). One-time `migrate:fresh` vs the standing `migrate --force` rule.
+
 ### Test-Flake Fixes: contrast-a11y Strict-Locator + chat.spec Tab-Switch Timeout (2026-08-20)
 
 **Batch scope:** resolved the two known pre-existing test flakes tracked in Pending. Both were confirmed on the unmodified codebase; neither was related to the 2026-08-13 video-proxy fix.
@@ -820,20 +832,17 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] **Commit + CI** — single focused commit `eff1e30` including this TASK.md update; pushed to `origin master`; GitHub Actions run `31041511207` fully green. No new dependencies; no backend or route changes; nothing outside `Dashboard.tsx`, `room-card.tsx`, `utils.ts`, and the two test files.
 
 #### Deployment Readiness
-- [ ] **Migrations on production** — not executed (all 14 migrations have run only on local SQLite)
-- [ ] **Queue worker in production** — none needed: queue is drained in batches by the `schedule:run` cron (`queue:work --stop-when-empty`); no persistent worker to start
-- [ ] **cPanel cron for `schedule:run`** — not added
-- [ ] **`SESSION_SECURE_COOKIE=true`** — in `.env.example` since 2026-07-22; must be confirmed `true` in production `.env`
-- [ ] **`APP_DEBUG=false`** — must be confirmed on production; currently `true` in local `.env`
-- [ ] **`APP_ENV=production`** — must be set on production; currently `local`
+- [x] **Migrations on production** — executed 2026-08-20 (`migrate:fresh --force`, 15 migrations, on the fresh empty production MySQL DB)
+- [x] **Queue worker in production** — none needed: queue is drained in batches by the `schedule:run` cron (`queue:work --stop-when-empty`); no persistent worker to start
+- [x] **cPanel cron for `schedule:run`** — added; `php artisan schedule:list` confirms `rooms:prune-inactive` (daily), `queue:work --stop-when-empty` (every minute), `presence:timeout` (every minute), `pusher:usage` (every 5 min)
+- [x] **`SESSION_SECURE_COOKIE=true`** — confirmed `true` in production `.env` (also fixed the live `.env` contradiction where a trailing `SESSION_SECURE_COOKIE=false` overrode it)
+- [x] **`APP_DEBUG=false`** — confirmed on production
+- [x] **`APP_ENV=production`** — confirmed on production
 
 ## Pending
 
-### Deployment
-- [ ] Run migrations on production database
-- [ ] Configure queue drain for production (confirm `QUEUE_CONNECTION=database`; queue is processed in batches by the `schedule:run` cron — no worker/supervisor needed)
-- [ ] Set up cPanel cron entry for `* * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1`
-- [ ] Confirm `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` in production `.env`
+### Deployment Follow-up
+- [ ] **Restore `tsc` to the production build** — the server build ran with `tsc` removed from the build script because `npm install --include=dev` (instead of `npm ci`) drifted `@videojs/react` (`^10.0.0-beta.26`) to a version whose internal types break `tsc`. Local `npm run type-check` passes clean and the failing paths (`Menu.View`, `Menu.Back`, `Player.Provider`) appear nowhere in TamashaRoom source. Fix: run `npm ci` (exact lockfile) + `npx tsc --noEmit` on the server; restore the committed `build` script (`tsc && vite build && php artisan view:clear`); if errors persist only on the server, pin/resolve the `@videojs/react` type drift. Runtime is unaffected.
 
 ### Launch Blockers (single-core budget — SYSTEM.md 21.10)
 - [x] **Enforce per-room member cap at join time**, including a `lockForUpdate()` guard against a join race on the last slot — `JoinRoomRequest` validates invite code; `RoomController@join` uses `DB::transaction` + `lockForUpdate()`; policy checks `isFull()` inside the locked transaction
