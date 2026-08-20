@@ -46,12 +46,19 @@
                     }
                 }
 
-                // 1. Immediate error listener for Vite script/style loading failures (0ms)
+                // 1. Immediate error listener for the core application bundle (0ms)
+                // Match only TamashaRoom's own entry chunk, never generic type="module"
+                // scripts (third-party ones like the Cloudflare Insights beacon fail on
+                // many setups and must not flash the blocker warning).
                 window.addEventListener("error", function(event) {
                     var target = event.target;
                     if (target && (target.tagName === "SCRIPT" || target.tagName === "LINK")) {
                         var src = target.src || target.href || "";
-                        if (src.indexOf("app") !== -1 || src.indexOf("vite") !== -1 || target.getAttribute("type") === "module") {
+                        if (
+                            src.indexOf("/build/assets/app") !== -1 ||  // production entry (js/css/preload)
+                            src.indexOf("@@vite/") !== -1 ||            // dev HMR client / refresh
+                            src.indexOf("/resources/js/app") !== -1     // dev entry source
+                        ) {
                             showFallback("blocked");
                         }
                     }

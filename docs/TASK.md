@@ -2,6 +2,14 @@
 
 ## Completed
 
+### Ad-Blocker Warning Flash Fix — False Positive from Cloudflare Insights Beacon (2026-08-21)
+
+**Batch scope:** fixed the production bug where the blocker/security-settings fallback overlay flashed for ~0.5s on every page load for all users, even those with no ad blocker.
+
+- [x] **Root cause diagnosed via live browser inspection** (`chrome-devtools` on https://tamasharoom.ir). Captured `error` events show the Cloudflare Insights beacon (`static.cloudflareinsights.com/beacon.min.js/…`, injected as `<script type="module">`) failing with `ERR_CONNECTION_CLOSED` on every load. The fallback's error listener in `resources/views/app.blade.php` used the overly-broad `target.getAttribute("type") === "module"` clause, so any module script failure triggered `showFallback("blocked")` *before* React mounted; `app.tsx` then cleared the overlay on mount — hence the flash. Vite's lazy-chunk `<link rel="prefetch">` 503s (Cloudflare bot-fight) were ruled out: they don't match the listener (no case-sensitive `app`/`vite` substring, `type=null`).
+- [x] **Fix (`app.blade.php`).** The error listener now matches **only TamashaRoom's own entry chunk**: `/build/assets/app` (production js/css/modulepreload), `@vite/` (dev HMR client), `/resources/js/app` (dev entry source). Removed the generic `type === "module"` catch-all so third-party scripts (Cloudflare beacon, analytics) can never flash the warning. `@vite/` is escaped as `@@vite/` in Blade so the directive isn't interpolated (a stale-compiled-view 500 during development exposed this and `view:clear` resolved it).
+- [x] **Verification.** `fallback-loading.spec.ts` **4/4 passed** (blocked bundle → immediate fallback still works via the `/build/assets/app` match; watchdog path; slow-but-successful → no fallback; Pusher blocked → no fallback). `SecurityTest` **23/23** (asserts `#tamasha-fallback` still renders). Frontend unit **255/255**; `npm run format:check` + `npm run lint` clean. Rendered HTML on the local server confirmed the listener carries `/build/assets/app` and no `type === "module"` clause.
+
 ### Test-Flake Fixes: contrast-a11y Strict-Locator + chat.spec Tab-Switch Timeout (2026-08-20)
 
 **Batch scope:** resolved the two known pre-existing test flakes tracked in Pending. Both were confirmed on the unmodified codebase; neither was related to the 2026-08-13 video-proxy fix.
