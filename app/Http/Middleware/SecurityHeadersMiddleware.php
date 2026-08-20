@@ -42,7 +42,7 @@ class SecurityHeadersMiddleware
             'microphone=()',
             'midi=()',
             'payment=()',
-            'picture-in-picture=()',
+            'picture-in-picture=(self)',
             'publickey-credentials-get=()',
             'screen-wake-lock=()',
             'sync-xhr=()',

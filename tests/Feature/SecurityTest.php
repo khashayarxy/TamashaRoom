@@ -58,6 +58,14 @@ class SecurityTest extends TestCase
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('Permissions-Policy');
         $response->assertHeader('Content-Security-Policy');
+
+        // The player's PiP control depends on the browser reporting
+        // document.pictureInPictureEnabled === true, which the Permissions-Policy
+        // picture-in-picture directive controls. It must be allowed for the same
+        // origin ((self)) or MediaPiPControl never renders.
+        $permissions = (string) $response->headers->get('Permissions-Policy');
+        $this->assertStringContainsString('picture-in-picture=(self)', $permissions);
+        $this->assertStringNotContainsString('picture-in-picture=()', $permissions);
     }
 
     #[Test]
