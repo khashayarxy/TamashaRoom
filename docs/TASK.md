@@ -1,5 +1,17 @@
 # TamashaRoom — Project Tasks
 
+## Standing Rules — CI/CD Verification (MANDATORY)
+
+> **After every `git push` to `origin/master` (or any branch), the developer MUST:**
+> 1. Wait and monitor the GitHub Actions CI pipeline (`gh run list` / `gh run watch` / Actions tab).
+> 2. Confirm **all checks are GREEN** before declaring the task complete or moving to the next step.
+> 3. If **any check fails (red/yellow)**: do NOT proceed — diagnose from CI logs, fix locally (lint/type/test/build), commit, push, and re-verify until 100% green.
+> 4. Only after CI is fully green may the change be considered deployed/complete. **Never skip this step.**
+>
+> *Why:* A red CI means broken code is in `master` and blocks all future work. On shared cPanel hosting we rely on CI to catch issues before they reach the server.
+>
+> *Already documented at:* `docs/TASK.md:54-63` (CI A11y Control-Bar Fix batch) + `.skills/git-workflow/SKILL.md` ("Standing workflow rule") + `AGENTS.md` — this section makes it a **top-level, permanent** reminder that survives scrolling.
+
 ## Completed
 
 ### Ad-Blocker Warning Flash Fix — False Positive from Cloudflare Insights Beacon (2026-08-21)
