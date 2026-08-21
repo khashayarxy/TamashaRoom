@@ -20,7 +20,13 @@ class AppServiceProvider extends ServiceProvider
     {
         Model::preventLazyLoading(! app()->isProduction());
 
-        Vite::prefetch(concurrency: 3);
+        // Vite prefetch disabled on shared cPanel hosting — the 20+ concurrent
+        // <link rel="prefetch"> requests for page chunks (Login, Register,
+        // Dashboard, etc.) trip CloudLinux LVE Entry-Process limits and surface
+        // as blanket 503s. Only the current page's assets are loaded; other
+        // chunks are fetched on demand when the user actually navigates.
+        // See: docs/deployment-checklist.md, vite.config.js (locale stub).
+        // Vite::prefetch(concurrency: 3);
 
         RateLimiter::for('chat', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?? $request->ip());
