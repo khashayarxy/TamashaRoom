@@ -8,8 +8,6 @@
 
         <title inertia>{{ config('app.name', 'تماشاروم') }}</title>
 
-        <link rel="preload" as="font" type="font/woff2" href="{{ asset('build/assets/Vazirmatn-Medium-D86t5Axy.woff2') }}" crossorigin="anonymous">
-
         <script @if(isset($cspNonce)) nonce="{{ $cspNonce }}" @endif>
             (function() {
                 var fallbackReason = null;
