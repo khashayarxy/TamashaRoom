@@ -32,7 +32,14 @@ export default defineConfig({
         // contexts, which is why this only surfaced in CI.
         permissions: ["clipboard-read", "clipboard-write"],
         launchOptions: {
-            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                // Never route the test browser through the system proxy: a
+                // local VPN client (127.0.0.1 proxy) breaks direct access to
+                // the local Herd domain with ERR_CONNECTION_CLOSED.
+                "--proxy-server=direct://",
+            ],
         },
     },
     webServer: {

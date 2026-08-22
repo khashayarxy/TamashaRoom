@@ -24,7 +24,14 @@ export default defineConfig({
         // local CA (the browser does) — see tests/a11y/playwright.config.ts.
         ignoreHTTPSErrors: true,
         launchOptions: {
-            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                // Never route the test browser through the system proxy: a
+                // local VPN client (127.0.0.1 proxy) breaks direct access to
+                // the local Herd domain with ERR_CONNECTION_CLOSED.
+                "--proxy-server=direct://",
+            ],
         },
     },
     webServer: {
