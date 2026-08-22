@@ -74,18 +74,51 @@ test.describe("App load failure fallback (privacy / script blocking)", () => {
         // Simulate the LVE/Cloudflare 503-burst class: the entry's CSS preload
         // fails once while the JS bundle itself loads and boots fine. The
         // grace window must absorb the error and never show the fallback.
+        // Diagnostics (CI-only debugging aid for the mount stall): collect
+        // console/pageerror/failed-asset evidence into the failure message.
+        const diagnostics: string[] = [];
+        page.on("console", (m) => {
+            if (["error", "warning"].includes(m.type()))
+                diagnostics.push(`console.${m.type()}: ${m.text().slice(0, 200)}`);
+        });
+        page.on("pageerror", (e) => diagnostics.push(`pageerror: ${String(e).slice(0, 300)}`));
+        page.on("requestfailed", (r) => {
+            if (r.url().includes("/build/"))
+                diagnostics.push(
+                    `asset-failed: ${r.url().split("/").pop()} ${r.failure()?.errorText}`,
+                );
+        });
+
         await page.route("**/*app*.css", (route) => route.abort("failed"));
 
         await page.goto("/login");
         await page.waitForLoadState("networkidle");
 
-        // CI's cold serve can take longer than the default 5s to mount;
-        // the point of this test is the no-flash outcome, not mount speed.
-        await expect(page.locator("html")).toHaveAttribute(
-            "data-app-mounted",
-            "true",
-            { timeout: 15000 },
-        );
+        const mounted = page.locator("html");
+        try {
+            // CI's cold serve can take longer than the default 5s to mount;
+            // the point of this test is the no-flash outcome, not mount speed.
+            await expect(mounted).toHaveAttribute("data-app-mounted", "true", {
+                timeout: 15000,
+            });
+        } catch (e) {
+            const state = await page
+                .evaluate(() => ({
+                    booted: Boolean(window.__TAMASHAROOM_APP_BOOTED),
+                    marker: Boolean(window.__TAMASHA_MOUNTED__),
+                    fallbackVisible:
+                        document.getElementById("tamasha-fallback")?.style.display ??
+                        "n/a",
+                    appDiv: Boolean(document.getElementById("app")),
+                    scripts: [...document.querySelectorAll("script[src]")].map((s) =>
+                        s.src.split("/").pop(),
+                    ),
+                }))
+                .catch(() => null);
+            throw new Error(
+                `mount stall. pageState=${JSON.stringify(state)} diagnostics=${JSON.stringify(diagnostics.slice(0, 15))} :: ${e}`,
+            );
+        }
 
         // Give any would-be flash (1.5s grace expiry) ample time to appear.
         await page.waitForTimeout(3000);
