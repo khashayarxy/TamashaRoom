@@ -26,6 +26,16 @@
 
 ## Completed
 
+### Phase 1 — Chat Latency: Instant Push Delivery + Optimistic Send (2026-08-22)
+
+**Sprint:** Stability Polish + Chat Latency + UI/UX. Audit result: the ~60s queue latency was already gone (`NewChatMessage` has been `ShouldBroadcastNow` since `a330753`, regression-tested in `ChatTest`); the remaining bottleneck was the frontend — `RoomChat` polled every 3s with no Echo listener, and the sender had no optimistic render.
+
+- [x] **Instant receive:** `RoomChat` now joins the room's presence channel and appends `chat.message.new` broadcasts immediately (server broadcasts synchronously, so delivery is ~RTT instead of ≤3s poll). Deduplicated by id against poll/POST-response races.
+- [x] **Health-gated poll cadence:** while push is healthy the poll drops to a 20s safety net (`HEALTHY_POLL_INTERVAL`); with no Echo configured (CI/E2E) or while the transport is unhealthy it stays the 3s transport. Healthy transitions trigger a catch-up fetch.
+- [x] **Optimistic send:** the sender's message renders instantly with a negative local id + pulsing pending dot; the POST response reconciles it (dropping the temp if the live echo delivered the same id first — e.g. the sender's other tab); failure rolls the row back, restores the draft, and toasts. A poll landing mid-send re-appends the still-pending optimistic rows so it can never wipe them.
+- [x] **Unread semantics preserved:** live-delivered messages increment the unread badge when the tab is hidden; visibility restore re-syncs via `markAllSeen`.
+- [x] **Tests:** 6 new Vitest cases (echo append, dedup, optimistic render + pending indicator, failure rollback + draft restore, poll-mid-send survival, slow-poll-when-healthy with fast poll otherwise); unit **289 passed**; `ChatTest` 12 passed (sync dispatch already covered); lint/tsc/format clean; contrast 7/8 locally with one confirmed load-flake (passes in isolation; CI is authoritative). No provider change — Pusher retained.
+
 ### Playback Action Toasts for Remote Members (2026-08-22)
 
 **Batch scope:** room members now see a Sonner toast when the controlling member plays, pauses, or seeks («X ویدیو را پخش کرد» / «X ویدیو را متوقف کرد» / «X به دقیقه ۱۲:۳۰ رفت») — reusing the presence-moments consecutive-snapshot-diff pattern, not a parallel system.

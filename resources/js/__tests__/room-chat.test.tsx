@@ -1,11 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RoomChat } from "@/Components/composite/room-chat";
+import { createFakeEcho, type FakeEcho } from "./helpers/fake-echo";
 
 const mockDelete = vi.fn();
 const mockPost = vi.fn();
 const mockGet = vi.fn();
+
+const echoHolder = vi.hoisted(() => ({ instance: null as FakeEcho | null }));
 
 vi.mock("@/lib/api", () => ({
     default: {
@@ -13,6 +16,18 @@ vi.mock("@/lib/api", () => ({
         post: (...args: unknown[]) => mockPost(...args),
         get: (...args: unknown[]) => mockGet(...args),
     },
+}));
+
+vi.mock("@/lib/echo", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/echo")>();
+    return {
+        ...actual,
+        getEcho: () => echoHolder.instance,
+    };
+});
+
+vi.mock("sonner", () => ({
+    toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() },
 }));
 
 vi.mock("@inertiajs/react", () => ({
@@ -477,5 +492,181 @@ describe("RoomChat", () => {
             },
             { timeout: 3000 },
         );
+    });
+});
+
+describe("RoomChat (push transport)", () => {
+    let fakeEcho: FakeEcho;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+        mockGet.mockResolvedValue({ data: [] });
+        mockPost.mockReset();
+    });
+
+    afterEach(() => {
+        echoHolder.instance = null;
+        vi.useRealTimers();
+    });
+
+    it("appends a message delivered by the Echo broadcast instantly", async () => {
+        render(<RoomChat roomId={1} initialMessages={[]} />);
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".chat.message.new",
+                makeMessage({ id: 9, user_id: 2, body: "سلام از پوش" }),
+            );
+        });
+
+        expect(screen.getByText("سلام از پوش")).toBeInTheDocument();
+    });
+
+    it("deduplicates when the Echo delivery races an already-known message", async () => {
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 5, body: "همین پیام" })]}
+            />,
+        );
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".chat.message.new",
+                makeMessage({ id: 5, body: "همین پیام" }),
+            );
+        });
+
+        expect(screen.getAllByText("همین پیام")).toHaveLength(1);
+    });
+
+    it("renders the sender's message optimistically while the POST is in flight", async () => {
+        const user = userEvent.setup();
+        let resolvePost: (v: { data: unknown }) => void;
+        mockPost.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolvePost = resolve;
+                }),
+        );
+
+        render(<RoomChat roomId={1} initialMessages={[]} />);
+
+        const input = screen.getByPlaceholderText("پیام خود را بنویسید...");
+        await user.type(input, "پیام خوش‌بینانه");
+        await user.click(screen.getByRole("button", { name: "ارسال پیام" }));
+
+        // Visible immediately, with the pending indicator.
+        expect(screen.getByText("پیام خوش‌بینانه")).toBeInTheDocument();
+        expect(
+            screen.getByRole("status", { name: "در حال ارسال" }),
+        ).toBeInTheDocument();
+
+        await act(async () => {
+            resolvePost!({
+                data: makeMessage({ id: 20, body: "پیام خوش‌بینانه" }),
+            });
+        });
+
+        expect(screen.getByText("پیام خوش‌بینانه")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("status", { name: "در حال ارسال" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("rolls the optimistic message back and restores the draft on failure", async () => {
+        const user = userEvent.setup();
+        mockPost.mockRejectedValue(new Error("network"));
+
+        render(<RoomChat roomId={1} initialMessages={[]} />);
+
+        const input = screen.getByPlaceholderText("پیام خود را بنویسید...");
+        await user.type(input, "پیام شکست‌خورده");
+        await user.click(screen.getByRole("button", { name: "ارسال پیام" }));
+
+        await waitFor(() => {
+            expect(
+                screen.queryByText("پیام شکست‌خورده"),
+            ).not.toBeInTheDocument();
+        });
+        expect(input).toHaveValue("پیام شکست‌خورده");
+        const { toast } = await import("sonner");
+        expect(toast.error).toHaveBeenCalledWith("خطا در ارسال پیام");
+    });
+
+    it("keeps the optimistic message when a poll lands mid-send", async () => {
+        const user = userEvent.setup();
+        let resolvePost: (v: { data: unknown }) => void;
+        mockPost.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolvePost = resolve;
+                }),
+        );
+        mockGet.mockResolvedValue({
+            data: [makeMessage({ id: 1, body: "قبلی" })],
+        });
+
+        render(<RoomChat roomId={1} initialMessages={[]} />);
+
+        const input = screen.getByPlaceholderText("پیام خود را بنویسید...");
+        await user.type(input, "در حال ارسال");
+        await user.click(screen.getByRole("button", { name: "ارسال پیام" }));
+        expect(screen.getByText("در حال ارسال")).toBeInTheDocument();
+
+        // A poll (visibility restore) delivers the server list while the
+        // POST is still in flight — the optimistic row must survive.
+        await act(async () => {
+            document.dispatchEvent(new Event("visibilitychange"));
+        });
+        await waitFor(() => {
+            expect(mockGet).toHaveBeenCalled();
+        });
+        await act(async () => {});
+
+        expect(screen.getByText("قبلی")).toBeInTheDocument();
+        expect(screen.getByText("در حال ارسال")).toBeInTheDocument();
+
+        await act(async () => {
+            resolvePost!({
+                data: makeMessage({ id: 21, body: "در حال ارسال" }),
+            });
+        });
+        expect(screen.getAllByText("در حال ارسال")).toHaveLength(1);
+    });
+
+    it("slows the poll to the safety-net cadence while push is healthy", async () => {
+        vi.useFakeTimers();
+
+        render(<RoomChat roomId={1} initialMessages={[]} />);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(mockGet).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            fakeEcho.fireConnected();
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        // The healthy transition performs one catch-up fetch.
+        expect(mockGet).toHaveBeenCalledTimes(2);
+        mockGet.mockClear();
+
+        // Under the 20s safety-net window: no further polls.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(18000);
+        });
+        expect(mockGet).not.toHaveBeenCalled();
+
+        // Past the window: exactly one safety-net poll.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(mockGet).toHaveBeenCalledTimes(1);
     });
 });

@@ -6,6 +6,7 @@ import {
     PopoverTrigger,
 } from "@/Components/ui/popover";
 import api from "@/lib/api";
+import { getEcho, watchPushHealth } from "@/lib/echo";
 import { timeAgo } from "@/lib/utils";
 import { isPollingSuspended } from "@/lib/polling-controller";
 import { chatMessagesSchema } from "@/lib/validation";
@@ -31,6 +32,20 @@ interface Message {
     created_at: string;
 }
 
+/**
+ * A message as rendered locally: server messages are plain `Message`s; the
+ * sender's optimistic copy carries a negative local id and `pending` until
+ * the POST response (or the live echo) delivers the persisted message.
+ */
+type ChatMessageView = Message & { pending?: boolean };
+
+/**
+ * While push is healthy the poll is only a safety net for missed events, so
+ * it runs at this slow cadence. Without push (or while the transport is
+ * unhealthy) the poll IS the transport and ticks at `pollInterval` (3s).
+ */
+const HEALTHY_POLL_INTERVAL = 20000;
+
 interface RoomChatProps {
     roomId: number;
     initialMessages: Message[];
@@ -47,7 +62,8 @@ export function RoomChat({
     presenceMoments = [],
 }: RoomChatProps) {
     const { auth } = usePage().props;
-    const [messages, setMessages] = useState<Message[]>(initialMessages);
+    const [messages, setMessages] =
+        useState<ChatMessageView[]>(initialMessages);
     const [body, setBody] = useState("");
     const [sending, setSending] = useState(false);
     const [deleting, setDeleting] = useState<number | null>(null);
@@ -59,6 +75,9 @@ export function RoomChat({
     const lastSeenIdRef = useRef<number | null>(
         initialMessages.reduce((max, m) => Math.max(max, m.id), 0) || null,
     );
+    const tempIdRef = useRef(0);
+    const pushHealthyRef = useRef(false);
+    const lastPollAtRef = useRef(0);
     const [emojiPopoverOpen, setEmojiPopoverOpen] = useState(false);
 
     const insertEmoji = (emoji: string) => {
@@ -79,11 +98,35 @@ export function RoomChat({
         setUnreadCount(0);
     }, [messages]);
 
-    const scrollToBottom = () => {
+    const scrollToBottom = useCallback(() => {
         if (listRef.current) {
             listRef.current.scrollTop = listRef.current.scrollHeight;
         }
-    };
+    }, []);
+
+    /**
+     * Append one live-delivered message (Echo broadcast), deduplicated by id
+     * — the poll and the sender's POST response can race this delivery.
+     */
+    const appendLiveMessage = useCallback(
+        (incoming: Message) => {
+            if (typeof incoming?.id !== "number") return;
+            setMessages((prev) =>
+                prev.some((m) => m.id === incoming.id)
+                    ? prev
+                    : [...prev, incoming],
+            );
+            if (
+                !isTabVisibleRef.current &&
+                (lastSeenIdRef.current === null ||
+                    incoming.id > lastSeenIdRef.current)
+            ) {
+                setUnreadCount((c) => c + 1);
+            }
+            setTimeout(scrollToBottom, 50);
+        },
+        [scrollToBottom],
+    );
 
     const fetchMessages = useCallback(async () => {
         if (isPollingSuspended()) return;
@@ -108,7 +151,13 @@ export function RoomChat({
                         setUnreadCount((c) => c + unseen);
                     }
                 }
-                return incoming;
+                // The server list is authoritative; keep only the sender's
+                // still-unacknowledged optimistic messages (negative ids) so
+                // a poll mid-send cannot wipe them.
+                const pendingOptimistic = prev.filter((m) => m.id < 0);
+                return pendingOptimistic.length > 0
+                    ? [...incoming, ...pendingOptimistic]
+                    : incoming;
             });
         } catch {
             setPollError(true);
@@ -116,18 +165,58 @@ export function RoomChat({
     }, [roomId]);
 
     useEffect(() => {
-        const timer = setTimeout(scrollToBottom, 50);
-        return () => clearTimeout(timer);
-    }, [initialMessages]);
+        const echo = getEcho();
+
+        if (!echo) return;
+
+        // Same presence channel the sync/presence hooks join; the chat feed
+        // rides `.chat.message.new` broadcasts (synchronous server-side) for
+        // instant delivery.
+        const channel = echo.join(`room.${roomId}`);
+        channel.listen(".chat.message.new", (payload) => {
+            appendLiveMessage(payload as Message);
+        });
+
+        // Push health drives the poll cadence: healthy push turns the poll
+        // into a slow safety net; a dropped or never-connected socket (or no
+        // Echo at all) keeps the fast poll as the transport.
+        const stopHealthWatch = watchPushHealth(
+            echo,
+            `room.${roomId}`,
+            (healthy) => {
+                pushHealthyRef.current = healthy;
+                if (healthy) {
+                    void fetchMessages();
+                }
+            },
+        );
+
+        return () => {
+            stopHealthWatch();
+            channel.stopListening(".chat.message.new");
+            echo.leave(`room.${roomId}`);
+        };
+    }, [roomId, appendLiveMessage, fetchMessages]);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            if (!document.hidden) {
-                void fetchMessages();
+            if (document.hidden) return;
+            if (
+                pushHealthyRef.current &&
+                Date.now() - lastPollAtRef.current < HEALTHY_POLL_INTERVAL
+            ) {
+                return;
             }
+            lastPollAtRef.current = Date.now();
+            void fetchMessages();
         }, pollInterval);
         return () => clearInterval(interval);
     }, [fetchMessages, pollInterval]);
+
+    useEffect(() => {
+        const timer = setTimeout(scrollToBottom, 50);
+        return () => clearTimeout(timer);
+    }, [initialMessages, scrollToBottom]);
 
     useEffect(() => {
         const handleVisibility = () => {
@@ -158,21 +247,45 @@ export function RoomChat({
         e.preventDefault();
         if (!body.trim() || sending) return;
 
+        // Optimistic: render immediately with a negative local id and a
+        // pending indicator; reconcile when the POST resolves (or the live
+        // echo beats it), roll back on failure with the draft restored.
+        const optimisticId = --tempIdRef.current;
+        const optimistic: ChatMessageView = {
+            id: optimisticId,
+            user_id: auth.user.id,
+            body: body.trim(),
+            user: { id: auth.user.id, name: auth.user.name },
+            created_at: new Date().toISOString(),
+            pending: true,
+        };
+        setMessages((prev) => [...prev, optimistic]);
+        setBody("");
         setSending(true);
+        scrollToBottom();
+
         try {
             const { data } = await api.post(`/chat/${roomId}/messages`, {
-                body,
+                body: optimistic.body,
             });
-            setMessages((prev) => [...prev, data]);
+            setMessages((prev) => {
+                const withoutTemp = prev.filter((m) => m.id !== optimisticId);
+                // The sender's other tab may have received the live echo
+                // already; never render the same id twice.
+                return withoutTemp.some((m) => m.id === data.id)
+                    ? withoutTemp
+                    : [...withoutTemp, data];
+            });
             if (
                 lastSeenIdRef.current === null ||
                 data.id > lastSeenIdRef.current
             ) {
                 lastSeenIdRef.current = data.id;
             }
-            setBody("");
             setTimeout(scrollToBottom, 50);
         } catch {
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+            setBody(optimistic.body);
             toast.error("خطا در ارسال پیام");
         } finally {
             setSending(false);
@@ -247,7 +360,7 @@ export function RoomChat({
                                     isOwn(item.msg.user_id)
                                         ? "bg-primary text-primary-foreground"
                                         : "bg-secondary text-secondary-foreground"
-                                }`}
+                                } ${item.msg.pending ? "opacity-60" : ""}`}
                             >
                                 <div className="font-medium text-xs mb-0.5">
                                     {item.msg.user.name}
@@ -260,9 +373,16 @@ export function RoomChat({
                                     {item.msg.body}
                                 </div>
                                 <div
-                                    className={`text-[10px] mt-1 ${isOwn(item.msg.user_id) ? "text-primary-foreground" : "text-muted-foreground"}`}
+                                    className={`text-[10px] mt-1 flex items-center gap-1 ${isOwn(item.msg.user_id) ? "text-primary-foreground" : "text-muted-foreground"}`}
                                 >
                                     {timeAgo(item.msg.created_at)}
+                                    {item.msg.pending && (
+                                        <span
+                                            className="inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse"
+                                            role="status"
+                                            aria-label="در حال ارسال"
+                                        />
+                                    )}
                                 </div>
                                 {isOwn(item.msg.user_id) && (
                                     <button
