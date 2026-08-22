@@ -24,6 +24,13 @@ export interface PlaybackStateResponse {
     state_version: number;
     server_timestamp: number | null;
     updated_at: string;
+    /**
+     * Present only on `playback.state.changed` broadcasts (the member who
+     * performed the change); the state GET never carries it. Used to derive
+     * member-visible play/pause/seek action toasts — and to distinguish a
+     * broadcast snapshot from a poll snapshot, so polls can never toast.
+     */
+    user_id?: number;
 }
 
 export interface PlaybackSyncResponse {

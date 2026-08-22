@@ -5,6 +5,7 @@ import {
 import { SubtitleOverlay } from "@/Components/composite/subtitle-overlay";
 import { Button } from "@/Components/ui/button";
 import { usePlaybackSync } from "@/Hooks/use-playback-sync";
+import type { PlaybackAction } from "@/lib/playback-actions";
 import { computeExpectedPosition } from "@/lib/types/playback";
 import type { SubtitleCue, SubtitleSettings } from "@/lib/types/subtitle";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,10 @@ interface SyncedVideoJsPlayerProps {
      * broadcast that may be delayed or undelivered.
      */
     refreshKey?: number;
+    /** The local member's user id — used to suppress their own action toasts. */
+    currentUserId?: number;
+    /** Fires for remote members' play/pause/seek actions (see usePlaybackSync). */
+    onPlaybackAction?: (action: PlaybackAction) => void;
 }
 
 function proxyUrl(roomId: number, version?: number): string {
@@ -56,11 +61,15 @@ export function SyncedVideoJsPlayer({
     onOpenSubtitleSettings,
     subtitles,
     refreshKey,
+    currentUserId,
+    onPlaybackAction,
 }: SyncedVideoJsPlayerProps) {
     const { state, sync, syncImmediate, loading, error } = usePlaybackSync({
         roomId,
         isHost: canControl,
         refreshKey,
+        currentUserId,
+        onPlaybackAction,
     });
     const playerRef = useRef<VideoJsPlayerHandle>(null);
     const lastTimeupdateSyncRef = useRef(0);

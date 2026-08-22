@@ -2,6 +2,11 @@ import api from "@/lib/api";
 import { isPollingSuspended } from "@/lib/polling-controller";
 import { getEcho, watchPushHealth, type EchoPresenceChannel } from "@/lib/echo";
 import {
+    derivePlaybackTransition,
+    SEEK_COALESCE_MS,
+    type PlaybackAction,
+} from "@/lib/playback-actions";
+import {
     computeExpectedPosition,
     PlaybackState,
     PlaybackStateResponse,
@@ -30,6 +35,19 @@ interface SyncOptions {
      * setting or removing a video instead of waiting on a broadcast.
      */
     refreshKey?: number;
+    /**
+     * The local member's user id. Broadcast snapshots initiated by this
+     * user (their own play/pause/seek in any tab) never surface as
+     * onPlaybackAction — nobody gets their own actions toasted back.
+     */
+    currentUserId?: number;
+    /**
+     * Fires for remote members' play/pause/seek actions, derived from
+     * broadcast snapshots only (never polls, never the local user's own
+     * actions). Rapid consecutive seeks within SEEK_COALESCE_MS coalesce
+     * into one action carrying the final target position.
+     */
+    onPlaybackAction?: (action: PlaybackAction) => void;
 }
 
 /**
@@ -54,6 +72,8 @@ export function usePlaybackSync({
     isHost = false,
     onRemoteChange,
     refreshKey,
+    currentUserId,
+    onPlaybackAction,
 }: SyncOptions) {
     const [state, setState] = useState<PlaybackState>({
         isPlaying: false,
@@ -96,10 +116,74 @@ export function usePlaybackSync({
     const applySnapshotRef = useRef<(raw: PlaybackStateResponse) => void>(
         () => {},
     );
+    const currentUserIdRef = useRef<number | null>(currentUserId ?? null);
+    const onPlaybackActionRef = useRef<
+        ((action: PlaybackAction) => void) | undefined
+    >(onPlaybackAction);
+    const pendingSeekRef = useRef<{
+        actorId: number;
+        positionSeconds: number;
+        timer: ReturnType<typeof setTimeout>;
+    } | null>(null);
+
+    useEffect(() => {
+        currentUserIdRef.current = currentUserId ?? null;
+    }, [currentUserId]);
+
+    useEffect(() => {
+        onPlaybackActionRef.current = onPlaybackAction;
+    }, [onPlaybackAction]);
 
     useEffect(() => {
         stateRef.current = state;
     }, [state]);
+
+    /**
+     * Emit (or coalesce) a member-visible playback action. Seeks within
+     * SEEK_COALESCE_MS of the first seek of a burst collapse into one action
+     * carrying the final position; the deadline never restarts, so
+     * continuous scrubbing cannot postpone the toast indefinitely.
+     * Play/pause flush any pending seek first so ordering is preserved.
+     */
+    const dispatchPlaybackAction = useCallback((action: PlaybackAction) => {
+        if (action.type === "seek") {
+            if (pendingSeekRef.current) {
+                pendingSeekRef.current.positionSeconds =
+                    action.positionSeconds ?? 0;
+                return;
+            }
+            const timer = setTimeout(() => {
+                const pending = pendingSeekRef.current;
+                pendingSeekRef.current = null;
+                if (pending && !cancelledRef.current) {
+                    onPlaybackActionRef.current?.({
+                        type: "seek",
+                        actorId: pending.actorId,
+                        positionSeconds: pending.positionSeconds,
+                    });
+                }
+            }, SEEK_COALESCE_MS);
+            pendingSeekRef.current = {
+                actorId: action.actorId,
+                positionSeconds: action.positionSeconds ?? 0,
+                timer,
+            };
+            return;
+        }
+        if (pendingSeekRef.current) {
+            clearTimeout(pendingSeekRef.current.timer);
+            const pending = pendingSeekRef.current;
+            pendingSeekRef.current = null;
+            if (!cancelledRef.current) {
+                onPlaybackActionRef.current?.({
+                    type: "seek",
+                    actorId: pending.actorId,
+                    positionSeconds: pending.positionSeconds,
+                });
+            }
+        }
+        onPlaybackActionRef.current?.(action);
+    }, []);
 
     /**
      * Single path for authoritative snapshots — from the state GET and from
@@ -129,12 +213,27 @@ export function usePlaybackSync({
             );
             const corrected = { ...received, positionSeconds: expected };
 
+            // Member-visible action toasts: broadcast snapshots only —
+            // `user_id` rides broadcasts and never the state GET, so polls
+            // can never toast — and never the local user's own actions.
+            const actorId = raw.user_id;
+            if (actorId !== undefined && actorId !== currentUserIdRef.current) {
+                const transition = derivePlaybackTransition(
+                    stateRef.current,
+                    corrected,
+                    lastPollRef.current,
+                );
+                if (transition) {
+                    dispatchPlaybackAction({ ...transition, actorId });
+                }
+            }
+
             stateRef.current = corrected;
             setState(corrected);
             onRemoteChange?.(corrected);
             setError(null);
         },
-        [onRemoteChange],
+        [onRemoteChange, dispatchPlaybackAction],
     );
 
     const schedulePoll = useCallback(() => {
@@ -268,6 +367,10 @@ export function usePlaybackSync({
             if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
             if (debounceTimerRef.current)
                 clearTimeout(debounceTimerRef.current);
+            if (pendingSeekRef.current) {
+                clearTimeout(pendingSeekRef.current.timer);
+                pendingSeekRef.current = null;
+            }
             pendingSyncRef.current = null;
             document.removeEventListener("visibilitychange", handleVisibility);
             stopHealthWatchRef.current?.();

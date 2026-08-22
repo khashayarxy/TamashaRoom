@@ -848,3 +848,284 @@ describe("usePlaybackSync (Pusher push transport)", () => {
         expect(fakeEcho.leftChannels).toContain("room.1");
     });
 });
+
+describe("usePlaybackSync (playback action toasts)", () => {
+    let fakeEcho: FakeEcho;
+
+    beforeEach(() => {
+        fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+        mockGet.mockReset();
+        mockPatch.mockReset();
+        mockGet.mockResolvedValue({ data: makeResponse() });
+    });
+
+    afterEach(() => {
+        echoHolder.instance = null;
+        vi.useRealTimers();
+    });
+
+    it("fires a pause action for a remote member's pause broadcast", async () => {
+        mockGet.mockResolvedValue({
+            data: makeResponse({
+                is_playing: true,
+                position_seconds: 60,
+            }),
+        });
+        const onPlaybackAction = vi.fn();
+
+        renderHook(() =>
+            usePlaybackSync({ roomId: 1, currentUserId: 1, onPlaybackAction }),
+        );
+        await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
+
+        // The initial poll snapshot has no actor and must never toast.
+        expect(onPlaybackAction).not.toHaveBeenCalled();
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: false,
+                    position_seconds: 60,
+                    user_id: 2,
+                }),
+            );
+        });
+
+        expect(onPlaybackAction).toHaveBeenCalledTimes(1);
+        expect(onPlaybackAction).toHaveBeenCalledWith({
+            type: "pause",
+            actorId: 2,
+            positionSeconds: 60,
+        });
+    });
+
+    it("fires a play action for a remote member's play broadcast", async () => {
+        const onPlaybackAction = vi.fn();
+
+        renderHook(() =>
+            usePlaybackSync({ roomId: 1, currentUserId: 1, onPlaybackAction }),
+        );
+        await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: true,
+                    position_seconds: 30,
+                    user_id: 2,
+                }),
+            );
+        });
+
+        expect(onPlaybackAction).toHaveBeenCalledWith({
+            type: "play",
+            actorId: 2,
+            positionSeconds: 30,
+        });
+    });
+
+    it("never fires for the acting user's own broadcasts", async () => {
+        mockGet.mockResolvedValue({
+            data: makeResponse({
+                is_playing: true,
+                position_seconds: 60,
+            }),
+        });
+        const onPlaybackAction = vi.fn();
+
+        renderHook(() =>
+            usePlaybackSync({ roomId: 1, currentUserId: 1, onPlaybackAction }),
+        );
+        await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: false,
+                    position_seconds: 60,
+                    user_id: 1,
+                }),
+            );
+        });
+
+        expect(onPlaybackAction).not.toHaveBeenCalled();
+    });
+
+    it("never fires for the local host's own PATCH flow", async () => {
+        mockGet.mockResolvedValue({
+            data: makeResponse({ is_playing: true, position_seconds: 60 }),
+        });
+        mockPatch.mockResolvedValue({
+            data: { status: "ok", state_version: 2, server_timestamp: 2000 },
+        });
+        const onPlaybackAction = vi.fn();
+
+        const { result } = renderHook(() =>
+            usePlaybackSync({
+                roomId: 1,
+                isHost: true,
+                currentUserId: 1,
+                onPlaybackAction,
+            }),
+        );
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(async () => {
+            await result.current.syncImmediate({ isPlaying: false });
+        });
+
+        expect(mockPatch).toHaveBeenCalled();
+        expect(onPlaybackAction).not.toHaveBeenCalled();
+    });
+
+    it("coalesces rapid seeks into one action with the final position", async () => {
+        vi.useFakeTimers();
+        mockGet.mockResolvedValue({
+            data: makeResponse({
+                is_playing: true,
+                position_seconds: 100,
+            }),
+        });
+        const onPlaybackAction = vi.fn();
+
+        renderHook(() =>
+            usePlaybackSync({ roomId: 1, currentUserId: 1, onPlaybackAction }),
+        );
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(mockGet).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: true,
+                    position_seconds: 300,
+                    user_id: 2,
+                }),
+            );
+        });
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 3,
+                    is_playing: true,
+                    position_seconds: 420,
+                    user_id: 2,
+                }),
+            );
+        });
+
+        // Inside the coalescing window: nothing fired yet.
+        expect(onPlaybackAction).not.toHaveBeenCalled();
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1600);
+        });
+
+        expect(onPlaybackAction).toHaveBeenCalledTimes(1);
+        expect(onPlaybackAction).toHaveBeenCalledWith({
+            type: "seek",
+            actorId: 2,
+            positionSeconds: 420,
+        });
+    });
+
+    it("flushes a pending seek immediately when a pause arrives, preserving order", async () => {
+        mockGet.mockResolvedValue({
+            data: makeResponse({
+                is_playing: true,
+                position_seconds: 100,
+            }),
+        });
+        const onPlaybackAction = vi.fn();
+
+        renderHook(() =>
+            usePlaybackSync({ roomId: 1, currentUserId: 1, onPlaybackAction }),
+        );
+        await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: true,
+                    position_seconds: 300,
+                    user_id: 2,
+                }),
+            );
+        });
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 3,
+                    is_playing: false,
+                    position_seconds: 300,
+                    user_id: 2,
+                }),
+            );
+        });
+
+        expect(onPlaybackAction).toHaveBeenCalledTimes(2);
+        expect(onPlaybackAction).toHaveBeenNthCalledWith(1, {
+            type: "seek",
+            actorId: 2,
+            positionSeconds: 300,
+        });
+        expect(onPlaybackAction).toHaveBeenNthCalledWith(2, {
+            type: "pause",
+            actorId: 2,
+            positionSeconds: 300,
+        });
+    });
+
+    it("does not fire a pending seek after unmount", async () => {
+        vi.useFakeTimers();
+        mockGet.mockResolvedValue({
+            data: makeResponse({
+                is_playing: true,
+                position_seconds: 100,
+            }),
+        });
+        const onPlaybackAction = vi.fn();
+
+        const { unmount } = renderHook(() =>
+            usePlaybackSync({ roomId: 1, currentUserId: 1, onPlaybackAction }),
+        );
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: true,
+                    position_seconds: 300,
+                    user_id: 2,
+                }),
+            );
+        });
+
+        unmount();
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1600);
+        });
+
+        expect(onPlaybackAction).not.toHaveBeenCalled();
+    });
+});

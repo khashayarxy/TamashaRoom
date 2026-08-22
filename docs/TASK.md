@@ -26,6 +26,16 @@
 
 ## Completed
 
+### Playback Action Toasts for Remote Members (2026-08-22)
+
+**Batch scope:** room members now see a Sonner toast when the controlling member plays, pauses, or seeks («X ویدیو را پخش کرد» / «X ویدیو را متوقف کرد» / «X به دقیقه ۱۲:۳۰ رفت») — reusing the presence-moments consecutive-snapshot-diff pattern, not a parallel system.
+
+- [x] **Mechanism:** `PlaybackStateChanged` broadcasts already carry the acting `user_id` (the state GET never does), so `lib/playback-actions.ts` derives actions only from broadcast snapshots — polls/reconnect refetches can never toast, and the local user's own actions (any tab) are filtered by `currentUserId`. Transitions classify as play/pause on `isPlaying` flips and seek on discontinuities (>8s vs extrapolated continuation while playing — safely above the host's 3s-debounced position-sync cadence at up to 2x rate — and >2s while paused); video changes never classify.
+- [x] **Coalescing:** rapid consecutive seeks collapse into one action carrying the final position (`SEEK_COALESCE_MS` 1500, deadline anchored to the first seek so continuous scrubbing can't postpone the toast indefinitely); a play/pause flushes any pending seek immediately, preserving order; unmount cancels pending toasts.
+- [x] **Wiring:** `usePlaybackSync` gains `currentUserId`/`onPlaybackAction` options; `SyncedVideoJsPlayer` passes them through; `Show.tsx` resolves the actor's name from the live presence roster (ownership-transfer safe, initial owner fallback) and toasts in Persian with `formatDuration` + `toPersianDigits`.
+- [x] **Tests:** 10 pure derivation cases + 7 hook cases (pause/play fire; own broadcasts and local host PATCH flow never fire; poll snapshots never fire; seeks coalesce to one action with final position; pending seek flushes before pause in order; unmount cancels). Unit **283 passed**, lint/tsc/format clean, contrast a11y **8/8**. E2E/full-a11y per CI after push.
+- [x] **Test-infra fix (bundled with approval):** local Playwright runs now launch with `--proxy-server=direct://` (all three configs) — a local VPN system proxy (127.0.0.1:10809) made every browser test fail with `ERR_CONNECTION_CLOSED` against the Herd domain while curl worked; `--no-proxy-server` proved insufficient for bundled Chromium, the explicit `direct://` scheme restores access regardless of VPN state. CI (Linux, no system proxy) unaffected.
+
 ### Mobile Fullscreen Landscape Orientation Lock (BUG 6, 2026-08-22)
 
 **Batch scope:** entering video fullscreen on a mobile browser now locks the screen to landscape (standard mobile video behavior) instead of staying portrait.

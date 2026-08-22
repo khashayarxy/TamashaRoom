@@ -15,7 +15,12 @@ import { useRoomOwnership } from "@/Hooks/use-room-ownership";
 import { useSuggestNext } from "@/Hooks/use-suggest-next";
 import { useSubtitles } from "@/Hooks/use-subtitles";
 import AppLayout from "@/Layouts/AppLayout";
-import { safeCopyToClipboard } from "@/lib/utils";
+import type { PlaybackAction } from "@/lib/playback-actions";
+import {
+    formatDuration,
+    safeCopyToClipboard,
+    toPersianDigits,
+} from "@/lib/utils";
 import api from "@/lib/api";
 import { useRoomUiStore } from "@/stores/room-ui";
 import {
@@ -28,7 +33,7 @@ import {
 } from "lucide-react";
 import { router, usePage } from "@inertiajs/react";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface ChatMessage {
     id: number;
@@ -210,6 +215,29 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         }
     };
 
+    // Remote members' play/pause/seek actions arrive as coalesced broadcast
+    // actions (see usePlaybackSync); surface each as one toast. The actor is
+    // the room's controlling member — prefer the live roster's name (covers
+    // ownership transfers) with the initial owner as fallback.
+    const handlePlaybackAction = useCallback(
+        (action: PlaybackAction) => {
+            const actor = presenceMembers.find(
+                (m) => m.user_id === action.actorId,
+            );
+            const name = actor?.name ?? room.owner.name;
+            if (action.type === "play") {
+                toast.message(`${name} ویدیو را پخش کرد`);
+            } else if (action.type === "pause") {
+                toast.message(`${name} ویدیو را متوقف کرد`);
+            } else {
+                toast.message(
+                    `${name} به دقیقه ${toPersianDigits(formatDuration(action.positionSeconds ?? 0))} رفت`,
+                );
+            }
+        },
+        [presenceMembers, room.owner.name],
+    );
+
     // dvh (where supported) tracks the mobile visual viewport so the fixed
     // room height never extends under the browser chrome during scroll —
     // vh alone overflows on mobile browsers.
@@ -265,6 +293,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     <SyncedVideoJsPlayer
                         roomId={room.id}
                         canControl={isOwner}
+                        currentUserId={auth.user.id}
+                        onPlaybackAction={handlePlaybackAction}
                         initialVideoUrl={room.video_url}
                         className="h-full"
                         onSuggestNext={suggestNext}
