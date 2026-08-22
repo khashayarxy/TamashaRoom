@@ -15,9 +15,13 @@ vi.mock("@/lib/api", () => ({
     },
 }));
 
-vi.mock("@/lib/echo", () => ({
-    getEcho: () => echoHolder.instance,
-}));
+vi.mock("@/lib/echo", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/echo")>();
+    return {
+        ...actual,
+        getEcho: () => echoHolder.instance,
+    };
+});
 
 function member(
     userId: number,
@@ -317,7 +321,7 @@ describe("usePresence (Pusher push transport)", () => {
         expect(result.current.members).toHaveLength(2);
     });
 
-    it("adds joining and removes leaving members without polling", async () => {
+    it("seeds joining members optimistically and ignores socket-level leaving", async () => {
         const { result } = renderHook(() => usePresence(1));
         await flushInitial();
 
@@ -326,10 +330,83 @@ describe("usePresence (Pusher push transport)", () => {
         });
         expect(result.current.members).toHaveLength(2);
 
+        // A socket-level `leaving` (e.g. a brief network blip on the other
+        // user's connection) must not read as the user leaving the room.
         await act(async () => {
             fakeEcho.fireLeaving(member(2, "online", "سارا"));
         });
-        expect(result.current.members).toHaveLength(1);
+        expect(result.current.members).toHaveLength(2);
+        expect(result.current.moments).toEqual([]);
+    });
+
+    it("derives moments only from the authoritative server roster", async () => {
+        const { result } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        // Server roster broadcast: member 2 joined (authoritative moment).
+        await act(async () => {
+            fakeEcho.emit(".member.presence.changed", {
+                members: [member(1, "online"), member(2, "online", "سارا")],
+            });
+        });
+        expect(result.current.moments).toHaveLength(1);
+        expect(result.current.moments[0]).toMatchObject({
+            type: "join",
+            user_id: 2,
+        });
+
+        // Socket blip: no leave moment, member stays in the list.
+        await act(async () => {
+            fakeEcho.fireLeaving(member(2, "online", "سارا"));
+        });
+        expect(result.current.moments).toHaveLength(1);
+        expect(result.current.members).toHaveLength(2);
+
+        // Server roster later marks them offline: the only leave moment.
+        await act(async () => {
+            fakeEcho.emit(".member.presence.changed", {
+                members: [member(1, "online"), member(2, "offline", "سارا")],
+            });
+        });
+        expect(result.current.moments).toHaveLength(2);
+        expect(result.current.moments[1]).toMatchObject({
+            type: "leave",
+            user_id: 2,
+        });
+    });
+
+    it("emits no spurious moments when a socket reconnects", async () => {
+        const { result } = renderHook(() => usePresence(1));
+        await flushInitial();
+
+        await act(async () => {
+            fakeEcho.emit(".member.presence.changed", {
+                members: [member(1, "online"), member(2, "online", "سارا")],
+            });
+        });
+        expect(result.current.moments).toHaveLength(1);
+
+        // Network blip then reconnect: `here`/`joining` replay for the same
+        // connected members, plus the re-seed GET — none of it may look like
+        // a leave or a re-join.
+        mockGet.mockResolvedValue({
+            data: [member(1, "online"), member(2, "online", "سارا")],
+        });
+        await act(async () => {
+            fakeEcho.fireDisconnected();
+        });
+        await act(async () => {
+            fakeEcho.fireConnected();
+        });
+        await act(async () => {
+            fakeEcho.fireHere([member(1, "online"), member(2, "online")]);
+        });
+        await act(async () => {
+            fakeEcho.fireJoining(member(2, "online", "سارا"));
+        });
+
+        expect(result.current.moments).toHaveLength(1);
+        expect(result.current.members).toHaveLength(2);
     });
 
     it("applies a .member.presence.changed payload roster", async () => {
@@ -363,9 +440,16 @@ describe("usePresence (Pusher push transport)", () => {
         expect(mockGet).toHaveBeenCalled();
     });
 
-    it("does not run the polling interval while push is active", async () => {
+    it("does not poll the roster while push is healthy", async () => {
         renderHook(() => usePresence(1));
         await flushInitial();
+
+        await act(async () => {
+            fakeEcho.fireConnected();
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
 
         mockGet.mockClear();
 
@@ -373,6 +457,38 @@ describe("usePresence (Pusher push transport)", () => {
             await vi.advanceTimersByTimeAsync(15000);
         });
 
+        expect(mockGet).not.toHaveBeenCalled();
+    });
+
+    it("polls the roster while push is unhealthy and stops once healthy", async () => {
+        renderHook(() => usePresence(1));
+        await flushInitial();
+
+        mockGet.mockClear();
+
+        // Socket never connected: the 5s roster fallback keeps ticking.
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(mockGet).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(mockGet).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+            fakeEcho.fireConnected();
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+
+        mockGet.mockClear();
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(15000);
+        });
         expect(mockGet).not.toHaveBeenCalled();
     });
 

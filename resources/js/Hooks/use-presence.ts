@@ -1,6 +1,6 @@
 import api from "@/lib/api";
 import { isPollingSuspended } from "@/lib/polling-controller";
-import { getEcho, type EchoPresenceChannel } from "@/lib/echo";
+import { getEcho, watchPushHealth, type EchoPresenceChannel } from "@/lib/echo";
 import {
     buildPresenceBaseline,
     derivePresenceMoments,
@@ -34,17 +34,22 @@ interface UsePresenceOptions {
  * Presence transport-agnostic hook.
  *
  * Push mode (default when Pusher is configured): the member roster rides the
- * room's presence channel (`here`/`joining`/`leaving`) plus the server's
- * `member.presence.changed` broadcasts (status changes, kick, transfer,
- * timeout). Every roster change flows through `applySnapshot`, which diffs
- * against the baseline — so moments are never double-emitted regardless of
- * which source delivers the same roster.
+ * room's presence channel plus the server's `member.presence.changed`
+ * broadcasts (status changes, kick, transfer, timeout). Every roster change
+ * flows through `applySnapshot`, which diffs against the baseline — so moments
+ * are never double-emitted regardless of which source delivers the same
+ * roster. The socket-level `here`/`joining` signals only seed the member list
+ * optimistically: they fire for reconnecting sockets too, so join/leave
+ * moments derive exclusively from the authoritative server roster.
  *
  * The heartbeat POST (every 30s, exponential backoff) is unchanged in both
  * modes: it owns `connected`, keeps `presence_status` fresh on the server, and
  * its 403/404 is the fallback removal signal when push is unavailable.
  *
- * Polling fallback (no Pusher configured, e.g. CI): the same GET every 5s.
+ * Polling fallback (no Pusher configured, e.g. CI — or the push transport is
+ * unhealthy: socket down or the presence channel failed to subscribe): the
+ * same GET every 5s. "Configured" alone never disables polling; live
+ * connection health does.
  */
 export function usePresence(
     roomId: number | null,
@@ -78,12 +83,11 @@ export function usePresence(
     const cancelledRef = useRef(false);
     const currentUserIdRef = useRef<number | null>(null);
     const channelRef = useRef<EchoPresenceChannel | null>(null);
-    const reconnectCleanupRef = useRef<{
-        pusher: { connection: { unbind: (e: string, c: () => void) => void } };
-        onConnected: () => void;
-    } | null>(null);
+    /** Live push-transport health — gates the roster polling fallback. */
+    const pushHealthyRef = useRef(false);
     const fetchPresenceRef = useRef<() => Promise<void>>(async () => {});
     const applySnapshotRef = useRef<(list: PresenceMember[]) => void>(() => {});
+    const seedRosterRef = useRef<(list: PresenceMember[]) => void>(() => {});
 
     useEffect(() => {
         baselineRef.current = null;
@@ -111,10 +115,10 @@ export function usePresence(
     }, [currentUserId]);
 
     /**
-     * Single path for every roster snapshot — initial GET, presence-channel
-     * events, and broadcasts. Diffs against the baseline (so repeated/duplicate
-     * deliveries emit no moments) and detects when the current user is no
-     * longer a member (kicked/removed) to fire onRemoved.
+     * Single path for authoritative roster snapshots — the initial GET,
+     * `.member.presence.changed` broadcasts. Diffs against the baseline (so
+     * repeated/duplicate deliveries emit no moments) and detects when the
+     * current user is no longer a member (kicked/removed) to fire onRemoved.
      */
     const applySnapshot = useCallback((list: PresenceMember[]) => {
         if (cancelledRef.current || removedRef.current) return;
@@ -137,6 +141,26 @@ export function usePresence(
         baselineRef.current = buildPresenceBaseline(list);
         membersRef.current = list;
         setMembers(list);
+    }, []);
+
+    /**
+     * Optimistically merge a socket-level roster seed (`here`/`joining`) into
+     * the member list without touching the moment baseline — reconnecting
+     * sockets fire these for users who never left, so only the authoritative
+     * server roster may derive join/leave moments.
+     */
+    const seedRoster = useCallback((list: PresenceMember[]) => {
+        if (cancelledRef.current || removedRef.current) return;
+
+        const merged = new Map(
+            membersRef.current.map((m) => [m.user_id, m]),
+        );
+        for (const member of list) {
+            merged.set(member.user_id, member);
+        }
+        const next = Array.from(merged.values());
+        membersRef.current = next;
+        setMembers(next);
     }, []);
 
     const scheduleHeartbeat = useCallback((delay: number) => {
@@ -215,13 +239,20 @@ export function usePresence(
     }, [applySnapshot]);
 
     useEffect(() => {
+        seedRosterRef.current = seedRoster;
+    }, [seedRoster]);
+
+    useEffect(() => {
         if (!roomId) return;
 
         cancelledRef.current = false;
         const echo = getEcho();
+        pushHealthyRef.current = false;
 
         scheduleHeartbeat(0);
         void fetchPresenceRef.current();
+
+        let stopHealthWatch: (() => void) | null = null;
 
         if (echo) {
             // Echo's join() already prepends the presence- prefix, so pass the
@@ -229,9 +260,12 @@ export function usePresence(
             const channel = echo.join(`room.${roomId}`);
             channelRef.current = channel;
 
+            // Socket-level seeds only (`leaving` is deliberately ignored: it
+            // fires for any dropped connection, including brief network
+            // blips, and must not read as the user leaving the room).
             channel.here((echoMembers) => {
                 if (cancelledRef.current) return;
-                applySnapshotRef.current(echoMembers as PresenceMember[]);
+                seedRosterRef.current(echoMembers as PresenceMember[]);
             });
 
             channel.joining((member) => {
@@ -239,18 +273,8 @@ export function usePresence(
                 const info = member as PresenceMember;
                 const current = membersRef.current;
                 if (!current.some((m) => m.user_id === info.user_id)) {
-                    applySnapshotRef.current([...current, info]);
+                    seedRosterRef.current([...current, info]);
                 }
-            });
-
-            channel.leaving((member) => {
-                if (cancelledRef.current) return;
-                const info = member as PresenceMember;
-                applySnapshotRef.current(
-                    membersRef.current.filter(
-                        (m) => m.user_id !== info.user_id,
-                    ),
-                );
             });
 
             channel.listen(".member.presence.changed", (payload) => {
@@ -261,20 +285,27 @@ export function usePresence(
                 }
             });
 
-            // A dropped/re-established socket must re-seed the roster.
-            const pusher = echo.connector.pusher;
-            const onConnected = () => {
-                if (!cancelledRef.current) void fetchPresenceRef.current();
-            };
-            pusher.connection.bind("connected", onConnected);
-            reconnectCleanupRef.current = { pusher, onConnected };
+            // A healthy transition re-seeds the roster from the server;
+            // while unhealthy, the polling interval below keeps the roster
+            // and moments flowing on the fallback cadence.
+            stopHealthWatch = watchPushHealth(
+                echo,
+                `room.${roomId}`,
+                (healthy) => {
+                    if (cancelledRef.current) return;
+                    pushHealthyRef.current = healthy;
+                    if (healthy) {
+                        void fetchPresenceRef.current();
+                    }
+                },
+            );
         }
 
-        if (!echo) {
-            pollTimerRef.current = setInterval(() => {
-                void fetchPresenceRef.current();
-            }, POLL_INTERVAL);
-        }
+        // Roster poll fallback: always ticking, skipped while push is healthy.
+        pollTimerRef.current = setInterval(() => {
+            if (pushHealthyRef.current) return;
+            void fetchPresenceRef.current();
+        }, POLL_INTERVAL);
 
         const handleVisibility = () => {
             documentHiddenRef.current = document.hidden;
@@ -292,13 +323,7 @@ export function usePresence(
                 clearTimeout(heartbeatTimerRef.current);
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
             document.removeEventListener("visibilitychange", handleVisibility);
-            if (reconnectCleanupRef.current) {
-                reconnectCleanupRef.current.pusher.connection.unbind(
-                    "connected",
-                    reconnectCleanupRef.current.onConnected,
-                );
-                reconnectCleanupRef.current = null;
-            }
+            stopHealthWatch?.();
             channelRef.current?.stopListening(".member.presence.changed");
             echo?.leave(`room.${roomId}`);
             channelRef.current = null;
