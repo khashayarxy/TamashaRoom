@@ -26,6 +26,13 @@
 
 ## Completed
 
+### Phase 3 — Lock Toggle Implication Warning (2026-08-22)
+
+**Sprint:** Stability Polish + Chat Latency + UI/UX.
+
+- [x] While the room is locked, the settings dialog shows a `role="note"` warning under the toggle: «تا زمانی که اتاق قفل است، هیچ‌کس نمی‌تواند با لینک یا کد وارد اتاق شود.» — `text-warning` on `bg-warning/10` (same token pair as the audited `(قفل)` badge), RTL-friendly, hidden when unlocked.
+- [x] **Tests:** 2 new Vitest cases (shown when locked / hidden when unlocked); contrast a11y **8/8**; lint/tsc/format clean.
+
 ### Phase 2 — Locked Room Joins Never Fail Silently (2026-08-22)
 
 **Sprint:** Stability Polish + Chat Latency + UI/UX. Bug: opening a locked room's invite link/code silently failed — `RoomPolicy::join` denies with «این اتاق قفل شده است.» as an `invite_code` error, but the Join page never rendered that error (only `guest_name`), so every entry path (direct link, bookmark, QR code, code entry) showed nothing.

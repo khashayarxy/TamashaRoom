@@ -188,6 +188,20 @@ export function RoomSettingsDialog({
                         </Button>
                     </div>
 
+                    {isLocked && (
+                        <p
+                            role="note"
+                            className="flex items-start gap-2 rounded-xl bg-warning/10 px-3 py-2 text-xs font-medium text-warning"
+                        >
+                            <Lock
+                                className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            تا زمانی که اتاق قفل است، هیچ‌کس نمی‌تواند با لینک
+                            یا کد وارد اتاق شود.
+                        </p>
+                    )}
+
                     <DialogFooter>
                         <Button type="button" variant="ghost" onClick={onClose}>
                             انصراف
