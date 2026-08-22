@@ -21,6 +21,20 @@ Route::get('/', function () {
     ]);
 });
 
+// Cloudflare Speed Brain opt-out. CF auto-enables Speed Brain on zones and
+// injects a `Speculation-Rules: "/cdn-cgi/speculation"` response header; the
+// browser then hover-prefetches linked pages, each a full PHP render on a
+// 1-core LVE budget. CF never overrides an origin-set Speculation-Rules
+// header, so SecurityHeadersMiddleware points Chrome at these empty rules —
+// speculation stays off even if the dashboard toggle regresses. The payload
+// never changes, so it is safe to cache immutably.
+Route::get('/speculation-rules', function () {
+    return response()
+        ->json(['prefetch' => [], 'prerender' => []])
+        ->header('Content-Type', 'application/speculationrules+json')
+        ->header('Cache-Control', 'public, max-age=604800');
+})->name('speculation-rules');
+
 // Guest-accessible invite join. No auth required so invite-link recipients can
 // enter with just a display name. Rate limited per IP when unauthenticated.
 Route::prefix('rooms')->name('rooms.')->group(function () {

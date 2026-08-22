@@ -26,6 +26,15 @@
 
 ## Completed
 
+### Regressions Sprint Phase 1 — Cloudflare Speed Brain Prefetch Opt-Out (2026-08-22)
+
+**Sprint:** Critical Regressions + Prefetch Discovery. Fresh curl trace showed `Speculation-Rules: "/cdn-cgi/speculation"` on every response — Cloudflare **Speed Brain** (auto-enabled zone-wide in 2025), not Laravel/Vite.
+
+- [x] **Diagnosis with live evidence:** `Vite::prefetch()` confirmed disabled (`AppServiceProvider` — served HTML references only `app-<current-hash>`; no chunk speculation rules, no prefetch links). `cf-cache-status: DYNAMIC` + `Cache-Control: no-cache, private` + per-request CSP nonces prove neither Cloudflare nor any origin page-cache serves stale HTML. The "stale hash" prefetches in the trace (`app-o3NFs2Mx.js` vs served `app-Dq95EzNk.js`) came from a pre-deploy browser session (old tab / bfcache) still executing the OLD `Vite::prefetch` speculation rules — client-side residue, not server state. Speed Brain's own rules only hover-prefetch **linked pages**, but each prefetch is a full PHP render on the 1-core LVE budget, so it is opt-out worthy too.
+- [x] **Fix:** `SecurityHeadersMiddleware` (production) now sets `Speculation-Rules: "/speculation-rules"` — Cloudflare never overrides an origin-set Speculation-Rules header (documented in their Speed Brain announcement). `GET /speculation-rules` serves `{"prefetch":[],"prerender":[]}` as `application/speculationrules+json`, `Cache-Control: public, max-age=604800`. Speculation stays off even if the dashboard toggle regresses. A `<meta http-equiv="Speculation-Policy">` was considered and rejected — no browser ships it (proposal only).
+- [x] **Ops (dashboard, documented in `docs/deployment-checklist.md` §6b):** disable Speed Brain (Speed → Optimization → Content Optimization), drop Web Analytics if the `beacon.min.js` injection isn't wanted, purge cache after each deploy (clears edge-cached retired chunk hashes/404s).
+- [x] **Tests:** new `tests/Feature/SpeculationRulesTest.php` (3 cases: endpoint payload/MIME/cache headers; production documents carry the header; non-production doesn't).
+
 ### Phase 5 — Sync Tightening + Immutable Asset Caching (2026-08-22)
 
 **Sprint:** Stability Polish + Chat Latency + UI/UX.

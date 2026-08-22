@@ -133,6 +133,33 @@ php artisan view:cache
 
 ---
 
+## 6b. Cloudflare Settings (tamasharoom.ir)
+
+- **Speed Brain must stay OFF** (Speed → Optimization → Content Optimization).
+  Cloudflare auto-enabled it zone-wide in 2025: it injects a
+  `Speculation-Rules: "/cdn-cgi/speculation"` response header and the browser
+  hover-prefetches linked pages — each prefetch is a full PHP render on the
+  1-core LVE budget. The app defends itself in code
+  (`SecurityHeadersMiddleware` sets its own `Speculation-Rules` header
+  pointing at `/speculation-rules`, an empty-rules endpoint — CF never
+  overrides an origin-set header), but keep the toggle off anyway so the
+  extra `/cdn-cgi/speculation` request disappears entirely.
+- **Web Analytics beacon** (`/cdn-cgi/beacon.min.js`): injected only if
+  Cloudflare Web Analytics is enabled for the zone (Analytics & Logs →
+  Web Analytics). Remove the site entry there if the beacon is not wanted —
+  it is one extra script per page load and executes under CSP `'self'`.
+- **Cache purge after each deploy** (Caching → Configuration → Purge
+  Everything): HTML is never edge-cached (`cf-cache-status: DYNAMIC`, origin
+  sends `Cache-Control: no-cache, private`), but `/build/assets/*` IS cached
+  by default — purging clears edge-cached copies (and any cached 404s for
+  chunk hashes retired by the deploy).
+- Verify after deploy: `curl -sI https://tamasharoom.ir/login | grep -i speculation`
+  → `Speculation-Rules: "/speculation-rules"` (ours), and
+  `curl -s https://tamasharoom.ir/speculation-rules` →
+  `{"prefetch":[],"prerender":[]}`.
+
+---
+
 ## 7. Verify Deployment
 
 | Check | How |

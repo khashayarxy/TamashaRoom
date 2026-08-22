@@ -127,6 +127,14 @@ class SecurityHeadersMiddleware
 
         if (app()->environment('production')) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains', true);
+
+            // Quoted URL — the exact format Cloudflare itself uses for this
+            // header. An origin-set Speculation-Rules header is the documented
+            // signal CF respects to leave its Speed Brain rules out; ours
+            // points at an empty-rules endpoint, so browsers never speculate.
+            // Only Chrome acts on the header, and only for document
+            // navigations — JSON/redirect responses carry it harmlessly.
+            $response->headers->set('Speculation-Rules', '"/speculation-rules"', true);
         }
 
         $response->headers->remove('X-Powered-By');
