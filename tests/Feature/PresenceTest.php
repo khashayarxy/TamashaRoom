@@ -7,7 +7,9 @@ namespace Tests\Feature;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -239,5 +241,23 @@ class PresenceTest extends TestCase
             'status',
             'heartbeat_version',
         ]);
+    }
+
+    /**
+     * Production drains its database queue once a minute via cron, so a queued
+     * presence broadcast would delay roster updates (and chat join/leave
+     * moments) by 0–60s. Presence events must broadcast synchronously.
+     */
+    #[Test]
+    public function presence_broadcast_is_not_queued_on_the_database_queue(): void
+    {
+        config(['queue.default' => 'database']);
+        Queue::fake();
+
+        $this->actingAs($this->member)
+            ->postJson("/presence/{$this->room->id}/heartbeat")
+            ->assertOk();
+
+        Queue::assertNotPushed(BroadcastEvent::class);
     }
 }

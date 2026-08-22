@@ -15,9 +15,13 @@ vi.mock("@/lib/api", () => ({
     },
 }));
 
-vi.mock("@/lib/echo", () => ({
-    getEcho: () => echoHolder.instance,
-}));
+vi.mock("@/lib/echo", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/echo")>();
+    return {
+        ...actual,
+        getEcho: () => echoHolder.instance,
+    };
+});
 
 function makeResponse(overrides: Record<string, unknown> = {}) {
     return {
@@ -705,7 +709,107 @@ describe("usePlaybackSync (Pusher push transport)", () => {
         expect(mockGet).toHaveBeenCalled();
     });
 
-    it("does not poll continuously while push is active", async () => {
+    it("does not poll while the push transport is healthy", async () => {
+        vi.useFakeTimers();
+
+        try {
+            renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            await act(async () => {
+                fakeEcho.fireConnected();
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            mockGet.mockClear();
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(30000);
+            });
+
+            // Healthy push: the tiered polling loop must stay disarmed.
+            expect(mockGet).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("polls while push is unhealthy and stops once the socket connects", async () => {
+        vi.useFakeTimers();
+
+        try {
+            renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            expect(mockGet).toHaveBeenCalledTimes(1);
+
+            // Socket never connected: the polling fallback stays armed.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10000);
+            });
+            expect(mockGet).toHaveBeenCalledTimes(2);
+
+            await act(async () => {
+                fakeEcho.fireConnected();
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            mockGet.mockClear();
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(30000);
+            });
+            expect(mockGet).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("resumes polling when a healthy socket drops", async () => {
+        vi.useFakeTimers();
+
+        try {
+            renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            await act(async () => {
+                fakeEcho.fireConnected();
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            mockGet.mockClear();
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10000);
+            });
+            expect(mockGet).not.toHaveBeenCalled();
+
+            await act(async () => {
+                fakeEcho.fireDisconnected();
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10000);
+            });
+
+            expect(mockGet).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("keeps polling when the presence channel fails to subscribe (auth error)", async () => {
         vi.useFakeTimers();
 
         try {
@@ -715,13 +819,21 @@ describe("usePlaybackSync (Pusher push transport)", () => {
                 await vi.advanceTimersByTimeAsync(0);
             });
 
-            expect(mockGet).toHaveBeenCalledTimes(1);
-
+            // Connection up but the channel auth failed: never healthy.
             await act(async () => {
-                await vi.advanceTimersByTimeAsync(30000);
+                fakeEcho.fireConnected();
+                fakeEcho.fireSubscriptionError();
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
             });
 
-            // Push mode must not schedule the tiered polling loop.
+            mockGet.mockClear();
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10000);
+            });
+
             expect(mockGet).toHaveBeenCalledTimes(1);
         } finally {
             vi.useRealTimers();

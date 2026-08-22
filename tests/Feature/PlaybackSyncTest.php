@@ -8,8 +8,10 @@ use App\Enums\PlaybackMode;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class PlaybackSyncTest extends TestCase
@@ -504,5 +506,27 @@ class PlaybackSyncTest extends TestCase
 
         $this->room->refresh();
         $this->assertTrue($this->room->playback_mode === PlaybackMode::Direct);
+    }
+
+    /**
+     * Production drains its database queue once a minute via cron, so a queued
+     * broadcast would delay playback sync for every guest by 0–60s. The room's
+     * playback events must therefore broadcast synchronously (never queued).
+     */
+    public function test_playback_broadcast_is_not_queued_on_the_database_queue(): void
+    {
+        config(['queue.default' => 'database']);
+        Queue::fake();
+
+        $this->actingAs($this->owner)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 30,
+                'duration_seconds' => 120,
+                'playback_rate' => 1.0,
+            ])
+            ->assertOk();
+
+        Queue::assertNotPushed(BroadcastEvent::class);
     }
 }

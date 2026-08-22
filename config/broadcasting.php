@@ -58,6 +58,9 @@ return [
                 'scheme' => env('PUSHER_SCHEME', 'https'),
                 'encrypted' => true,
                 'useTLS' => env('PUSHER_SCHEME', 'https') === 'https',
+                // Broadcasts are synchronous (ShouldBroadcastNow), so a Pusher
+                // outage must not hold room mutations for the SDK's 30s default.
+                'timeout' => (float) env('PUSHER_TIMEOUT', 3),
             ],
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
@@ -79,6 +82,7 @@ return [
                 'scheme' => 'https',
                 'encrypted' => true,
                 'disable_stats' => true,
+                'timeout' => (float) env('PUSHER_TIMEOUT', 3),
             ],
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html

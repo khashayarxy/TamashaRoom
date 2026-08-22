@@ -8,7 +8,9 @@ use App\Models\ChatMessage;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -205,5 +207,25 @@ class ChatTest extends TestCase
         $response->assertNotFound();
 
         $this->assertDatabaseHas('chat_messages', ['id' => $otherMessage->id]);
+    }
+
+    /**
+     * Production drains its database queue once a minute via cron, so a queued
+     * chat broadcast would arrive well after the 3s poll already delivered the
+     * message. Chat events must broadcast synchronously.
+     */
+    #[Test]
+    public function chat_broadcast_is_not_queued_on_the_database_queue(): void
+    {
+        config(['queue.default' => 'database']);
+        Queue::fake();
+
+        $this->actingAs($this->owner)
+            ->postJson(route('chat.store', $this->room), [
+                'body' => 'sync broadcast',
+            ])
+            ->assertCreated();
+
+        Queue::assertNotPushed(BroadcastEvent::class);
     }
 }

@@ -7,11 +7,16 @@ namespace App\Events;
 use App\Models\ChatMessage;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewChatMessage implements ShouldBroadcast
+/**
+ * Broadcasts synchronously (ShouldBroadcastNow): production drains its
+ * database queue only once a minute via cron, so a queued broadcast would
+ * always lose the race against the 3s chat poll it complements.
+ */
+class NewChatMessage implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

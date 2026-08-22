@@ -1,6 +1,6 @@
 import api from "@/lib/api";
 import { isPollingSuspended } from "@/lib/polling-controller";
-import { getEcho, type EchoPresenceChannel } from "@/lib/echo";
+import { getEcho, watchPushHealth, type EchoPresenceChannel } from "@/lib/echo";
 import {
     computeExpectedPosition,
     PlaybackState,
@@ -41,8 +41,10 @@ interface SyncOptions {
  * (and again on visibility-restore / socket reconnect) seeds the baseline, so
  * late joiners and reconnects never wait for the next event.
  *
- * Polling fallback (no Pusher configured, e.g. CI): the same GET on the old
- * tiered cadence — 3s while playing, 10s while idle.
+ * Polling fallback (no Pusher configured, e.g. CI — or the push transport is
+ * unhealthy: socket down or the presence channel failed to subscribe): the
+ * same GET on the old tiered cadence — 3s while playing, 10s while idle.
+ * "Configured" alone never disables polling; live connection health does.
  *
  * The write path is unchanged and identical in both modes: host-only PATCH
  * (debounced) or immediate, guarded by the server's state_version.
@@ -80,13 +82,16 @@ export function usePlaybackSync({
     const documentHiddenRef = useRef(
         typeof document !== "undefined" && document.hidden,
     );
-    const pushEnabledRef = useRef(false);
+    /**
+     * Live push-transport health — true only while the socket is connected
+     * and the room's presence channel is subscribed. Polling runs whenever
+     * this is false, so a socket that never connects (blocked, unreachable,
+     * auth failure) still leaves the room functional on the polling cadence.
+     */
+    const pushHealthyRef = useRef(false);
     const channelRef = useRef<EchoPresenceChannel | null>(null);
     const appliedRefreshKeyRef = useRef(refreshKey);
-    const reconnectCleanupRef = useRef<{
-        pusher: { connection: { unbind: (e: string, c: () => void) => void } };
-        onConnected: () => void;
-    } | null>(null);
+    const stopHealthWatchRef = useRef<(() => void) | null>(null);
     const fetchStateRef = useRef<() => Promise<void>>(async () => {});
     const applySnapshotRef = useRef<(raw: PlaybackStateResponse) => void>(
         () => {},
@@ -184,7 +189,7 @@ export function usePlaybackSync({
                 return;
             }
             setLoading(false);
-            if (!pushEnabledRef.current) {
+            if (!pushHealthyRef.current) {
                 schedulePoll();
             }
         }
@@ -210,7 +215,7 @@ export function usePlaybackSync({
     useEffect(() => {
         cancelledRef.current = false;
         const echo = getEcho();
-        pushEnabledRef.current = echo !== null;
+        pushHealthyRef.current = false;
 
         if (echo) {
             // Echo's join() already prepends the presence- prefix, so pass the
@@ -223,15 +228,28 @@ export function usePlaybackSync({
                 applySnapshotRef.current(payload as PlaybackStateResponse);
             });
 
-            // A dropped/re-established socket must re-seed from the
-            // authoritative GET — broadcasts alone would resume from whatever
-            // the socket last delivered.
-            const pusher = echo.connector.pusher;
-            const onConnected = () => {
-                if (!cancelledRef.current) void fetchStateRef.current();
-            };
-            pusher.connection.bind("connected", onConnected);
-            reconnectCleanupRef.current = { pusher, onConnected };
+            // Push health drives the transport: while healthy, broadcasts
+            // deliver state and polling stops; on any drop (connecting,
+            // disconnected, subscription/auth failure) the tiered polling
+            // fallback resumes, and a healthy transition re-seeds from the
+            // authoritative GET.
+            stopHealthWatchRef.current = watchPushHealth(
+                echo,
+                `room.${roomId}`,
+                (healthy) => {
+                    if (cancelledRef.current) return;
+                    pushHealthyRef.current = healthy;
+                    if (healthy) {
+                        if (pollTimerRef.current) {
+                            clearTimeout(pollTimerRef.current);
+                            pollTimerRef.current = null;
+                        }
+                        void fetchStateRef.current();
+                    } else {
+                        schedulePoll();
+                    }
+                },
+            );
         }
 
         void fetchStateRef.current();
@@ -252,18 +270,13 @@ export function usePlaybackSync({
                 clearTimeout(debounceTimerRef.current);
             pendingSyncRef.current = null;
             document.removeEventListener("visibilitychange", handleVisibility);
-            if (reconnectCleanupRef.current) {
-                reconnectCleanupRef.current.pusher.connection.unbind(
-                    "connected",
-                    reconnectCleanupRef.current.onConnected,
-                );
-                reconnectCleanupRef.current = null;
-            }
+            stopHealthWatchRef.current?.();
+            stopHealthWatchRef.current = null;
             channelRef.current?.stopListening(".playback.state.changed");
             echo?.leave(`room.${roomId}`);
             channelRef.current = null;
         };
-    }, [roomId]);
+    }, [roomId, schedulePoll]);
 
     const sync = useCallback(
         async (partial: Partial<PlaybackState>) => {

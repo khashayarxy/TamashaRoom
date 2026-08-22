@@ -22,12 +22,25 @@ export interface EchoLike {
     leave: (channel: string) => void;
     connector: {
         pusher: {
+            /**
+             * Raw pusher-js channel lookup (e.g. "presence-room.1"). Optional so
+             * test fakes without the raw surface degrade to connection-only
+             * health tracking.
+             */
+            channel?: (name: string) => EchoRawChannel | undefined;
             connection: {
-                bind: (event: string, callback: () => void) => void;
-                unbind: (event: string, callback: () => void) => void;
+                state?: string;
+                bind: (event: string, callback: (payload?: unknown) => void) => void;
+                unbind: (event: string, callback: (payload?: unknown) => void) => void;
             };
         };
     };
+}
+
+export interface EchoRawChannel {
+    bind: (event: string, callback: (payload?: unknown) => void) => void;
+    unbind: (event: string, callback: (payload?: unknown) => void) => void;
+    subscribed?: boolean;
 }
 
 /** Shared auth wiring for the session-authenticated `/broadcasting/auth` route. */
@@ -158,6 +171,76 @@ export function getEcho(): EchoLike | null {
 /** True when the Echo client is available (i.e. push is the active transport). */
 export function isPushConfigured(): boolean {
     return getEcho() !== null;
+}
+
+/**
+ * Watch the live health of the push transport for one room channel.
+ *
+ * Healthy means the socket is connected AND the room's presence channel is
+ * subscribed — a socket that never connects (blocked, unreachable) or a
+ * channel whose `/broadcasting/auth` fails never becomes healthy, which is
+ * exactly when the room hooks must keep their polling fallback running.
+ * "Echo is configured" alone must never disable polling.
+ *
+ * Returns an unsubscribe function. `onChange` fires once immediately with the
+ * current state, then on every transition.
+ */
+export function watchPushHealth(
+    echo: EchoLike,
+    baseChannel: string,
+    onChange: (healthy: boolean) => void,
+): () => void {
+    const pusher = echo.connector.pusher;
+    const cleanups: Array<() => void> = [];
+
+    let connectionUp = pusher.connection.state === "connected";
+    // Without the raw-channel surface (test fakes), health tracks the
+    // connection alone — the channel check is an additional signal, not a
+    // requirement of the interface.
+    let channelUp = true;
+    let lastNotified: boolean | null = null;
+
+    const notify = () => {
+        const healthy = connectionUp && channelUp;
+        if (healthy !== lastNotified) {
+            lastNotified = healthy;
+            onChange(healthy);
+        }
+    };
+
+    const onStateChanged = (payload?: unknown) => {
+        const states = payload as { current?: string } | undefined;
+        connectionUp = states?.current === "connected";
+        notify();
+    };
+    pusher.connection.bind("state_changed", onStateChanged);
+    cleanups.push(() =>
+        pusher.connection.unbind("state_changed", onStateChanged),
+    );
+
+    const rawChannel = pusher.channel?.(`presence-${baseChannel}`);
+    if (rawChannel) {
+        channelUp = rawChannel.subscribed === true;
+
+        const onSubscribed = () => {
+            channelUp = true;
+            notify();
+        };
+        const onSubscriptionError = () => {
+            channelUp = false;
+            notify();
+        };
+        rawChannel.bind("pusher:subscription_succeeded", onSubscribed);
+        rawChannel.bind("pusher:subscription_error", onSubscriptionError);
+        cleanups.push(() => {
+            rawChannel.unbind("pusher:subscription_succeeded", onSubscribed);
+            rawChannel.unbind("pusher:subscription_error", onSubscriptionError);
+        });
+    }
+
+    notify();
+
+    return () => cleanups.forEach((cleanup) => cleanup());
 }
 
 /** Test helper: reset the singleton so a later getEcho() re-evaluates config. */
