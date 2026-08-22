@@ -596,6 +596,83 @@ describe("RoomChat (push transport)", () => {
         expect(toast.error).toHaveBeenCalledWith("خطا در ارسال پیام");
     });
 
+    it("does not serialize rapid consecutive sends (each POST is independent)", async () => {
+        const user = userEvent.setup();
+        const resolvers: Array<(v: { data: unknown }) => void> = [];
+        mockPost.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolvers.push(resolve);
+                }),
+        );
+
+        render(<RoomChat roomId={1} initialMessages={[]} />);
+
+        const input = screen.getByPlaceholderText("پیام خود را بنویسید...");
+        await user.type(input, "پیام اول");
+        await user.click(screen.getByRole("button", { name: "ارسال پیام" }));
+
+        // The first POST is still in flight — the second message must render
+        // optimistically anyway (regression: a shared "sending" gate made
+        // every message wait out the previous POST's round-trip).
+        await user.type(input, "پیام دوم");
+        await user.click(screen.getByRole("button", { name: "ارسال پیام" }));
+
+        expect(screen.getByText("پیام اول")).toBeInTheDocument();
+        expect(screen.getByText("پیام دوم")).toBeInTheDocument();
+        expect(mockPost).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+            resolvers[0]!({
+                data: makeMessage({ id: 30, body: "پیام اول" }),
+            });
+        });
+        await act(async () => {
+            resolvers[1]!({
+                data: makeMessage({ id: 31, body: "پیام دوم" }),
+            });
+        });
+
+        expect(screen.getAllByText("پیام اول")).toHaveLength(1);
+        expect(screen.getAllByText("پیام دوم")).toHaveLength(1);
+        expect(
+            screen.queryByRole("status", { name: "در حال ارسال" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("a failed send does not clobber a newer draft the user is typing", async () => {
+        const user = userEvent.setup();
+        let rejectPost: (reason?: unknown) => void;
+        mockPost.mockImplementation(
+            () =>
+                new Promise((_resolve, reject) => {
+                    rejectPost = reject;
+                }),
+        );
+
+        render(<RoomChat roomId={1} initialMessages={[]} />);
+
+        const input = screen.getByPlaceholderText("پیام خود را بنویسید...");
+        await user.type(input, "پیام شکست‌خورده");
+        await user.click(screen.getByRole("button", { name: "ارسال پیام" }));
+
+        // The user fully types a new message while the failed one is still
+        // in flight; the rollback must restore the failed body only if the
+        // draft is empty, never overwrite what is being typed.
+        await user.type(input, "پیام جدید");
+
+        await act(async () => {
+            rejectPost!(new Error("network"));
+        });
+
+        await waitFor(() => {
+            expect(
+                screen.queryByText("پیام شکست‌خورده"),
+            ).not.toBeInTheDocument();
+        });
+        expect(input).toHaveValue("پیام جدید");
+    });
+
     it("keeps the optimistic message when a poll lands mid-send", async () => {
         const user = userEvent.setup();
         let resolvePost: (v: { data: unknown }) => void;

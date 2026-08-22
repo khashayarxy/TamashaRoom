@@ -65,7 +65,6 @@ export function RoomChat({
     const [messages, setMessages] =
         useState<ChatMessageView[]>(initialMessages);
     const [body, setBody] = useState("");
-    const [sending, setSending] = useState(false);
     const [deleting, setDeleting] = useState<number | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -245,11 +244,16 @@ export function RoomChat({
 
     const sendMessage = async (e: FormEvent) => {
         e.preventDefault();
-        if (!body.trim() || sending) return;
+        if (!body.trim()) return;
 
         // Optimistic: render immediately with a negative local id and a
         // pending indicator; reconcile when the POST resolves (or the live
         // echo beats it), roll back on failure with the draft restored.
+        // Sends are NOT serialized: each message gets its own in-flight POST
+        // (anti-spam stays server-side via throttle:chat) — gating submit on
+        // a shared "sending" flag made every message wait out the previous
+        // POST's round-trip (which contains the synchronous Pusher
+        // broadcast), so rapid chat felt seconds slow.
         const optimisticId = --tempIdRef.current;
         const optimistic: ChatMessageView = {
             id: optimisticId,
@@ -261,7 +265,6 @@ export function RoomChat({
         };
         setMessages((prev) => [...prev, optimistic]);
         setBody("");
-        setSending(true);
         scrollToBottom();
 
         try {
@@ -285,10 +288,8 @@ export function RoomChat({
             setTimeout(scrollToBottom, 50);
         } catch {
             setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
-            setBody(optimistic.body);
+            setBody((b) => (b ? b : optimistic.body));
             toast.error("خطا در ارسال پیام");
-        } finally {
-            setSending(false);
         }
     };
 
@@ -419,7 +420,7 @@ export function RoomChat({
                 />
                 <button
                     type="submit"
-                    disabled={sending || !body.trim()}
+                    disabled={!body.trim()}
                     className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50"
                     aria-label="ارسال پیام"
                 >

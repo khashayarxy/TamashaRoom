@@ -26,6 +26,15 @@
 
 ## Completed
 
+### Regressions Sprint Phase 5 — Chat Send Serialization Removed (2026-08-23)
+
+**Sprint:** Critical Regressions + Prefetch Discovery. Bug: rapid chat felt seconds slow again (~20 messages took far too long).
+
+- [x] **Audit result (reported per sprint):** interface is `POST /chat/{room}/messages` → `ChatMessage::create` → synchronous `NewChatMessage` (`ShouldBroadcastNow`, `->toOthers()`) inside the request; queue never touches chat; throttle:chat = 30/min per user; receiver path = Echo `chat.message.new` + 20s healthy-poll safety net; dedup by id everywhere; optimistic send existed per message.
+- [x] **Root cause:** `RoomChat.sendMessage` gated on a shared `sending` flag (`if (!body.trim() || sending) return` + `disabled={sending||…}`) — exactly one POST in flight at a time. Each POST contains the DB writes AND the synchronous Pusher broadcast round-trip, so message N+1 couldn't even start (nor render) until N's full round-trip completed: rapid sends serialized behind ~RTT each.
+- [x] **Fix:** sends are fully independent — every message keeps its own optimistic row (negative id + pending dot) and its own POST; the submit gate is only `!body.trim()`. Failed-send rollback now restores the draft only when it is empty, so it never clobbers what the user is typing. Server-side anti-spam unchanged (30/min per user).
+- [x] **Tests:** 2 new Vitest cases (rapid consecutive sends not serialized — both render optimistically and reconcile independently; failed send never clobbers a newer draft). Unit **301 passed**; lint/tsc/format clean.
+
 ### Regressions Sprint Phase 3 — Host Pause Re-Play Race (the "~1s pause delay") (2026-08-23)
 
 **Sprint:** Critical Regressions + Prefetch Discovery. Bug: after pausing, playback audibly continued ~1s before stopping.
