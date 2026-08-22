@@ -235,6 +235,29 @@ class RoomController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
+    /**
+     * Remove the caller's own membership. The owner cannot leave their room —
+     * they must transfer ownership or delete the room instead, so the room
+     * always has exactly one accountable owner.
+     */
+    public function leave(Request $request, Room $room): JsonResponse
+    {
+        $this->authorize('memberAccess', $room);
+
+        if ($request->user()->id === $room->user_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'مالک اتاق نمی‌تواند آن را ترک کند. ابتدا مالکیت را منتقل کنید یا اتاق را حذف کنید.',
+            ], 403);
+        }
+
+        $room->members()->where('user_id', $request->user()->id)->delete();
+
+        $this->presence->broadcastMembers($room);
+
+        return response()->json(['status' => 'ok']);
+    }
+
     public function transfer(Request $request, Room $room, int $targetId): JsonResponse
     {
         $target = User::find($targetId);

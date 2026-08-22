@@ -1,5 +1,17 @@
 # TamashaRoom — Project Tasks
 
+## Standing Rules — Local Verification Fast-Only; CI Owns E2E & Full A11y (2026-08-22)
+
+> **Local pre-push verification runs the FAST checks only:**
+> `php artisan test`, `npm run test`, `npm run lint`, `npm run type-check`,
+> `./vendor/bin/pint --dirty --format agent`, `npm run test:a11y:contrast`.
+> **Never run `npm run test:e2e` or `npm run test:a11y` locally as routine
+> verification** (the E2E suite takes 1.5+ hours serially on the dev machine).
+> E2E and full-a11y results come exclusively from the GitHub Actions `CI`
+> workflow after push. On CI failure: diagnose from CI logs/artifacts; only
+> the specific failing spec may be reproduced locally, by name. Full detail:
+> `.skills/git-workflow/SKILL.md` (top section).
+
 ## Standing Rules — CI/CD Verification (MANDATORY)
 
 > **After every `git push` to `origin/master` (or any branch), the developer MUST:**
@@ -13,6 +25,18 @@
 > *Already documented at:* `docs/TASK.md:54-63` (CI A11y Control-Bar Fix batch) + `.skills/git-workflow/SKILL.md` ("Standing workflow rule") + `AGENTS.md` — this section makes it a **top-level, permanent** reminder that survives scrolling.
 
 ## Completed
+
+### Production Pusher Fixes: Sync Broadcasts, Push-Health Polling Fallback, Presence Moments, Leave-Room Flow (2026-08-22)
+
+**Batch scope:** fixes for the three production bugs reported after the first real multi-user exercise of Pusher (BUG 1 can't join second room/no leave option; BUG 2 playback broken/inconsistent; BUG 4 spurious chat leave/rejoin moments). Root-cause report delivered before fixes; user approved "multiple rooms + leave flow" and "systemic fixes first" sequencing. Investigation findings: BUG 2 + BUG 4 share one systemic cause — **queued broadcasts on the cron-drained database queue gave 0–60s event latency while push mode disabled the polling fallback**; BUG 4 additionally mapped socket-level `leaving` onto membership rosters; BUG 1 was separate (no self-leave at all + `isFull()` counting all-time members). KI-021/KI-022 recorded in the debugging skill.
+
+- [x] **Synchronous broadcasts.** `PlaybackStateChanged`, `MemberPresenceChanged`, `NewChatMessage` now implement `ShouldBroadcastNow` (dispatched inline via `BroadcastManager::queue`'s `dispatchNow` path — never touches any queue). Production `QUEUE_CONNECTION=database` (TASK.md deploy record) with the once-a-minute `queue:work` cron drain was delaying every room event by 0–60s; E2E never caught it because CI runs `BROADCAST_CONNECTION=null` (polling). Pusher HTTP timeout bounded to 3s (`PUSHER_TIMEOUT`, `config/broadcasting.php`) so a Pusher outage adds seconds, not the SDK's 30s default, to room mutations. PHPUnit: 3 new `*_broadcast_is_not_queued_on_the_database_queue` tests (failed on the old code — bug reproduced — then passed).
+- [x] **Push-health polling fallback.** New `watchPushHealth()` in `resources/js/lib/echo.ts` (connection `state_changed` + presence-channel `pusher:subscription_succeeded`/`pusher:subscription_error`). `usePlaybackSync` and `usePresence` no longer treat "Echo configured" as "push working": polling runs whenever the socket/channel is unhealthy (connecting, dropped, auth-failed) and stops when healthy; healthy transitions re-seed from the authoritative GET. Previously a socket that never connected froze guests at the mount-time GET with no polling. Fake Echo rewritten to model connection state + channel subscription; hook tests cover poll-while-unhealthy/stop-on-connect/resume-on-drop/subscription-error.
+- [x] **Presence moments from authoritative rosters only.** `usePresence` ignores socket-level `leaving` entirely (Pusher fires `member_removed` on any connection blip — that was the spurious "X left"/"X rejoined" chat rows) and uses `here`/`joining` only as optimistic member-list seeds via the new `seedRoster()`; join/leave moments derive exclusively from server rosters (`.member.presence.changed` broadcasts + GETs), restoring the 90s-timeout semantics the polling design had. Tests: socket blip emits no moment; server offline transition still emits the leave; reconnect replay emits nothing.
+- [x] **Leave-room flow (BUG 1).** `POST /rooms/{room}/leave` (`RoomController::leave`): deletes the caller's membership, broadcasts the roster, owner denied with a Persian message (must transfer or delete), strangers 404 via `memberAccess`. Room page shows a "خروج از اتاق" button (non-owners) with a destructive ConfirmDialog → dashboard. Multiple-room membership remains supported (per design decision).
+- [x] **`isFull()` counts active members only.** Members with `last_seen_at` within `PresenceService::STALE_TIMEOUT_SECONDS` (90, now a shared const used by the stale sweep and the capacity window) — rooms no longer fill permanently with ghost members against `max_members`; soft ±1 race on the cap accepted and documented on the method.
+- [x] **Verification (local fast-only, per standing rule).** Backend **294 passed**; frontend unit **261 passed** (25 files); ESLint + `tsc` clean; Pint clean; `test:a11y:contrast` **8/8** (includes room-page/dialogs scans covering the new leave button). E2E + full a11y delegated to GitHub Actions CI on push (a local full-E2E attempt was killed after 1.5h — that limitation motivated the fast-local/CI standing rule recorded 2026-08-22).
+- [ ] **Pending:** production verification on tamasharoom.ir (Step 1 of the approved plan) — blocked on a test account (prod registration requires verified email); then deploy + re-verify latency/moments/join behavior live.
 
 ### Ad-Blocker Warning Flash Fix — False Positive from Cloudflare Insights Beacon (2026-08-21)
 

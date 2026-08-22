@@ -12,6 +12,13 @@ use Illuminate\Support\Collection;
 
 class PresenceService
 {
+    /**
+     * How long after a member's last heartbeat they are considered stale.
+     * Single source of truth for the stale sweep (presence:timeout) and the
+     * room-capacity window (Room::isFull).
+     */
+    public const STALE_TIMEOUT_SECONDS = 90;
+
     public function heartbeat(Room $room, User $user): RoomMember
     {
         $member = RoomMember::where('room_id', $room->id)
@@ -63,7 +70,7 @@ class PresenceService
 
     public function markStaleAsOffline(): int
     {
-        $timeout = now()->subSeconds(90);
+        $timeout = now()->subSeconds(self::STALE_TIMEOUT_SECONDS);
 
         $affectedRoomIds = RoomMember::query()
             ->where('presence_status', 'online')

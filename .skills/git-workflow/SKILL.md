@@ -9,6 +9,27 @@ TamashaRoom keeps its full history on `origin/master` (GitHub). Every rule
 below exists because a bad git command on this repo costs real history —
 and the repo was audited for exactly these failure modes before first push.
 
+## Standing Rule — Local Verification Is Fast-Only; CI Owns E2E & Full A11y
+
+Do **not** run the full local E2E suite (`npm run test:e2e`) or the full a11y
+suite (`npm run test:a11y`) as part of routine verification. The E2E suite
+takes 1.5+ hours serially on the dev machine — that is CI's job.
+
+- **Local fast checks (run every time, before considering work ready):**
+  `php artisan test` (backend), `npm run test` (frontend unit),
+  `npm run lint`, `npm run type-check`,
+  `./vendor/bin/pint --dirty --format agent`, and
+  `npm run test:a11y:contrast` (the fast targeted a11y check).
+- **E2E and full a11y:** verified exclusively by the GitHub Actions `CI`
+  workflow (`.github/workflows/ci.yml`) after push — monitor it per
+  "After Any Push" below. Do not treat a local run as a substitute, and do
+  not block local work waiting on one.
+- **When CI reports an E2E/a11y failure:** diagnose from the CI logs and
+  uploaded artifacts (`test-results`, traces, screenshots) — not by
+  re-running the full suite locally. If local reproduction is needed, run
+  ONLY the specific failing spec file/test by name (targeted single-spec
+  runs are fast and fine). Fix, commit, push, and re-check CI until green.
+
 ## When to Commit
 
 - **Only commit when the user explicitly asks.** Never commit or push as a
@@ -38,14 +59,14 @@ and the repo was audited for exactly these failure modes before first push.
 3. `git diff --check` — must be clean (whitespace errors). Exception:
    known pre-existing markdown hard-break trailing whitespace in
    `docs/SYSTEM.md` is accepted and documented.
-4. Run the relevant checks for what changed — follow `testing-strategy`
-   "Verification Escalation" (Levels 1–4): start at the static/format/lint
-   checks for the edited files, escalate only as the change warrants.
-   **Crucial guardrail:** when modifying `resources/js/Components/**` or
-   `resources/js/Pages/**`, always run `npm run test:a11y:contrast` locally before
-   committing to catch DOM/contrast regressions before CI. Command names come
-   from AGENTS.md Commands / `package.json`; don't invent them. Don't commit
-   code that fails its checks.
+4. Run the relevant checks for what changed — but per the standing rule above,
+   local verification is **fast-only**: backend/frontend unit suites, lint,
+   type-check, Pint, and (for `resources/js/Components/**` or
+   `resources/js/Pages/**` changes) `npm run test:a11y:contrast`. Never run
+   `npm run test:e2e` or the full a11y suite locally as routine pre-commit
+   verification — CI is the sole source of truth for those after push.
+   Command names come from AGENTS.md Commands / `package.json`; don't invent
+   them. Don't commit code that fails its checks.
 5. Stage **only the intended files** with explicit paths
    (`git add app/... tests/...`). Use `git add -A` only after reviewing
    `git status` and confirming everything present is intended.
@@ -72,17 +93,19 @@ and the repo was audited for exactly these failure modes before first push.
   `status == "completed"`. On `conclusion == "success"`, the cycle is done.
 - **If the run fails:** download the log
   (`gh run view <databaseId> --log --job <jobId>`) and read the failing
-  step's actual error before changing anything — do not guess. Diagnose, fix,
-  run the relevant local checks (per `testing-strategy` verification
-  escalation, always including the failing suite locally), commit the fix
-  (with its `docs/TASK.md` update), push again, and wait for THAT run to go
-  green too. Repeat until green.
+  step's actual error before changing anything — do not guess. Diagnose from
+  the CI logs/artifacts first. For E2E/full-a11y failures, do NOT re-run the
+  full suite locally — if a local reproduction is needed, run only the
+  specific failing spec by name (see the standing rule at the top). Fix,
+  commit the fix (with its `docs/TASK.md` update), push again, and wait for
+  THAT run to go green too. Repeat until green.
 - Log download can hit `net/http: TLS handshake timeout` on networks behind a
   system proxy (TAM-015); retry once or twice — it usually succeeds — or pull
   the annotations instead: `gh api repos/khashayarxy/TamashaRoom/check-runs/<jobId>/annotations`.
-- The a11y step failures are often timing-sensitive, not logic regressions.
-  Before concluding a fix, reproduce the failing spec locally at least twice
-  in a row (`npm run test:a11y:contrast`) to confirm it is not flaky.
+- Contrast-step (`test:a11y:contrast`) failures are often timing-sensitive,
+  not logic regressions — and that suite IS fast locally: reproduce the
+  failing spec at least twice in a row locally before concluding a fix, to
+  confirm it is not flaky.
 
 ## Destructive-Command Guardrails
 

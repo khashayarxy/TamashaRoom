@@ -87,10 +87,12 @@ npm run format:check         # Prettier check (read-only)
 
 # Testing
 npm run test                 # Frontend unit tests (Vitest)
-npm run test:e2e             # E2E (Playwright)
-npm run test:a11y            # Accessibility audit (@axe-core/playwright)
+npm run test:e2e             # E2E (Playwright) — CI ONLY, never routine local runs (1.5h+); see git-workflow skill
+npm run test:a11y            # Accessibility audit (@axe-core/playwright) — CI ONLY; use :contrast locally
 npm run test:a11y:contrast   # Fast contrast a11y audit (Playwright — run when editing UI)
 php artisan test              # Backend feature/unit tests (PHPUnit)
+# Standing rule: local verification is fast-only; E2E + full a11y are verified
+# by GitHub Actions CI after push (see .skills/git-workflow/SKILL.md).
 
 # Database
 php artisan migrate

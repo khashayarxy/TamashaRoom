@@ -18,7 +18,7 @@ import AppLayout from "@/Layouts/AppLayout";
 import { safeCopyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
 import { useRoomUiStore } from "@/stores/room-ui";
-import { MessageSquare, Settings, Subtitles, Tv, Users } from "lucide-react";
+import { MessageSquare, LogOut, Settings, Subtitles, Tv, Users } from "lucide-react";
 import { router, usePage } from "@inertiajs/react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
@@ -81,6 +81,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const [videoRefreshKey, setVideoRefreshKey] = useState(0);
     const [chatUnread, setChatUnread] = useState(0);
     const [showOnboarding, setShowOnboarding] = useState(true);
+    const [confirmLeave, setConfirmLeave] = useState(false);
+    const [leavingRoom, setLeavingRoom] = useState(false);
 
     const {
         tracks,
@@ -188,6 +190,19 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         setActiveTab("members");
     };
 
+    const handleLeaveRoom = async () => {
+        if (leavingRoom) return;
+        setLeavingRoom(true);
+        try {
+            await api.post(`/rooms/${room.id}/leave`);
+            toast.success("از اتاق خارج شدید.");
+            router.visit(route("dashboard"));
+        } catch {
+            toast.error("خروج از اتاق ناموفق بود. لطفاً دوباره تلاش کنید.");
+            setLeavingRoom(false);
+        }
+    };
+
     return (
         <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)]">
             <div className="flex-1 flex flex-col gap-4 min-w-0">
@@ -209,6 +224,16 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         >
                             <Settings className="h-4 w-4" />
                             تنظیمات اتاق
+                        </Button>
+                    )}
+                    {!isOwner && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirmLeave(true)}
+                        >
+                            <LogOut className="h-4 w-4" />
+                            خروج از اتاق
                         </Button>
                     )}
                 </div>
@@ -386,6 +411,19 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 confirmLabel="حذف شود"
                 confirmVariant="destructive"
                 loading={deletingTrack}
+            />
+
+            <ConfirmDialog
+                open={confirmLeave}
+                onClose={() => {
+                    if (!leavingRoom) setConfirmLeave(false);
+                }}
+                onConfirm={handleLeaveRoom}
+                title="خروج از اتاق"
+                description="آیا مطمئن هستید که می‌خواهید از این اتاق خارج شوید؟ برای بازگشت می‌توانید دوباره از لینک دعوت استفاده کنید."
+                confirmLabel="خروج"
+                confirmVariant="destructive"
+                loading={leavingRoom}
             />
         </div>
     );

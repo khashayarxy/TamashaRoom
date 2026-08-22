@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PlaybackMode;
+use App\Services\PresenceService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -94,9 +95,19 @@ class Room extends Model
         return $activeCount >= (int) config('tamasharoom.max_concurrent_rooms', 50);
     }
 
+    /**
+     * Whether the room is at capacity, counted over members active within the
+     * presence stale window — a concurrent-viewer cap, not an all-time-member
+     * cap. Membership rows persist after a member stops visiting (they may
+     * return), so counting all-time members would permanently fill rooms with
+     * ghosts and block every future join. Concurrent joins racing for the last
+     * slot can overshoot the cap by one; that soft edge is accepted.
+     */
     public function isFull(): bool
     {
-        return $this->members()->count() >= $this->max_members;
+        return $this->members()
+            ->where('last_seen_at', '>=', now()->subSeconds(PresenceService::STALE_TIMEOUT_SECONDS))
+            ->count() >= $this->max_members;
     }
 
     public function memberCount(): int

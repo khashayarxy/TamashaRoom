@@ -8,6 +8,7 @@ use App\Models\ChatMessage;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
+use App\Services\PresenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -633,5 +634,95 @@ class RoomManagementTest extends TestCase
             ->has('room.chat_messages', 50)
             ->where('room.chat_messages.0.body', 'message 6')
             ->where('room.chat_messages.49.body', 'message 55'));
+    }
+
+    #[Test]
+    public function member_can_leave_room_removing_their_membership(): void
+    {
+        $response = $this->actingAs($this->member)
+            ->postJson("/rooms/{$this->room->id}/leave");
+
+        $response->assertOk()->assertJson(['status' => 'ok']);
+
+        $this->assertDatabaseMissing('room_members', [
+            'room_id' => $this->room->id,
+            'user_id' => $this->member->id,
+        ]);
+    }
+
+    #[Test]
+    public function owner_cannot_leave_own_room(): void
+    {
+        $response = $this->actingAs($this->owner)
+            ->postJson("/rooms/{$this->room->id}/leave");
+
+        $response->assertForbidden()
+            ->assertJsonPath('status', 'error');
+
+        $this->assertDatabaseHas('room_members', [
+            'room_id' => $this->room->id,
+            'user_id' => $this->member->id,
+        ]);
+    }
+
+    #[Test]
+    public function stranger_cannot_leave_room(): void
+    {
+        $this->actingAs($this->stranger)
+            ->postJson("/rooms/{$this->room->id}/leave")
+            ->assertNotFound();
+    }
+
+    #[Test]
+    public function member_can_rejoin_after_leaving(): void
+    {
+        $this->actingAs($this->member)
+            ->postJson("/rooms/{$this->room->id}/leave")
+            ->assertOk();
+
+        $response = $this->actingAs($this->member)
+            ->from(route('dashboard'))
+            ->post("/rooms/join/{$this->room->invite_code}");
+
+        $response->assertRedirect(route('rooms.show', $this->room));
+        $this->assertDatabaseHas('room_members', [
+            'room_id' => $this->room->id,
+            'user_id' => $this->member->id,
+        ]);
+    }
+
+    #[Test]
+    public function room_capacity_counts_only_members_active_within_the_stale_window(): void
+    {
+        $cappedRoom = Room::factory()->create([
+            'user_id' => $this->owner->id,
+            'name' => 'Capped Room',
+            'max_members' => 2,
+            'is_locked' => false,
+        ]);
+
+        RoomMember::create([
+            'room_id' => $cappedRoom->id,
+            'user_id' => $this->owner->id,
+            'last_seen_at' => now(),
+        ]);
+
+        // A long-gone member keeps their membership row but must not consume
+        // a capacity slot — otherwise rooms fill with ghosts forever.
+        RoomMember::create([
+            'room_id' => $cappedRoom->id,
+            'user_id' => $this->member->id,
+            'last_seen_at' => now()->subSeconds(PresenceService::STALE_TIMEOUT_SECONDS + 60),
+        ]);
+
+        $this->assertFalse($cappedRoom->isFull());
+
+        $joiner = User::factory()->create(['email_verified_at' => now()]);
+        $this->actingAs($joiner)
+            ->from(route('dashboard'))
+            ->post("/rooms/join/{$cappedRoom->invite_code}")
+            ->assertRedirect(route('rooms.show', $cappedRoom));
+
+        $this->assertTrue($cappedRoom->fresh()->isFull());
     }
 }

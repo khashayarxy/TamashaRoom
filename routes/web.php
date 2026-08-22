@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/{room}', [RoomController::class, 'update'])->name('update');
         Route::delete('/{room}', [RoomController::class, 'destroy'])->name('destroy');
         Route::post('/{room}/kick/{target}', [RoomController::class, 'kick'])->name('kick');
+        Route::post('/{room}/leave', [RoomController::class, 'leave'])->name('leave');
         Route::post('/{room}/transfer/{target}', [RoomController::class, 'transfer'])->name('transfer');
         Route::post('/{room}/regenerate-invite', [RoomController::class, 'regenerateInviteCode'])->name('regenerate-invite');
         Route::post('/{room}/toggle-lock', [RoomController::class, 'toggleLock'])->name('toggle-lock');
