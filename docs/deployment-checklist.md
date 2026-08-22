@@ -146,6 +146,7 @@ php artisan view:cache
 | Cron is running | Create a room, wait 1+ minute, verify `presence:timeout` worked |
 | Rate limiting | Login with wrong password 6+ times → `429 Too Many Requests` |
 | Security headers | `curl -s -I https://yourdomain.com | grep -i 'content-security-policy'` → CSP present |
+| Asset caching | `curl -s -o /dev/null -D - https://yourdomain.com/build/assets/$(ls public/build/assets \| grep '^app-.*\.js$' \| head -1) \| grep -i cache-control` → `public, max-age=31536000, immutable` (Vite assets are content-hashed; served by `public/.htaccess`) |
 
 ---
 

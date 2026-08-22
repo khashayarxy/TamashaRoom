@@ -26,6 +26,14 @@
 
 ## Completed
 
+### Phase 5 — Sync Tightening + Immutable Asset Caching (2026-08-22)
+
+**Sprint:** Stability Polish + Chat Latency + UI/UX.
+
+- [x] **Drift under ~1s:** guest correction threshold lowered 2s → 1s (`SyncedVideoJsPlayer.DRIFT_THRESHOLD` — any lower risks visible seek churn near the threshold) and the host's position-sync debounce 3s → 1.5s (`DEBOUNCE_MS` — ≈40 PATCHes/min per host, safely under `throttle:playback`'s 60/min; each PATCH = two SQLite writes + one synchronous Pusher broadcast). Combined with the already-synchronous broadcasts, the worst-case uncorrected guest drift drops from ~5s to ~1–1.5s.
+- [x] **Asset caching:** `public/.htaccess` now sets `Cache-Control: public, max-age=31536000, immutable` for `/build/assets/*` (Vite content-hashed filenames; scoped strictly so non-hashed files keep Laravel's headers; Apache 2.4 `IfModule`-guarded). Deploy verification line added to `docs/deployment-checklist.md` §7.
+- [x] **Checks:** unit **295 passed** (drift/debounce tests unchanged-and-green — the drift fixture uses a 5s gap, above both old and new thresholds); lint/tsc/format/docs-drift clean. Header itself is verified post-deploy (static files bypass PHP, not PHPUnit-testable).
+
 ### Phase 4 — Player: Centered Big-Play Overlay (2026-08-22)
 
 **Sprint:** Stability Polish + Chat Latency + UI/UX. Audit: the Video.js v10 skin already renders the control bar as an absolute overlay with fade/auto-hide (`.media-controls--root`, blur/scale transitions, cursor-hide) — it never pushes the video. The real gap: a paused video had NO visible affordance once the bar auto-hid. Added a centered big-play overlay.

@@ -12,7 +12,11 @@ import { cn } from "@/lib/utils";
 import { Play, RotateCcw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const DRIFT_THRESHOLD = 2;
+// Guests snap to the expected position when drift exceeds this. Kept at 1s
+// (was 2s): with the host's 1.5s sync cadence and local extrapolation the
+// perceived host↔guest gap stays under ~1s; any lower risks visible seek
+// churn when drift hovers near the threshold.
+const DRIFT_THRESHOLD = 1;
 // After a proxy failure the player falls back to the direct URL, but only
 // briefly: once this cooldown elapses the proxy is re-armed automatically so
 // a transient failure (e.g. a throttle 500 from a database lock) recovers
