@@ -35,8 +35,8 @@ test. Full detail: `docs/SYSTEM.md` for the relevant subsystems.
 
 | Mechanic | Interval | File |
 |---|---|---|
-| Playback sync (active) | 3,000 ms | `use-playback-sync.ts:15` |
-| Playback sync (idle/paused) | 10,000 ms | `use-playback-sync.ts:16` |
+| Playback sync (active) | 3,000 ms | `use-playback-sync.ts:20` |
+| Playback sync (idle/paused) | 10,000 ms | `use-playback-sync.ts:21` |
 | Presence heartbeat | 30,000 ms | `use-presence.ts:24` |
 | Presence member list poll | 5,000 ms | `use-presence.ts:25` |
 | Presence timeout (stale→offline) | 90 s | `PresenceService` |
