@@ -252,7 +252,13 @@ export function RoomChat({
                                 <div className="font-medium text-xs mb-0.5">
                                     {item.msg.user.name}
                                 </div>
-                                <div>{item.msg.body}</div>
+                                {/* break-words: long unbroken runs (URLs,
+                                    token pastes) have no natural break
+                                    opportunities and would overflow the
+                                    bubble on narrow mobile widths. */}
+                                <div className="break-words">
+                                    {item.msg.body}
+                                </div>
                                 <div
                                     className={`text-[10px] mt-1 ${isOwn(item.msg.user_id) ? "text-primary-foreground" : "text-muted-foreground"}`}
                                 >

@@ -210,9 +210,12 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         }
     };
 
+    // dvh (where supported) tracks the mobile visual viewport so the fixed
+    // room height never extends under the browser chrome during scroll —
+    // vh alone overflows on mobile browsers.
     return (
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)]">
-            <div className="flex-1 flex flex-col gap-4 min-w-0">
+        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)] supports-[height:100dvh]:h-[calc(100dvh-8.5rem)]">
+            <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-0">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-xl font-bold">{roomName}</h1>
@@ -258,7 +261,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         />
                     )}
 
-                <div className="flex-1 relative">
+                <div className="flex-1 relative min-h-0">
                     <SyncedVideoJsPlayer
                         roomId={room.id}
                         canControl={isOwner}
@@ -299,7 +302,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 </div>
             </div>
 
-            <div className="lg:w-80 flex flex-col">
+            {/* On mobile the room stacks: without flex-1 + min-h-0 this column
+                takes its full content height, so the chat card spills below
+                the room container and the page scrolls under the chat's own
+                scroll. lg:flex-none keeps the desktop row layout at w-80. */}
+            <div className="flex-1 min-h-0 lg:w-80 lg:flex-none flex flex-col">
                 <div className="flex rounded-xl bg-secondary p-1 mb-3">
                     <button
                         onClick={() => {

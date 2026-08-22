@@ -26,6 +26,14 @@
 
 ## Completed
 
+### Mobile Chat Container Overflow Fix (BUG 5, 2026-08-22)
+
+**Batch scope:** chat messages/input overflowed outside the chat container on mobile browsers — the room page scrolled ~120–260px past the viewport and the chat input sat below the screen.
+
+- [x] **Root cause (reproduced via Playwright mobile emulation, 375×812):** on mobile the room root is a column flex (`h-[calc(100vh-8.5rem)]`), and the chat sidebar had no `flex-1`/`min-h-0` — it took its full content height (all messages + input), spilling below the fixed-height room container; `100vh` also ignores mobile browser chrome. Measured: `scrollHeight` 931/1071 vs `clientHeight` 812.
+- [x] **Fix (`Show.tsx`, `room-chat.tsx`):** sidebar gets `flex-1 min-h-0 lg:w-80 lg:flex-none` (bounded on mobile, unchanged on desktop); left column + player wrapper get `min-h-0`; room height prefers `100dvh` where supported (`supports-[height:100dvh]` variant); message bubbles get `break-words` so unbreakable runs (long URLs/tokens) wrap instead of overflowing.
+- [x] **Verification:** after the fix `scrollHeight == clientHeight == 812` (no page scroll) with the chat input inside the card; a 160-char unbreakable token wraps inside its bubble (right edge 308 < 375). Unit **261 passed**, lint/tsc/format clean, contrast a11y **8/8**. E2E/full-a11y per CI.
+
 ### Production Pusher Fixes: Sync Broadcasts, Push-Health Polling Fallback, Presence Moments, Leave-Room Flow (2026-08-22)
 
 **Batch scope:** fixes for the three production bugs reported after the first real multi-user exercise of Pusher (BUG 1 can't join second room/no leave option; BUG 2 playback broken/inconsistent; BUG 4 spurious chat leave/rejoin moments). Root-cause report delivered before fixes; user approved "multiple rooms + leave flow" and "systemic fixes first" sequencing. Investigation findings: BUG 2 + BUG 4 share one systemic cause — **queued broadcasts on the cron-drained database queue gave 0–60s event latency while push mode disabled the polling fallback**; BUG 4 additionally mapped socket-level `leaving` onto membership rosters; BUG 1 was separate (no self-leave at all + `isFull()` counting all-time members). KI-021/KI-022 recorded in the debugging skill.
