@@ -18,7 +18,14 @@ import AppLayout from "@/Layouts/AppLayout";
 import { safeCopyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
 import { useRoomUiStore } from "@/stores/room-ui";
-import { MessageSquare, LogOut, Settings, Subtitles, Tv, Users } from "lucide-react";
+import {
+    MessageSquare,
+    LogOut,
+    Settings,
+    Subtitles,
+    Tv,
+    Users,
+} from "lucide-react";
 import { router, usePage } from "@inertiajs/react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";

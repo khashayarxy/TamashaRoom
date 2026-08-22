@@ -30,8 +30,14 @@ export interface EchoLike {
             channel?: (name: string) => EchoRawChannel | undefined;
             connection: {
                 state?: string;
-                bind: (event: string, callback: (payload?: unknown) => void) => void;
-                unbind: (event: string, callback: (payload?: unknown) => void) => void;
+                bind: (
+                    event: string,
+                    callback: (payload?: unknown) => void,
+                ) => void;
+                unbind: (
+                    event: string,
+                    callback: (payload?: unknown) => void,
+                ) => void;
             };
         };
     };

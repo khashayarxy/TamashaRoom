@@ -152,9 +152,7 @@ export function usePresence(
     const seedRoster = useCallback((list: PresenceMember[]) => {
         if (cancelledRef.current || removedRef.current) return;
 
-        const merged = new Map(
-            membersRef.current.map((m) => [m.user_id, m]),
-        );
+        const merged = new Map(membersRef.current.map((m) => [m.user_id, m]));
         for (const member of list) {
             merged.set(member.user_id, member);
         }

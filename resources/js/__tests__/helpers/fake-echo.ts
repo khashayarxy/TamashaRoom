@@ -1,8 +1,4 @@
-import type {
-    EchoLike,
-    EchoPresenceChannel,
-    EchoRawChannel,
-} from "@/lib/echo";
+import type { EchoLike, EchoPresenceChannel, EchoRawChannel } from "@/lib/echo";
 
 export interface FakeEcho extends EchoLike {
     /** Emit a custom event (e.g. `.playback.state.changed`) to bound listeners. */
@@ -34,10 +30,7 @@ export function createFakeEcho(): FakeEcho {
     let joiningCb: ((member: unknown) => void) | null = null;
     let leavingCb: ((member: unknown) => void) | null = null;
     const eventCbs = new Map<string, (payload: unknown) => void>();
-    const connectionCbs = new Map<
-        string,
-        Set<(payload?: unknown) => void>
-    >();
+    const connectionCbs = new Map<string, Set<(payload?: unknown) => void>>();
     const channelCbs = new Map<string, Set<(payload?: unknown) => void>>();
     const joinedChannels: string[] = [];
     const leftChannels: string[] = [];
