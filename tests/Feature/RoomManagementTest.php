@@ -260,6 +260,45 @@ class RoomManagementTest extends TestCase
     }
 
     #[Test]
+    public function locked_room_join_page_exposes_the_locked_state(): void
+    {
+        $this->room->update(['is_locked' => true]);
+
+        $this->actingAs($this->stranger)
+            ->get("/rooms/join/{$this->room->invite_code}")
+            ->assertInertia(fn ($page) => $page
+                ->component('Rooms/Join')
+                ->where('room.is_locked', true));
+    }
+
+    #[Test]
+    public function unlocked_room_join_page_reports_is_locked_false(): void
+    {
+        $this->actingAs($this->stranger)
+            ->get("/rooms/join/{$this->room->invite_code}")
+            ->assertInertia(fn ($page) => $page
+                ->component('Rooms/Join')
+                ->where('room.is_locked', false));
+    }
+
+    #[Test]
+    public function locked_room_join_attempt_returns_a_visible_policy_error(): void
+    {
+        $this->room->update(['is_locked' => true]);
+
+        $response = $this->actingAs($this->stranger)
+            ->from(route('dashboard'))
+            ->post("/rooms/join/{$this->room->invite_code}");
+
+        $response->assertRedirect(route('dashboard'));
+        // The join page renders this message in a role="alert" element — a
+        // locked room must never fail silently, whatever the entry point.
+        $response->assertSessionHasErrors([
+            'invite_code' => 'این اتاق قفل شده است.',
+        ]);
+    }
+
+    #[Test]
     public function owner_cannot_exceed_system_room_cap(): void
     {
         config(['tamasharoom.max_concurrent_rooms' => Room::count() + 1]);

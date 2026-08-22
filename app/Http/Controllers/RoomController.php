@@ -103,6 +103,10 @@ class RoomController extends Controller
                 'id' => $room->id,
                 'name' => $room->name,
                 'invite_code' => $room->invite_code,
+                // Surfaced on the join page so a locked room is announced up
+                // front (with a disabled join button) instead of failing
+                // silently after submission.
+                'is_locked' => $room->is_locked,
             ],
         ]);
     }

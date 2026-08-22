@@ -26,6 +26,15 @@
 
 ## Completed
 
+### Phase 2 — Locked Room Joins Never Fail Silently (2026-08-22)
+
+**Sprint:** Stability Polish + Chat Latency + UI/UX. Bug: opening a locked room's invite link/code silently failed — `RoomPolicy::join` denies with «این اتاق قفل شده است.» as an `invite_code` error, but the Join page never rendered that error (only `guest_name`), so every entry path (direct link, bookmark, QR code, code entry) showed nothing.
+
+- [x] **Up-front notice:** `RoomController::joinConfirm` now passes `is_locked` to the Join page; the page shows a `role="alert"` warning box («این اتاق توسط میزبان قفل شده است…») and disables the join button (guest and authenticated variants) so a locked room is announced before any submit.
+- [x] **Visible backstop:** the page error bag's `invite_code` message (locked/full policy denials) renders in a `role="alert"` element — covers the stale-page race where the room got locked after load, and makes the room-full error visible too.
+- [x] **Members unaffected:** locking only blocks new joins; the owner/member room page and refresh keep working (asserted in E2E).
+- [x] **Tests:** 3 new PHPUnit cases (join page exposes `is_locked` true/false; locked POST returns the exact visible policy message) — `RoomManagementTest` **43 passed**; new `tests/e2e/locked-room.spec.ts` (locked invite link → alert + disabled button; owner refresh still enters) runs in CI. Unit **289**, lint/tsc/format clean. `routes/test-helpers.php` gained a `locked=1` fixture flag (env-gated).
+
 ### Phase 1 — Chat Latency: Instant Push Delivery + Optimistic Send (2026-08-22)
 
 **Sprint:** Stability Polish + Chat Latency + UI/UX. Audit result: the ~60s queue latency was already gone (`NewChatMessage` has been `ShouldBroadcastNow` since `a330753`, regression-tested in `ChatTest`); the remaining bottleneck was the frontend — `RoomChat` polled every 3s with no Echo listener, and the sender had no optimistic render.

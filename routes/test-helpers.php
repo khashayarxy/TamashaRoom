@@ -92,6 +92,10 @@ Route::middleware('web')->group(function () {
             }
         }
 
+        if ($request->boolean('locked')) {
+            $room->update(['is_locked' => true]);
+        }
+
         if ($request->boolean('with_subtitle')) {
             $filename = sprintf('%d_test.vtt', time());
             $path = sprintf('subtitles/%d/%s', $room->id, $filename);

@@ -1,7 +1,7 @@
 import { Button } from "@/Components/ui/button";
 import { Card, CardContent } from "@/Components/ui/card";
 import { router, useForm, usePage } from "@inertiajs/react";
-import { LogIn, Users } from "lucide-react";
+import { Lock, LogIn, Users } from "lucide-react";
 import { PropsWithChildren } from "react";
 import AppLayout from "@/Layouts/AppLayout";
 import GuestLayout from "@/Layouts/GuestLayout";
@@ -10,11 +10,21 @@ import InputLabel from "@/Components/InputLabel";
 import type { PageProps } from "@/types";
 
 type JoinPageProps = PageProps<{
-    room: { id: number; name: string; invite_code: string };
+    room: {
+        id: number;
+        name: string;
+        invite_code: string;
+        is_locked?: boolean;
+    };
 }>;
 
 interface JoinRoomProps {
-    room: { id: number; name: string; invite_code: string };
+    room: {
+        id: number;
+        name: string;
+        invite_code: string;
+        is_locked?: boolean;
+    };
 }
 
 function useProps() {
@@ -32,12 +42,17 @@ function JoinShell({ children }: PropsWithChildren) {
 }
 
 export default function JoinRoom({ room }: JoinRoomProps) {
-    const { auth } = useProps();
+    const { auth, errors: pageErrors } = useProps();
     const isGuest = !auth.user;
 
     const { data, setData, post, processing, errors } = useForm({
         guest_name: "",
     });
+
+    // The room can be locked between page load and submit; the page-level
+    // error bag (policy message) is the backstop the user must actually see —
+    // for the guest form flow and the authenticated button flow alike.
+    const joinError = pageErrors.invite_code ?? null;
 
     const confirmJoin = () => {
         router.post(route("rooms.join.submit", room.invite_code));
@@ -63,6 +78,29 @@ export default function JoinRoom({ room }: JoinRoomProps) {
                         </span>{" "}
                         بپیوندید؟
                     </p>
+
+                    {room.is_locked && (
+                        <p
+                            role="alert"
+                            className="flex items-start gap-2 rounded-xl bg-warning/10 px-3 py-2 text-sm font-medium text-warning"
+                        >
+                            <Lock
+                                className="mt-0.5 h-4 w-4 shrink-0"
+                                aria-hidden="true"
+                            />
+                            این اتاق توسط میزبان قفل شده است؛ تا زمان باز شدن
+                            قفل، امکان ورود با لینک یا کد دعوت وجود ندارد.
+                        </p>
+                    )}
+
+                    {joinError && (
+                        <p
+                            role="alert"
+                            className="text-sm text-destructive-text"
+                        >
+                            {joinError}
+                        </p>
+                    )}
 
                     {isGuest ? (
                         <form onSubmit={submitGuest} className="space-y-4">
@@ -100,7 +138,7 @@ export default function JoinRoom({ room }: JoinRoomProps) {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                disabled={processing}
+                                disabled={processing || room.is_locked}
                             >
                                 <LogIn className="h-4 w-4" />
                                 پیوستن به اتاق
@@ -115,7 +153,11 @@ export default function JoinRoom({ room }: JoinRoomProps) {
                             >
                                 انصراف
                             </Button>
-                            <Button className="flex-1" onClick={confirmJoin}>
+                            <Button
+                                className="flex-1"
+                                onClick={confirmJoin}
+                                disabled={room.is_locked}
+                            >
                                 پیوستن به اتاق
                             </Button>
                         </div>
