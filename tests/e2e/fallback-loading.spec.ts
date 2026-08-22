@@ -68,39 +68,38 @@ test.describe("App load failure fallback (privacy / script blocking)", () => {
         ).toBeVisible();
     });
 
-    test("2b. Transient entry preload error, bundle still boots -> no fallback flash", async ({
+    test("2b. Transient entry CSS error (fails once, retried) -> no fallback flash", async ({
         page,
     }) => {
-        // Simulate the LVE/Cloudflare 503-burst class: the entry's CSS preload
-        // fails once while the JS bundle itself loads and boots fine. The
-        // grace window must absorb the error and never show the fallback.
-        // Diagnostics (CI-only debugging aid for the mount stall): collect
-        // console/pageerror/failed-asset evidence into the failure message.
+        // Simulate the LVE/Cloudflare 503-burst class: the entry's CSS fails
+        // ONCE and any retry succeeds, while the JS bundle loads and boots
+        // fine. The grace window must absorb the error and never show the
+        // fallback. (A hard, never-retried CSS failure is NOT this scenario:
+        // the shared app chunk declares the entry CSS as a hard dependency,
+        // so Vite's dep preloader rejects the page-chunk import and the page
+        // legitimately cannot mount — that is case 2c / the watchdog.)
         const diagnostics: string[] = [];
-        page.on("console", (m) => {
-            if (["error", "warning"].includes(m.type()))
-                diagnostics.push(`console.${m.type()}: ${m.text().slice(0, 200)}`);
-        });
         page.on("pageerror", (e) => diagnostics.push(`pageerror: ${String(e).slice(0, 300)}`));
-        page.on("requestfailed", (r) => {
-            if (r.url().includes("/build/"))
-                diagnostics.push(
-                    `asset-failed: ${r.url().split("/").pop()} ${r.failure()?.errorText}`,
-                );
+        let cssAttempts = 0;
+        await page.route("**/*app*.css", async (route) => {
+            if (cssAttempts++ === 0) {
+                await route.abort("failed");
+            } else {
+                await route.continue();
+            }
         });
-
-        await page.route("**/*app*.css", (route) => route.abort("failed"));
 
         await page.goto("/login");
         await page.waitForLoadState("networkidle");
 
-        const mounted = page.locator("html");
         try {
             // CI's cold serve can take longer than the default 5s to mount;
             // the point of this test is the no-flash outcome, not mount speed.
-            await expect(mounted).toHaveAttribute("data-app-mounted", "true", {
-                timeout: 15000,
-            });
+            await expect(page.locator("html")).toHaveAttribute(
+                "data-app-mounted",
+                "true",
+                { timeout: 15000 },
+            );
         } catch (e) {
             const state = await page
                 .evaluate(() => ({
@@ -109,14 +108,10 @@ test.describe("App load failure fallback (privacy / script blocking)", () => {
                     fallbackVisible:
                         document.getElementById("tamasha-fallback")?.style.display ??
                         "n/a",
-                    appDiv: Boolean(document.getElementById("app")),
-                    scripts: [...document.querySelectorAll("script[src]")].map((s) =>
-                        s.src.split("/").pop(),
-                    ),
                 }))
                 .catch(() => null);
             throw new Error(
-                `mount stall. pageState=${JSON.stringify(state)} diagnostics=${JSON.stringify(diagnostics.slice(0, 15))} :: ${e}`,
+                `mount stall (cssAttempts=${cssAttempts}). pageState=${JSON.stringify(state)} diagnostics=${JSON.stringify(diagnostics.slice(0, 10))} :: ${e}`,
             );
         }
 
@@ -124,6 +119,34 @@ test.describe("App load failure fallback (privacy / script blocking)", () => {
         await page.waitForTimeout(3000);
         const fallback = page.locator("#tamasha-fallback");
         await expect(fallback).not.toBeVisible();
+    });
+
+    test("2c. Bundle boots but never mounts -> fallback via the 8s watchdog", async ({
+        page,
+    }) => {
+        // The entry executes (boot marker set at module-eval) but React never
+        // mounts — e.g. a lazy page chunk's hard CSS dependency failed through
+        // Vite's dep preloader. A blank page must not outlive the watchdog:
+        // boot absorbs transient ERROR banners, not the mount watchdog.
+        await page.route("**/*app*.js", async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/javascript",
+                body: "window.__TAMASHAROOM_APP_BOOTED = true;",
+            });
+        });
+
+        await page.goto("/login");
+
+        const startTime = Date.now();
+        const fallback = page.locator("#tamasha-fallback");
+        await expect(fallback).toBeVisible({ timeout: 12000 });
+        const elapsed = Date.now() - startTime;
+        expect(elapsed).toBeGreaterThanOrEqual(7000);
+
+        await expect(
+            fallback.getByRole("heading", { name: "خطا در بارگذاری برنامه" }),
+        ).toBeVisible();
     });
 
     test("3. Slow-but-successful load -> app mounts normally, no fallback shown", async ({

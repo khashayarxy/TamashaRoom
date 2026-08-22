@@ -28,7 +28,20 @@
                 }
 
                 function applyFallback() {
-                    if (booted() || !fallbackReason) return;
+                    if (!fallbackReason) return;
+                    // Mounted = definitively alive; never show. Booted (bundle
+                    // executed) absorbs TRANSIENT asset errors — but not the
+                    // mount watchdog: a booted bundle that never renders (e.g.
+                    // a lazy page chunk's hard CSS dependency failed through
+                    // Vite's dep preloader) leaves a blank page, and that
+                    // still deserves the fallback after the watchdog.
+                    if (window.__TAMASHA_MOUNTED__) return;
+                    if (
+                        fallbackReason !== "timeout" &&
+                        window.__TAMASHAROOM_APP_BOOTED
+                    ) {
+                        return;
+                    }
                     if (fallbackTimer) clearTimeout(fallbackTimer);
 
                     var fb = document.getElementById("tamasha-fallback");
@@ -66,9 +79,7 @@
                     // early, or every parse-time error would flash the banner
                     // before the grace window could absorb it.
                     fallbackTimer = setTimeout(applyFallback, immediate ? 0 : ERROR_GRACE_MS);
-                }
-
-                // 1. Error listener for the core application bundle. Never shows
+                }                // 1. Error listener for the core application bundle. Never shows
                 // immediately: match only TamashaRoom's own entry chunk (never
                 // generic type="module" scripts — third-party ones like the
                 // Cloudflare Insights beacon fail on many setups), then let the
@@ -87,12 +98,16 @@
                     }
                 }, true);
 
-                // 2. Watchdog as secondary safety net for silent stalls (bundle
-                // never executed). 8s: long enough for slow mobile links to
-                // fetch and evaluate the entry graph without a flash.
+                // 2. Watchdog as secondary safety net for silent stalls. Keys
+                // on the MOUNT marker, not the boot marker: a bundle that
+                // executed but never rendered (e.g. a lazy page chunk's hard
+                // CSS dependency failed through Vite's dep preloader) is a
+                // blank page and must not outlive this watchdog. It bypasses
+                // showFallback's booted-gate on purpose.
                 fallbackTimer = setTimeout(function() {
-                    if (!booted()) {
-                        showFallback("timeout", true);
+                    if (!window.__TAMASHA_MOUNTED__) {
+                        fallbackReason = "timeout";
+                        fallbackTimer = setTimeout(applyFallback, 0);
                     }
                 }, WATCHDOG_MS);
 
