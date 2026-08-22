@@ -65,6 +65,7 @@ import {
 import { enterText, exitText } from "@videojs/core/i18n/text/pip";
 import { shouldPreservePositionOnSourceChange } from "@/lib/player-source";
 import { cn, toPersianDigits } from "@/lib/utils";
+import { useFullscreenOrientationLock } from "@/Hooks/use-fullscreen-orientation";
 import { Subtitles } from "lucide-react";
 import {
     forwardRef,
@@ -166,6 +167,7 @@ function PlayerBridge({
     onError,
 }: PlayerBridgeProps) {
     const store = Player.usePlayer();
+    useFullscreenOrientationLock();
     const appliedSrcRef = useRef<string | null>(null);
     const appliedVideoUrlRef = useRef<string | null>(null);
 

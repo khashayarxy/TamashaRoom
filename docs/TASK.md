@@ -26,6 +26,13 @@
 
 ## Completed
 
+### Mobile Fullscreen Landscape Orientation Lock (BUG 6, 2026-08-22)
+
+**Batch scope:** entering video fullscreen on a mobile browser now locks the screen to landscape (standard mobile video behavior) instead of staying portrait.
+
+- [x] **Implementation:** new `Hooks/use-fullscreen-orientation.ts` watches the player store's `fullscreen` state (`@videojs/react` `usePlayer` selector — Video.js v10 exposes fullscreen reactively, no manual event wiring needed) and calls `screen.orientation.lock("landscape")` on enter / `unlock()` on exit. Every unsupported path is a no-op: lock is optional-chained and its rejection swallowed (desktop browsers reject orientation locks), and `screen.orientation` is absent on iOS Safari — fullscreen never fails because the lock couldn't be taken. Wired inside `PlayerBridge` (within the player context) in `VideoJsPlayer.tsx`.
+- [x] **Verification:** 5 new Vitest cases (no lock while windowed; lock+unlock on transitions; swallowed rejections; missing `screen.orientation`; missing `lock` function) — unit suite **266 passed**; lint/tsc/format clean; contrast a11y **8/8**. Live check on a 390×844 mobile emulation with spied `screen.orientation`: entering fullscreen via the player button calls `lock("landscape")` exactly once, `document.exitFullscreen()` triggers `unlock()`, zero page errors. E2E/full-a11y per CI.
+
 ### Mobile Chat Container Overflow Fix (BUG 5, 2026-08-22)
 
 **Batch scope:** chat messages/input overflowed outside the chat container on mobile browsers — the room page scrolled ~120–260px past the viewport and the chat input sat below the screen.
