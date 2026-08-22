@@ -26,6 +26,14 @@
 
 ## Completed
 
+### Phase 4 — Player: Centered Big-Play Overlay (2026-08-22)
+
+**Sprint:** Stability Polish + Chat Latency + UI/UX. Audit: the Video.js v10 skin already renders the control bar as an absolute overlay with fade/auto-hide (`.media-controls--root`, blur/scale transitions, cursor-hide) — it never pushes the video. The real gap: a paused video had NO visible affordance once the bar auto-hid. Added a centered big-play overlay.
+
+- [x] **`MediaBigPlay`** (exported from `VideoJsPlayer.tsx`): absolutely-centered circular play button (`z-[5]`, below the `z-10` controls, below the autoplay-block `z-20` overlay) shown while `paused && !ended && !error`; fades out (`opacity-0` + `pointer-events-none`, `motion-reduce`-safe) once playing; defocusable (`tabIndex -1` + `aria-hidden`) while hidden; drives playback via the player store's `play()`.
+- [x] **Verified visually** (desktop 1280×800): centering delta 0.0px on both axes against the video rect; fades after play starts; control bar confirmed `position: absolute` over the video pixels. RTL/Persian label («پخش»).
+- [x] **Tests:** 4 new Vitest cases (visible while paused incl. focusability; hidden + defocused while playing; hidden on ended; hidden on error); unit **295 passed**; contrast a11y **8/8**; lint/tsc/format clean.
+
 ### Phase 3 — Lock Toggle Implication Warning (2026-08-22)
 
 **Sprint:** Stability Polish + Chat Latency + UI/UX.
