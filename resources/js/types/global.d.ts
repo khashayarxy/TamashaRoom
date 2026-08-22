@@ -6,6 +6,9 @@ import { PageProps as AppPageProps } from "./";
 declare global {
     interface Window {
         axios: AxiosInstance;
+        /** Set at app.tsx module-eval: the entry bundle executed. */
+        __TAMASHAROOM_APP_BOOTED?: boolean;
+        /** Set after the React root renders. */
         __TAMASHA_MOUNTED__?: boolean;
         __tamashaClearFallbackTimer?: () => void;
     }

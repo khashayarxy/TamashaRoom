@@ -12,9 +12,23 @@
             (function() {
                 var fallbackReason = null;
                 var fallbackTimer = null;
+                // Grace before an entry-error fallback shows: transient asset
+                // errors (LVE/Cloudflare 503 bursts) resolve while the bundle
+                // still executes — the boot marker set at app.tsx module-eval
+                // cancels the show. A genuinely blocked bundle never boots, so
+                // it only delays the warning by this much.
+                var ERROR_GRACE_MS = 1500;
+                // Watchdog: the bundle never EXECUTED at all (blocked, hung,
+                // or served a foreign body). Slow mounts are not a failure —
+                // the marker is set at module-eval, long before React renders.
+                var WATCHDOG_MS = 8000;
+
+                function booted() {
+                    return Boolean(window.__TAMASHAROOM_APP_BOOTED || window.__TAMASHA_MOUNTED__);
+                }
 
                 function applyFallback() {
-                    if (window.__TAMASHA_MOUNTED__ || !fallbackReason) return;
+                    if (booted() || !fallbackReason) return;
                     if (fallbackTimer) clearTimeout(fallbackTimer);
 
                     var fb = document.getElementById("tamasha-fallback");
@@ -34,20 +48,21 @@
                     fb.style.display = "flex";
                 }
 
-                function showFallback(reason) {
-                    if (window.__TAMASHA_MOUNTED__ || fallbackReason) return;
+                function showFallback(reason, immediate) {
+                    if (booted() || fallbackReason) return;
                     fallbackReason = reason;
-                    if (document.getElementById("tamasha-fallback")) {
-                        applyFallback();
-                    } else {
+                    if (fallbackTimer) clearTimeout(fallbackTimer);
+                    fallbackTimer = setTimeout(applyFallback, immediate ? 0 : ERROR_GRACE_MS);
+                    if (document.readyState === "loading") {
                         document.addEventListener("DOMContentLoaded", applyFallback);
                     }
                 }
 
-                // 1. Immediate error listener for the core application bundle (0ms)
-                // Match only TamashaRoom's own entry chunk, never generic type="module"
-                // scripts (third-party ones like the Cloudflare Insights beacon fail on
-                // many setups and must not flash the blocker warning).
+                // 1. Error listener for the core application bundle. Never shows
+                // immediately: match only TamashaRoom's own entry chunk (never
+                // generic type="module" scripts — third-party ones like the
+                // Cloudflare Insights beacon fail on many setups), then let the
+                // grace window decide.
                 window.addEventListener("error", function(event) {
                     var target = event.target;
                     if (target && (target.tagName === "SCRIPT" || target.tagName === "LINK")) {
@@ -62,13 +77,14 @@
                     }
                 }, true);
 
-                // 2. Watchdog timer as secondary safety net for silent stalls (3.5s)
-                var fallbackTimeout = 3500;
+                // 2. Watchdog as secondary safety net for silent stalls (bundle
+                // never executed). 8s: long enough for slow mobile links to
+                // fetch and evaluate the entry graph without a flash.
                 fallbackTimer = setTimeout(function() {
-                    if (!window.__TAMASHA_MOUNTED__) {
-                        showFallback("timeout");
+                    if (!booted()) {
+                        showFallback("timeout", true);
                     }
-                }, fallbackTimeout);
+                }, WATCHDOG_MS);
 
                 window.__tamashaClearFallbackTimer = function() {
                     if (fallbackTimer) clearTimeout(fallbackTimer);

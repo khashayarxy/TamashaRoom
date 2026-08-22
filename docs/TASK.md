@@ -26,6 +26,14 @@
 
 ## Completed
 
+### Regressions Sprint Phase 2 — JS/Security Banner False Positive (2026-08-22)
+
+**Sprint:** Critical Regressions + Prefetch Discovery. Bug: the blocker/security warning flashed briefly after load, then vanished once React mounted.
+
+- [x] **Root cause:** the blade fallback guard treated *any* entry-asset error as immediate-failure (0ms show) and its watchdog keyed on `__TAMASHA_MOUNTED__` — set only after the full React render, seconds after the bundle executes. Transient asset errors (CloudLinux LVE/Cloudflare 503 bursts, 404s on chunk hashes retired by a deploy — stale tabs keep prefetching old hashes) showed the banner, then the mount cleared it: a flash with no real failure.
+- [x] **Fix:** `window.__TAMASHAROOM_APP_BOOTED` is set at `app.tsx` module-eval (proves the entry graph loaded; long before React renders); the guard's `booted()` accepts either marker, entry-asset errors get a 1500ms grace (transients resolve while the bundle still executes), and the silent-stall watchdog moved 3.5s → 8s (slow mobile links must not flash). `<noscript>` path untouched.
+- [x] **Tests:** `fallback-loading.spec.ts` updated (blocked bundle → fallback after grace, never instantly; new case 2b: transient CSS preload error + successful boot → no flash at all) — runs in CI.
+
 ### Regressions Sprint Phase 1 — Cloudflare Speed Brain Prefetch Opt-Out (2026-08-22)
 
 **Sprint:** Critical Regressions + Prefetch Discovery. Fresh curl trace showed `Speculation-Rules: "/cdn-cgi/speculation"` on every response — Cloudflare **Speed Brain** (auto-enabled zone-wide in 2025), not Laravel/Vite.
