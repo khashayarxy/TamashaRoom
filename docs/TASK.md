@@ -26,6 +26,13 @@
 
 ## Completed
 
+### Regressions Sprint Phase 2 follow-up — Grace Timer Was Bypassed on DOMContentLoaded (2026-08-23)
+
+**Sprint:** Critical Regressions + Prefetch Discovery. CI caught what local verification couldn't (E2E is CI-owned).
+
+- [x] **Bug:** the reworked guard armed a 1500ms grace timer, but a `DOMContentLoaded` handler still called `applyFallback()` immediately whenever a reason was set — any parse-time entry error (the blocked-bundle E2E case) showed the fallback in ~300–500ms, defeating the grace. Fixed: the grace timer is the only scheduling path; `applyFallback` self-defers (once) if the fallback element isn't parsed yet.
+- [x] **CI flake hardened:** the 2b spec's mount assertion now allows 15s for CI's cold serve (locally mounts in ~2s; CI can exceed the 5s default).
+
 ### Regressions Sprint Phase 2 — JS/Security Banner False Positive (2026-08-22)
 
 **Sprint:** Critical Regressions + Prefetch Discovery. Bug: the blocker/security warning flashed briefly after load, then vanished once React mounted.

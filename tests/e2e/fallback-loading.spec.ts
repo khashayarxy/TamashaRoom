@@ -79,9 +79,12 @@ test.describe("App load failure fallback (privacy / script blocking)", () => {
         await page.goto("/login");
         await page.waitForLoadState("networkidle");
 
+        // CI's cold serve can take longer than the default 5s to mount;
+        // the point of this test is the no-flash outcome, not mount speed.
         await expect(page.locator("html")).toHaveAttribute(
             "data-app-mounted",
             "true",
+            { timeout: 15000 },
         );
 
         // Give any would-be flash (1.5s grace expiry) ample time to appear.

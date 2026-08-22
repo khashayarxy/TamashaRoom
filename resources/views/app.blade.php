@@ -32,7 +32,16 @@
                     if (fallbackTimer) clearTimeout(fallbackTimer);
 
                     var fb = document.getElementById("tamasha-fallback");
-                    if (!fb) return;
+                    if (!fb) {
+                        // Error fired before the body parsed — wait for the
+                        // element, but never bypass the grace timer.
+                        document.addEventListener(
+                            "DOMContentLoaded",
+                            applyFallback,
+                            { once: true },
+                        );
+                        return;
+                    }
 
                     var titleEl = document.getElementById("tamasha-fallback-title");
                     var descEl = document.getElementById("tamasha-fallback-desc");
@@ -52,10 +61,11 @@
                     if (booted() || fallbackReason) return;
                     fallbackReason = reason;
                     if (fallbackTimer) clearTimeout(fallbackTimer);
+                    // The grace timer is the ONLY scheduling path — a
+                    // DOMContentLoaded handler must not apply the fallback
+                    // early, or every parse-time error would flash the banner
+                    // before the grace window could absorb it.
                     fallbackTimer = setTimeout(applyFallback, immediate ? 0 : ERROR_GRACE_MS);
-                    if (document.readyState === "loading") {
-                        document.addEventListener("DOMContentLoaded", applyFallback);
-                    }
                 }
 
                 // 1. Error listener for the core application bundle. Never shows
@@ -95,9 +105,6 @@
                 };
 
                 document.addEventListener("DOMContentLoaded", function() {
-                    if (fallbackReason) {
-                        applyFallback();
-                    }
                     var reloadBtn = document.getElementById("tamasha-reload-btn");
                     if (reloadBtn) {
                         reloadBtn.addEventListener("click", function() {
