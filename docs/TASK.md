@@ -26,6 +26,14 @@
 
 ## Completed
 
+### Regressions Sprint Phase 3 — Host Pause Re-Play Race (the "~1s pause delay") (2026-08-23)
+
+**Sprint:** Critical Regressions + Prefetch Discovery. Bug: after pausing, playback audibly continued ~1s before stopping.
+
+- [x] **Root cause:** the host's control sync was not optimistic. Between the user's pause and the PATCH round-trip, `state.isPlaying` stayed `true`, and the broadcast echo of the immediately-preceding position PATCH (built while still playing, hence `is_playing: true`, with a newer `state_version`) applied in that window — flipping state back to playing, so `SyncedVideoJsPlayer`'s apply effect called `player.play()` until the pause PATCH's own response landed. `f2d540a` halved the position debounce (3s→1.5s), making the overlap near-certain on every pause. Toast derivation (`ef8f7ed`) was pure and not causal.
+- [x] **Fix (`usePlaybackSync`):** host control PATCHes now (1) apply optimistically to local state at issue time (host is authoritative — the apply effect takes the pause branch instantly and never re-plays), and (2) raise an in-flight fence: while a host PATCH is on the wire, `applySnapshot` stashes incoming snapshots (newest only) instead of applying; the fence releases on response (or failure, or a 5s TTL) and the stash flushes through the normal version guard — stale echoes die there, genuinely newer snapshots still apply with their action toasts. A superseding PATCH replaces the fence; its owner alone releases it. Guests are unchanged (event-driven pause on broadcast arrival).
+- [x] **Tests:** 4 new hook cases (optimistic pause before PATCH resolves; pre-pause position echo never reverts a just-paused host incl. out-of-order PATCH response; newer-than-response snapshot flushes from behind the fence with its toast; failed PATCH honestly reverts via the stashed snapshot + error). Unit **299 passed** (295 + these 4); lint/tsc/format clean.
+
 ### Regressions Sprint Phase 2 follow-up — Grace Timer Was Bypassed on DOMContentLoaded (2026-08-23)
 
 **Sprint:** Critical Regressions + Prefetch Discovery. CI caught what local verification couldn't (E2E is CI-owned).

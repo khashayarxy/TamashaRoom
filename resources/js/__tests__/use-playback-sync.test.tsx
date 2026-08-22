@@ -1129,3 +1129,315 @@ describe("usePlaybackSync (playback action toasts)", () => {
         expect(onPlaybackAction).not.toHaveBeenCalled();
     });
 });
+
+describe("usePlaybackSync host optimistic control (pause-delay regression)", () => {
+    beforeEach(() => {
+        mockGet.mockReset();
+        mockPatch.mockReset();
+        mockGet.mockResolvedValue({ data: makeResponse() });
+        Object.defineProperty(document, "hidden", {
+            configurable: true,
+            value: false,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+    });
+
+    function deferred<T>() {
+        let resolve!: (value: T) => void;
+        let reject!: (reason?: unknown) => void;
+        const promise = new Promise<T>((res, rej) => {
+            resolve = res;
+            reject = rej;
+        });
+        return { promise, resolve, reject };
+    }
+
+    it("applies the host's pause optimistically, before the PATCH resolves", async () => {
+        mockGet.mockResolvedValue({
+            data: makeResponse({ state_version: 1, is_playing: true }),
+        });
+        const patch = deferred<{
+            data: {
+                status: string;
+                state_version: number;
+                server_timestamp: number;
+            };
+        }>();
+        mockPatch.mockReturnValue(patch.promise);
+
+        const { result } = renderHook(() =>
+            usePlaybackSync({ roomId: 1, isHost: true }),
+        );
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        act(() => {
+            result.current.syncImmediate({
+                isPlaying: false,
+                positionSeconds: 40,
+            });
+        });
+
+        // The optimistic application must be synchronous with the user's
+        // action — the component's apply effect keys on this state and would
+        // otherwise re-call play() until the round-trip completes.
+        expect(result.current.state.isPlaying).toBe(false);
+
+        await act(async () => {
+            patch.resolve({
+                data: {
+                    status: "ok",
+                    state_version: 2,
+                    server_timestamp: 2000,
+                },
+            });
+        });
+
+        expect(result.current.state.isPlaying).toBe(false);
+        expect(result.current.state.stateVersion).toBe(2);
+    });
+
+    it("never reverts a just-paused host when the pre-pause position echo lands", async () => {
+        // The regression: while playing, a position PATCH is on the wire when
+        // the user pauses. That PATCH's broadcast echo (is_playing=true,
+        // state_version=2 > the client's 1) used to flip state back to
+        // playing, so the apply effect re-played the video for ~1s until the
+        // pause PATCH's own response landed.
+        mockGet.mockResolvedValue({
+            data: makeResponse({
+                state_version: 1,
+                is_playing: true,
+                position_seconds: 30,
+            }),
+        });
+        const positionPatch = deferred<{
+            data: {
+                status: string;
+                state_version: number;
+                server_timestamp: number;
+            };
+        }>();
+        const pausePatch = deferred<{
+            data: {
+                status: string;
+                state_version: number;
+                server_timestamp: number;
+            };
+        }>();
+        mockPatch.mockReturnValueOnce(positionPatch.promise);
+        mockPatch.mockReturnValueOnce(pausePatch.promise);
+
+        const fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+
+        const { result } = renderHook(() =>
+            usePlaybackSync({ roomId: 1, isHost: true, currentUserId: 7 }),
+        );
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        // Host's debounced position sync flushes → position PATCH in flight.
+        act(() => {
+            result.current.sync({ positionSeconds: 41 });
+        });
+        await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1), {
+            timeout: 4000,
+        });
+
+        // The user pauses while that position PATCH is still on the wire.
+        act(() => {
+            result.current.syncImmediate({
+                isPlaying: false,
+                positionSeconds: 42,
+            });
+        });
+        expect(mockPatch).toHaveBeenCalledTimes(2);
+        expect(result.current.state.isPlaying).toBe(false);
+
+        // The stale pre-pause echo arrives: playing, newer version, own id.
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: true,
+                    position_seconds: 41,
+                    user_id: 7,
+                }),
+            );
+        });
+
+        expect(result.current.state.isPlaying).toBe(false);
+
+        // Pause PATCH completes (server version 3)…
+        await act(async () => {
+            pausePatch.resolve({
+                data: {
+                    status: "ok",
+                    state_version: 3,
+                    server_timestamp: 3000,
+                },
+            });
+        });
+
+        // …and the stashed stale echo dies on the version guard, while the
+        // pause's own echo applies as a consistent no-op.
+        expect(result.current.state.isPlaying).toBe(false);
+        expect(result.current.state.stateVersion).toBe(3);
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 3,
+                    is_playing: false,
+                    position_seconds: 42,
+                    user_id: 7,
+                }),
+            );
+        });
+        expect(result.current.state.isPlaying).toBe(false);
+
+        // The abandoned position PATCH's response is out-of-order and ignored.
+        await act(async () => {
+            positionPatch.resolve({
+                data: {
+                    status: "ok",
+                    state_version: 2,
+                    server_timestamp: 2500,
+                },
+            });
+        });
+        expect(result.current.state.stateVersion).toBe(3);
+
+        echoHolder.instance = null;
+    });
+
+    it("flushes a genuinely newer snapshot that arrived behind the fence", async () => {
+        mockGet.mockResolvedValue({
+            data: makeResponse({ state_version: 1, is_playing: true }),
+        });
+        const pausePatch = deferred<{
+            data: {
+                status: string;
+                state_version: number;
+                server_timestamp: number;
+            };
+        }>();
+        mockPatch.mockReturnValueOnce(pausePatch.promise);
+
+        const fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+        const onPlaybackAction = vi.fn();
+
+        const { result } = renderHook(() =>
+            usePlaybackSync({
+                roomId: 1,
+                isHost: true,
+                currentUserId: 7,
+                onPlaybackAction,
+            }),
+        );
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        act(() => {
+            result.current.syncImmediate({
+                isPlaying: false,
+                positionSeconds: 10,
+            });
+        });
+
+        // A NEWER authoritative snapshot (e.g. ownership changed mid-flight and
+        // someone else resumed playback) lands while the fence is up.
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 5,
+                    is_playing: true,
+                    position_seconds: 60,
+                    user_id: 9,
+                }),
+            );
+        });
+        // Still fenced: nothing applied yet.
+        expect(result.current.state.isPlaying).toBe(false);
+
+        await act(async () => {
+            pausePatch.resolve({
+                data: {
+                    status: "ok",
+                    state_version: 2,
+                    server_timestamp: 2000,
+                },
+            });
+        });
+
+        // Fence released: version 5 beats our response's 2 and applies, with
+        // its member-visible action.
+        expect(result.current.state.isPlaying).toBe(true);
+        expect(result.current.state.stateVersion).toBe(5);
+        expect(onPlaybackAction).toHaveBeenCalledWith({
+            type: "play",
+            actorId: 9,
+            positionSeconds: 60,
+        });
+
+        echoHolder.instance = null;
+    });
+
+    it("reverts optimistically on a failed control PATCH via the stashed snapshot", async () => {
+        mockGet.mockResolvedValue({
+            data: makeResponse({ state_version: 1, is_playing: true }),
+        });
+        const pausePatch = deferred<{
+            data: {
+                status: string;
+                state_version: number;
+                server_timestamp: number;
+            };
+        }>();
+        mockPatch.mockReturnValueOnce(pausePatch.promise);
+
+        const fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+
+        const { result } = renderHook(() =>
+            usePlaybackSync({ roomId: 1, isHost: true }),
+        );
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        act(() => {
+            result.current.syncImmediate({
+                isPlaying: false,
+                positionSeconds: 40,
+            });
+        });
+        expect(result.current.state.isPlaying).toBe(false);
+
+        // The room's authoritative playing echo piles up behind the fence…
+        await act(async () => {
+            fakeEcho.emit(
+                ".playback.state.changed",
+                makeResponse({
+                    state_version: 2,
+                    is_playing: true,
+                    position_seconds: 41,
+                    user_id: 7,
+                }),
+            );
+        });
+
+        // …and the pause PATCH fails: the honest reconciliation is to follow
+        // the authoritative snapshot (playing) and surface the error.
+        await act(async () => {
+            pausePatch.reject(new Error("network down"));
+        });
+
+        expect(result.current.state.isPlaying).toBe(true);
+        expect(result.current.error).toBe("Failed to sync playback");
+
+        echoHolder.instance = null;
+    });
+});

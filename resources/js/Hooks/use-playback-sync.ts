@@ -25,6 +25,9 @@ const POLL_IDLE = 10000;
 // per host leaves headroom while halving how stale the guests' authoritative
 // position can get between corrections (paired with the 1s drift threshold).
 const DEBOUNCE_MS = 1500;
+// Safety valve for the host's in-flight control fence: a PATCH whose response
+// never arrives (dropped connection) must not defer snapshots forever.
+const FENCE_TTL_S = 5;
 
 interface SyncOptions {
     roomId: number;
@@ -126,6 +129,21 @@ export function usePlaybackSync({
         positionSeconds: number;
         timer: ReturnType<typeof setTimeout>;
     } | null>(null);
+    /**
+     * In-flight host PATCH fence. The host is authoritative for its own
+     * playback, so a control PATCH applies optimistically to local state the
+     * moment it is issued; while the PATCH is on the wire, incoming snapshots
+     * (chiefly the broadcast echo of the immediately-preceding position PATCH,
+     * which still says is_playing=true) are stashed instead of applied — they
+     * would otherwise flip isPlaying back and re-play the video for the
+     * round-trip duration. The stash flushes through the normal version guard
+     * once the PATCH response lands; a hung PATCH expires the fence after
+     * FENCE_TTL_S so reconciliation resumes.
+     */
+    const inFlightControlRef = useRef<{
+        stashed: PlaybackStateResponse | null;
+        fencedAt: number;
+    } | null>(null);
 
     useEffect(() => {
         currentUserIdRef.current = currentUserId ?? null;
@@ -194,6 +212,29 @@ export function usePlaybackSync({
     const applySnapshot = useCallback(
         (raw: PlaybackStateResponse) => {
             if (cancelledRef.current) return;
+
+            // Host control fence: while the host's own PATCH is in flight,
+            // hold snapshots (keeping only the newest) so a pre-pause echo
+            // cannot revert the just-applied optimistic control state. The
+            // stash flushes through this same function once the response
+            // lands — stale echoes then die on the version guard below.
+            if (inFlightControlRef.current) {
+                if (
+                    Date.now() / 1000 - inFlightControlRef.current.fencedAt >
+                    FENCE_TTL_S
+                ) {
+                    inFlightControlRef.current = null;
+                } else {
+                    const stashed = inFlightControlRef.current.stashed;
+                    if (
+                        !stashed ||
+                        raw.state_version >= stashed.state_version
+                    ) {
+                        inFlightControlRef.current.stashed = raw;
+                    }
+                    return;
+                }
+            }
 
             const incoming = toPlaybackState(raw);
 
@@ -373,6 +414,7 @@ export function usePlaybackSync({
                 pendingSeekRef.current = null;
             }
             pendingSyncRef.current = null;
+            inFlightControlRef.current = null;
             document.removeEventListener("visibilitychange", handleVisibility);
             stopHealthWatchRef.current?.();
             stopHealthWatchRef.current = null;
@@ -405,6 +447,36 @@ export function usePlaybackSync({
                     : {}),
             } as const;
 
+            // Optimistic local application + in-flight fence (host-only path;
+            // the host is the authority for these fields). Without this, the
+            // broadcast echo of the position PATCH that was on the wire when
+            // the user hit pause still says is_playing=true and carries a
+            // newer state_version — applying it flips state back to playing
+            // and the apply effect re-plays the video for the round-trip
+            // duration: the "~1s pause delay".
+            const optimisticAt = Date.now() / 1000;
+            const fence: {
+                stashed: PlaybackStateResponse | null;
+                fencedAt: number;
+            } = { stashed: null, fencedAt: optimisticAt };
+            inFlightControlRef.current = fence;
+            setState((s) => ({
+                ...s,
+                ...partial,
+                receivedAt: optimisticAt,
+            }));
+
+            const flushFence = () => {
+                // A newer PATCH may have superseded this fence — only the
+                // current owner releases it, or a late response would drop a
+                // still-needed fence and re-open the echo-revert window.
+                if (inFlightControlRef.current !== fence) return;
+                inFlightControlRef.current = null;
+                if (fence.stashed) {
+                    applySnapshotRef.current(fence.stashed);
+                }
+            };
+
             try {
                 const { data } = await api.patch<PlaybackSyncResponse>(
                     `/playback/${roomId}`,
@@ -434,7 +506,21 @@ export function usePlaybackSync({
                 setError(null);
             } catch {
                 if (cancelledRef.current) return;
+                // Reconcile behind the fence BEFORE surfacing the failure:
+                // the stashed authoritative snapshot wins over the failed
+                // intent, and applySnapshot clears the error flag on success —
+                // so the setError must come after the flush to survive.
+                // flushFence is idempotent; the finally's call no-ops here.
+                flushFence();
                 setError("Failed to sync playback");
+            } finally {
+                // Success or failure, the PATCH round-trip is over: release the
+                // fence and let anything that piled up behind it reconcile
+                // through the version guard (a failed control PATCH honestly
+                // reverts to the stashed authoritative snapshot).
+                if (!cancelledRef.current) {
+                    flushFence();
+                }
             }
         },
         [roomId, isHost],
