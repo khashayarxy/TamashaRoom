@@ -26,6 +26,25 @@
 
 ## Completed
 
+### Regressions Sprint Phase 4 — 10-Minute Two-Context Playback Stress Test (2026-08-23)
+
+**Sprint:** Critical Regressions + Prefetch Discovery. Host + guest browser contexts in one room (local Herd env, real Pusher ap1 transport, `sync-sample.webm` fixture), ~11 minutes of play/pause cycles, seeks (±10s), 5-keystroke scrub bursts, pause-during-scrub + play-after-seek, guest visibility toggles every 90s, guest reload at 4min, 8s offline window at 6.5min, then a 15-message chat burst at 1.5s cadence. Instrument: scratch Playwright script (not committed), in-page 10ms media monitors, skew-corrected cross-context latencies.
+
+- [x] **Drift (host↔guest gap, n=72 samples):** p50 **63ms**; 30s/60s/300s marks all ≤ **64ms**; p95 1.08s (at the 1s correction threshold — corrections firing as designed); max 2.03s once at the 10-min mark during a seek burst that tripped local SQLite lock contention. **Zero uncommanded play/pause flips; zero jump-backs.**
+- [x] **Remote actions (keyboard seeks, n=23):** p50 ≈ 1.19s, p95 ≈ 1.76s — dominated by PATCH→Pusher→fanout over Iran→ap1 (~0.7–3s RTT; several broadcasts hit the 3s `PUSHER_TIMEOUT`). Local action latency is structurally instant (native element command in the event path; unit-tested in the Phase-3 hook tests) — the automated toggle channel proved unreliable in this run (the skin's control-bar buttons use pointer semantics the DOM-click instrument can't drive; only the big-play click and seek hotkeys worked), so pause/play figures carry wide error bars and are excluded.
+- [x] **Chat (n=15 at 1.5s cadence):** sender's optimistic row appears at typing speed (p50 721ms incl. ~0.5s of synthetic typing); guest receive trails the sender's row by ~1.2s — the same local transport floor as the seeks. Expect materially lower on production (server-side Pusher RTT instead of Iran→ap1 from the dev box).
+- [x] **Toasts:** 57 guest toasts, all for the host's actions — zero on the host for its own actions ✓.
+- [x] **Local-env findings (not production-representative, documented):** under seek bursts the local SQLite dev DB threw `database is locked` on the rooms update → scattered PATCH 500s → the 10-min drift spike. Production (MySQL + server-side Pusher RTT) does not contend this way; if drift recurs in production, check `laravel.log` for the analogous contention first.
+- [x] **Measurement caveats recorded:** synthetic input faster than ~1s desyncs with the controlled chat input under poll-driven re-renders (instrumentation artifact, not app behavior — real-typing unit tests cover rapid sends); headless visibility toggles use a `Document.prototype.hidden` override.
+
+### Regressions Sprint Phase 2 follow-up 2 — Booted-But-Never-Mounted Blind Spot (2026-08-23)
+
+**Sprint:** Critical Regressions + Prefetch Discovery. CI-only reproduction across three red runs; local servers passed throughout.
+
+- [x] **Root cause (from in-test diagnostics pushed in `6bff633`):** with the entry CSS hard-aborted, CI showed `{booted:true, marker:false}` + `pageerror: Unable to preload CSS` — the shared `app.tsx` chunk declares `assets/app-*.css` as a hard dependency, so Vite's `__vitePreload` rejects the page-chunk import and `createInertiaApp` never completes. Because the boot marker was set at module-eval, no fallback ever showed: a permanently blank page with no recovery UI.
+- [x] **Fix:** the 8s watchdog now keys on the **mount** marker only (bypassing the boot gate) — a bundle that executed but never renders gets the fallback; the boot marker still absorbs transient ERROR banners inside the 1.5s grace. Spec 2b became a true transient-failure simulation (CSS fails once, retries continue — the app boots through it), and new spec 2c pins the booted-but-never-mounted contract (fallback ≥7.5s).
+- [x] **CI:** red runs 32601354090, 32602541303, 32604693028 (diagnostics) → green on `5493867` (run 32605345898) with all 6 fallback specs passing.
+
 ### Regressions Sprint Phase 5 — Chat Send Serialization Removed (2026-08-23)
 
 **Sprint:** Critical Regressions + Prefetch Discovery. Bug: rapid chat felt seconds slow again (~20 messages took far too long).
