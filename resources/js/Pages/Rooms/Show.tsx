@@ -511,8 +511,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             if (!deletingTrack) setTrackToDelete(null);
                         }}
                         onConfirm={() =>
-                            trackToDelete !== null &&
-                            deleteTrack(trackToDelete)
+                            trackToDelete !== null && deleteTrack(trackToDelete)
                         }
                         title="حذف زیرنویس"
                         description="آیا از حذف این زیرنویس اطمینان دارید؟ این عمل قابل بازگشت نیست."

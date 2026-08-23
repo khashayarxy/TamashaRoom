@@ -23,7 +23,9 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
         await page.waitForLoadState("networkidle");
 
         // Placeholder for no video must be visible, player must NOT be in DOM yet
-        await expect(page.getByText("هنوز ویدیویی تنظیم نشده است")).toBeVisible();
+        await expect(
+            page.getByText("هنوز ویدیویی تنظیم نشده است"),
+        ).toBeVisible();
         // SyncedVideoJsPlayer lazy chunk should NOT have been requested yet
         // (no video element)
         await expect(page.locator("video")).toHaveCount(0);
@@ -49,7 +51,9 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
 
         await page.goto(room_url);
         await page.waitForLoadState("networkidle");
-        await expect(page.getByText("هنوز ویدیویی تنظیم نشده است")).toBeVisible();
+        await expect(
+            page.getByText("هنوز ویدیویی تنظیم نشده است"),
+        ).toBeVisible();
 
         // Track lazy chunk requests
         const lazyRequests: string[] = [];
@@ -59,9 +63,7 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
         });
 
         // Open SetVideoDialog (lazy) – must load without flash
-        await page
-            .getByRole("button", { name: "ویدیو", exact: true })
-            .click();
+        await page.getByRole("button", { name: "ویدیو", exact: true }).click();
         const dialog = page.getByRole("dialog");
         await expect(dialog).toBeVisible({ timeout: 8000 });
         // Dialog content should be present (no empty fallback)
@@ -71,9 +73,9 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
         await page.keyboard.press("Escape");
         await expect(dialog).toBeHidden();
 
-        const xsrf = (
-            await page.context().cookies()
-        ).find((c) => c.name === "XSRF-TOKEN")?.value;
+        const xsrf = (await page.context().cookies()).find(
+            (c) => c.name === "XSRF-TOKEN",
+        )?.value;
         await page.route(/\/proxy\/video\/\d+/, async (route) => {
             await route.fulfill({
                 status: 502,
@@ -82,9 +84,15 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
             });
         });
         // Now set a video URL to trigger player load
-        const setResp = await page.request.post(`/playback/${room_id}/set-video`, {
-            data: { video_url: "https://example.com/sample.mp4", _token: xsrf },
-        });
+        const setResp = await page.request.post(
+            `/playback/${room_id}/set-video`,
+            {
+                data: {
+                    video_url: "https://example.com/sample.mp4",
+                    _token: xsrf,
+                },
+            },
+        );
         expect(setResp.ok()).toBeTruthy();
         // Reload so the page observes the new video URL deterministically
         // (a real second client would get it via broadcast/poll; this page's
@@ -119,9 +127,7 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
         await expect(page.getByRole("dialog")).toBeHidden();
 
         // 2. Set-video
-        await page
-            .getByRole("button", { name: "ویدیو", exact: true })
-            .click();
+        await page.getByRole("button", { name: "ویدیو", exact: true }).click();
         await expect(page.getByRole("dialog")).toBeVisible({ timeout: 8000 });
         await page.keyboard.press("Escape");
         await expect(page.getByRole("dialog")).toBeHidden();
@@ -155,7 +161,9 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
             const subItem = page.getByText("تنظیمات زیرنویس");
             if (await subItem.isVisible()) {
                 await subItem.click();
-                await expect(page.getByRole("dialog")).toBeVisible({ timeout: 8000 });
+                await expect(page.getByRole("dialog")).toBeVisible({
+                    timeout: 8000,
+                });
                 await page.keyboard.press("Escape");
             }
         }
@@ -172,9 +180,13 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
         browser,
     }) => {
         test.setTimeout(40000);
-        const hostCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
+        const hostCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
         const hostPage = await hostCtx.newPage();
-        const guestCtx = await browser.newContext({ baseURL: "http://127.0.0.1:8000" });
+        const guestCtx = await browser.newContext({
+            baseURL: "http://127.0.0.1:8000",
+        });
         const guestPage = await guestCtx.newPage();
 
         // Host creates room with video
