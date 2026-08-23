@@ -8,6 +8,7 @@ use App\Enums\PlaybackMode;
 use App\Exceptions\VideoUrlValidationException;
 use App\Services\UrlSecurityService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class DetermineVideoPlaybackModeAction
 {
@@ -40,7 +41,16 @@ class DetermineVideoPlaybackModeAction
             $rangeOk = $response->header('Accept-Ranges') === 'bytes';
 
             return $corsOk && $rangeOk ? PlaybackMode::Direct : PlaybackMode::Proxy;
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            // Falling back to proxy is correct behavior, but a HEAD-probe
+            // failure (DNS, TLS, timeout) must be visible in the log —
+            // otherwise every direct-mode regression looks like a deliberate
+            // proxy choice.
+            Log::warning('[playback-mode] HEAD probe failed; falling back to proxy', [
+                'url' => $url,
+                'error' => $e->getMessage(),
+            ]);
+
             return PlaybackMode::Proxy;
         }
     }
