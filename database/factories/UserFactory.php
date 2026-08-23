@@ -42,4 +42,16 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Explicitly verified state. The default definition already verifies, so
+     * this is for call sites that want the intent spelled out next to an
+     * unverified() branch — e.g. dashboard-access tests.
+     */
+    public function verified(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email_verified_at' => now(),
+        ]);
+    }
 }

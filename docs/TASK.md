@@ -26,6 +26,15 @@
 
 ## Completed
 
+### Zero-API Email Verification in Tests (2026-08-23)
+
+**Task:** no external email API in any test layer (local + CI), no test-specific logic in production code.
+
+- [x] **Guarantees already in place (audited):** `phpunit.xml` forces `MAIL_MAILER=array` + sqlite `:memory:` for the whole PHPUnit suite (committed, loaded by the runner itself); CI's Playwright webServer passes `MAIL_MAILER=array` to `php artisan serve` (works on Linux CI per KI-016); `.env.example` carries an empty `RESEND_KEY` so CI never holds real credentials. **No `.env.testing` was created on purpose:** Laravel loads it *instead of* `.env` under `APP_ENV=testing` — without `APP_KEY` it breaks every encryption-dependent feature test (CI's key lives in `.env`), and committing a key inside it would leak a secret. `phpunit.xml` is the stronger, runner-enforced equivalent.
+- [x] **Factory:** `UserFactory::verified()` state added (explicit counterpart to `unverified()`; the default definition already verifies).
+- [x] **Feature tests:** `RegistrationTest` now fakes notifications and asserts `VerifyEmail` was sent on both register paths (was: no assertion, and only the array mailer stood between the suite and a real send attempt). `EmailVerificationTest`/`PasswordResetTest` already used `Notification::fake()` with send assertions.
+- [x] **E2E:** new `tests/e2e/registration.spec.ts` — register through the real UI, get the REAL temporary-signed verification URL from the env-gated `GET /__test/verification-url` helper (registered only for local/testing envs in `bootstrap/app.php`), navigate it (running the production verification handler), and land on the verified-only dashboard. Skipped on local Windows with a pointer to the KI-016 workaround (`MAIL_MAILER=array` temporarily in `.env`). A direct "verify user" mutation endpoint was deliberately NOT added — the signed-URL path exercises production verification code instead of bypassing it.
+
 ### Regressions Sprint Phase 4 — 10-Minute Two-Context Playback Stress Test (2026-08-23)
 
 **Sprint:** Critical Regressions + Prefetch Discovery. Host + guest browser contexts in one room (local Herd env, real Pusher ap1 transport, `sync-sample.webm` fixture), ~11 minutes of play/pause cycles, seeks (±10s), 5-keystroke scrub bursts, pause-during-scrub + play-after-seek, guest visibility toggles every 90s, guest reload at 4min, 8s offline window at 6.5min, then a 15-message chat burst at 1.5s cadence. Instrument: scratch Playwright script (not committed), in-page 10ms media monitors, skew-corrected cross-context latencies.
