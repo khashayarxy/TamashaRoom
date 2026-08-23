@@ -129,8 +129,6 @@ export function useSubtitles(
         }
     };
 
-    const activeTrack = tracks.find((t) => t.id === activeTrackId);
-
     return {
         tracks,
         tracksError,
@@ -141,7 +139,6 @@ export function useSubtitles(
         subError,
         trackToDelete,
         deletingTrack,
-        activeTrack,
         setTrackToDelete,
         selectTrack,
         followRoomDefault,

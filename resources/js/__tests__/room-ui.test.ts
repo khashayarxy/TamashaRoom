@@ -6,7 +6,6 @@ describe("useRoomUiStore", () => {
         useRoomUiStore.setState({
             activeTab: "chat",
             showSetVideo: false,
-            videoUrl: "",
             showSubSettings: false,
             showSubManager: false,
             showRoomSettings: false,
@@ -20,7 +19,6 @@ describe("useRoomUiStore", () => {
         const state = useRoomUiStore.getState();
         expect(state.activeTab).toBe("chat");
         expect(state.showSetVideo).toBe(false);
-        expect(state.videoUrl).toBe("");
         expect(state.showSubSettings).toBe(false);
         expect(state.showSubManager).toBe(false);
         expect(state.showRoomSettings).toBe(false);
@@ -45,13 +43,6 @@ describe("useRoomUiStore", () => {
         expect(useRoomUiStore.getState().showSetVideo).toBe(true);
         useRoomUiStore.getState().setShowSetVideo(false);
         expect(useRoomUiStore.getState().showSetVideo).toBe(false);
-    });
-
-    it("setVideoUrl stores the url", () => {
-        useRoomUiStore.getState().setVideoUrl("https://example.com/video.mp4");
-        expect(useRoomUiStore.getState().videoUrl).toBe(
-            "https://example.com/video.mp4",
-        );
     });
 
     it("setShowSubSettings toggles subtitle settings", () => {

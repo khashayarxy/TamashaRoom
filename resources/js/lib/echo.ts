@@ -174,11 +174,6 @@ export function getEcho(): EchoLike | null {
     return echoInstance;
 }
 
-/** True when the Echo client is available (i.e. push is the active transport). */
-export function isPushConfigured(): boolean {
-    return getEcho() !== null;
-}
-
 /**
  * Watch the live health of the push transport for one room channel.
  *
@@ -247,10 +242,4 @@ export function watchPushHealth(
     notify();
 
     return () => cleanups.forEach((cleanup) => cleanup());
-}
-
-/** Test helper: reset the singleton so a later getEcho() re-evaluates config. */
-export function resetEcho(): void {
-    echoInstance?.leave("");
-    echoInstance = null;
 }

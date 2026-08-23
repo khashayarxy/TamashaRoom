@@ -349,9 +349,6 @@ export function usePresence(
         members,
         connected,
         moments,
-        sendHeartbeat: () => {
-            scheduleHeartbeat(0);
-        },
     };
 }
 
