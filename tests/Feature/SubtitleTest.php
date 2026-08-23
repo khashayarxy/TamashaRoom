@@ -8,8 +8,10 @@ use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\SubtitleTrack;
 use App\Models\User;
+use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -544,5 +546,32 @@ class SubtitleTest extends TestCase
         $response->assertOk()
             ->assertHeader('Content-Type', 'text/vtt; charset=utf-8');
         $this->assertNotSame('text/html', $response->headers->get('Content-Type'));
+    }
+
+    /**
+     * Production drains its database queue once a minute via cron, so a queued
+     * broadcast would delay the default-subtitle switch by 0-60s for every
+     * other member (KI-021). The event must broadcast synchronously.
+     */
+    #[Test]
+    public function subtitle_default_broadcast_is_not_queued_on_the_database_queue(): void
+    {
+        config(['queue.default' => 'database']);
+        Queue::fake();
+        Storage::fake('local');
+
+        $file = UploadedFile::fake()->createWithContent(
+            'sync.srt',
+            "1\n00:00:01,000 --> 00:00:04,000\nHello",
+        );
+        $upload = $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}", ['file' => $file]);
+        $trackId = $upload->json('id');
+
+        $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}/default", ['track_id' => $trackId])
+            ->assertOk();
+
+        Queue::assertNotPushed(BroadcastEvent::class);
     }
 }

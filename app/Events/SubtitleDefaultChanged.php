@@ -7,11 +7,18 @@ namespace App\Events;
 use App\Models\Room;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class SubtitleDefaultChanged implements ShouldBroadcast
+/**
+ * Broadcasts synchronously (ShouldBroadcastNow): production drains its
+ * database queue only once a minute via cron, so a queued broadcast would
+ * delay the default-subtitle switch by 0-60s for every other member — the
+ * same KI-021 failure mode the playback/presence/chat events already guard
+ * against with ShouldBroadcastNow.
+ */
+class SubtitleDefaultChanged implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
