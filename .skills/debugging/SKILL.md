@@ -91,10 +91,11 @@ running (`php artisan schedule:list`; the single cron entry).
   `Log::debug('[debug:proxy] range request', ['room' => $roomId, 'range' => $range])`.
   This keeps debug output greppable (`grep "\[debug:" storage/logs/laravel.log`)
   and instantly removable.
-- Frontend: use `debug(topic, ...)` from `@/lib/debug` (gated behind
-  `VITE_DEBUG=true`, namespaced `[debug:<topic>]`).
-- Debug logging is a **temporary tool**: remove `[debug:` call sites and
-  `VITE_DEBUG` flags from the final diff (see `code-review-rules`).
+- Frontend: no debug-logging helper exists (the old debug.ts module was
+  removed — it never had a call site); use breakpoint debugging, or temporary
+  `console.debug` calls named `[debug:<topic>]` and removed before commit.
+- Debug logging is a **temporary tool**: remove `[debug:` call sites from
+  the final diff (see `code-review-rules`).
 
 ## Known Issues
 
