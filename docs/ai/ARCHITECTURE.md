@@ -193,8 +193,9 @@ There are two route surfaces, with four endpoint categories:
    subtitle CRUD, presence heartbeat/leave). All are session-guarded; most require
    `auth, verified`. The app's own UI reaches (b) and (c) via the axios `api`
    client (`resources/js/lib/api.ts`).
-2. **`routes/api.php`** — Sanctum-token JSON routes for external consumers.
-   Currently only `GET /user` exists; no own-UI route uses this file.
+2. **External API surface** — not currently implemented (former
+   Sanctum-token routes removed per audit #28); all own-UI traffic is via
+   web routes.
 
 A typical JSON mutation flow (room update via the settings dialog):
 
@@ -441,7 +442,7 @@ OWNER-ONLY (via Policy)
 MEMBER-ONLY (via Policy: memberAccess)
  ├── playback state, chat, subtitles, presence, proxy
 
-API (Sanctum tokens) — routes/api.php, external consumers only
+API (Sanctum tokens) — not currently implemented (removed per audit #28)
 ```
 
 Rules enforced: Form Request authorization + `$this->authorize()` in controllers;

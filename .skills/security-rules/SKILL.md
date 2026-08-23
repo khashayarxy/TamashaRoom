@@ -1,6 +1,6 @@
 ---
 name: security-rules
-description: Security rules for TamashaRoom — API boundary rules, authentication/authorization, SSRF protection, file upload hardening, rate limiting, and security headers. Use for anything in routes/api.php, any auth/authorization logic, file uploads, external URL handling, or webhook endpoints.
+description: Security rules for TamashaRoom — API boundary rules, authentication/authorization, SSRF protection, file upload hardening, rate limiting, and security headers. Use for any auth/authorization logic, file uploads, external URL handling, or webhook endpoints.
 ---
 
 # Security Rules
@@ -33,7 +33,7 @@ Don't re-solve these — extend the existing services/middleware instead:
 - **Info leakage**: production error handler returns a generic message for
   non-HTTP exceptions; debug info hidden when `APP_DEBUG=false`.
 
-## API Boundary Rules (routes/api.php)
+## API Boundary Rules
 
 Everything here applies to anything reachable by someone other than
 TamashaRoom's own UI — a mobile client, third-party integration, webhook
@@ -43,9 +43,10 @@ you didn't write will eventually call it.
 1. **Choose the route surface by who's calling.** TamashaRoom's own UI uses
    `routes/web.php` exclusively — Inertia page routes for initial data *plus*
    session-authenticated JSON polling/action endpoints (playback state, presence,
-   chat, room actions) reached via the axios `api` client. Anything else (mobile
-   client, third party, webhook) → Sanctum-authenticated route in
-   `routes/api.php`.
+   chat, room actions) reached via the axios `api` client. A future external
+   surface (mobile/third party/webhook) would introduce Sanctum-authenticated
+   routes at that time; none are currently implemented (former api routes
+   removed per audit #28).
 2. **Every endpoint is a public network boundary.** Auth, authorization,
    input shape, and rate limits are enforced inside the controller/Form Request
    — never assumed from "only our app calls this." This holds for the

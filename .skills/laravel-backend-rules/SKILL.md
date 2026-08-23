@@ -64,8 +64,8 @@ TamashaRoom's own UI uses `routes/web.php` exclusively:
 3. **JSON action/mutation endpoints** — playback sync/set-video, chat
    send/delete, room update/kick/transfer, subtitle CRUD, presence
    heartbeat/leave — session auth, axios `api` client, validated.
-4. **External API routes** (`routes/api.php`) — Sanctum-token routes for
-   mobile/third parties. Currently only `GET /user`.
+4. **External API routes** — not currently implemented (former Sanctum
+   surface removed per audit #28); all current traffic is via web routes.
 
 Rules: every route resolving to a missing/unauthorized resource calls
 `abort(404)`, not 403 (see `security-rules`). Group related routes with

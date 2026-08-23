@@ -149,7 +149,7 @@ docs/SYSTEM.md ch. 18.00]
 - Email verification is enabled; dashboard and room routes require `verified`.
   [Confirmed — FRONTEND_CONTRACT.md §6.4]
 - Password reset flow implemented (forgot/reset pages). [Confirmed]
-- Sanctum tokens for `routes/api.php` external consumers. [Confirmed]
+- Former Sanctum-token external API removed per audit #28 (no external file; all traffic via session web routes). [Confirmed removal]
 - Password hashing via the `'hashed'` cast; the `Hash::make()` call was removed
   from the registration controller to avoid double-hashing. [Confirmed —
   quality-report.md §4.3, docs/TASK.md]
