@@ -69,11 +69,6 @@ class Room extends Model
         return $this->hasMany(SubtitleTrack::class);
     }
 
-    public function activeSubtitleTrack(): BelongsTo
-    {
-        return $this->belongsTo(SubtitleTrack::class, 'active_subtitle_track_id');
-    }
-
     public static function generateInviteCode(): string
     {
         return Str::random(12);
@@ -108,11 +103,6 @@ class Room extends Model
         return $this->members()
             ->where('last_seen_at', '>=', now()->subSeconds(PresenceService::STALE_TIMEOUT_SECONDS))
             ->count() >= $this->max_members;
-    }
-
-    public function memberCount(): int
-    {
-        return $this->members()->count();
     }
 
     public function touchActivity(): void

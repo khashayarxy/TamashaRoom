@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -51,26 +50,5 @@ class RoomMember extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function scopeOnline(Builder $query): Builder
-    {
-        return $query->where('presence_status', 'online');
-    }
-
-    public function scopeOffline(Builder $query): Builder
-    {
-        return $query->where('presence_status', 'offline');
-    }
-
-    public function scopeStale(Builder $query): Builder
-    {
-        return $query->where('presence_status', 'online')
-            ->where('last_seen_at', '<', now()->subSeconds(90));
-    }
-
-    public function isOnline(): bool
-    {
-        return $this->presence_status === 'online';
     }
 }

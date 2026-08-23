@@ -22,9 +22,4 @@ class SubtitleTrack extends Model
     {
         return $this->belongsTo(Room::class);
     }
-
-    public function uploader(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
 }

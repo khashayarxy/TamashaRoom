@@ -8,7 +8,6 @@ enum CodecDetectionResult: string
 {
     case SUPPORTED_H264 = 'supported_h264';
     case UNSUPPORTED_HEVC = 'unsupported_hevc';
-    case UNSUPPORTED_OTHER = 'unsupported_other';
     case UNKNOWN = 'unknown';
 
     public function isConfidentlyHEVC(): bool
