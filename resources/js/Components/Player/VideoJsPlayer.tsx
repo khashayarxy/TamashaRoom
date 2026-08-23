@@ -3,6 +3,7 @@ import {
     I18nProvider,
     useTranslator,
     usePlayer,
+    useMenuContext,
     Container,
     Poster,
     BufferingIndicator,
@@ -391,6 +392,26 @@ function MenuChevron({ flipped = false }: { flipped?: boolean }) {
     );
 }
 
+function MenuBackButton({
+    children,
+    className,
+}: {
+    children: React.ReactNode;
+    className?: string;
+}) {
+    const { menu } = useMenuContext();
+    return (
+        <button
+            type="button"
+            className={className}
+            onClick={() => menu.close()}
+        >
+            <MenuChevron flipped />
+            {children}
+        </button>
+    );
+}
+
 function TamashaSettingsMenu({
     onOpenSubtitleSettings,
 }: {
@@ -415,7 +436,7 @@ function TamashaSettingsMenu({
                 <GearIcon className="media-icon media-icon--settings" />
             </Menu.Trigger>
             <Menu.Content className="media-surface media-popover media-menu media-menu--settings">
-                <Menu.View className="media-menu__panel">
+                <div className="media-menu__panel">
                     <div className="media-menu__group">
                         {/* 1. Subtitle Settings Dialog Trigger */}
                         {onOpenSubtitleSettings && (
@@ -435,24 +456,28 @@ function TamashaSettingsMenu({
                         {hasQuality && quality ? (
                             <Menu.Root>
                                 <Menu.Trigger
-                                    type="quality"
                                     className="media-menu__item media-menu__item--submenu"
                                     render={(props) => (
                                         <div {...props}>
                                             <QualityIcon className="media-icon" />
                                             <span>{t(qualityText)}</span>
                                             <span className="media-menu__hint">
-                                                <Menu.ItemValue className="media-menu__hint-label" />
+                                                <span className="media-menu__hint-label">
+                                                    {quality.options.find(
+                                                        (o) =>
+                                                            o.value ===
+                                                            quality.value,
+                                                    )?.label ?? ""}
+                                                </span>
                                                 <MenuChevron />
                                             </span>
                                         </div>
                                     )}
                                 />
                                 <Menu.Content className="media-menu__panel">
-                                    <Menu.Back className="media-menu__back">
-                                        <MenuChevron flipped />
+                                    <MenuBackButton className="media-menu__back">
                                         {t(qualityText)}
-                                    </Menu.Back>
+                                    </MenuBackButton>
                                     <Menu.Separator className="media-menu__separator" />
                                     <Menu.RadioGroup
                                         className="media-menu__group"
@@ -501,24 +526,28 @@ function TamashaSettingsMenu({
                         {hasAudioTrack && audioTrack ? (
                             <Menu.Root>
                                 <Menu.Trigger
-                                    type="audio-track"
                                     className="media-menu__item media-menu__item--submenu"
                                     render={(props) => (
                                         <div {...props}>
                                             <SpeechIcon className="media-icon" />
                                             <span>{t(audioText)}</span>
                                             <span className="media-menu__hint">
-                                                <Menu.ItemValue className="media-menu__hint-label" />
+                                                <span className="media-menu__hint-label">
+                                                    {audioTrack.options.find(
+                                                        (o) =>
+                                                            o.value ===
+                                                            audioTrack.value,
+                                                    )?.label ?? ""}
+                                                </span>
                                                 <MenuChevron />
                                             </span>
                                         </div>
                                     )}
                                 />
                                 <Menu.Content className="media-menu__panel">
-                                    <Menu.Back className="media-menu__back">
-                                        <MenuChevron flipped />
+                                    <MenuBackButton className="media-menu__back">
                                         {t(audioText)}
-                                    </Menu.Back>
+                                    </MenuBackButton>
                                     <Menu.Separator className="media-menu__separator" />
                                     <Menu.RadioGroup
                                         className="media-menu__group"
@@ -555,24 +584,28 @@ function TamashaSettingsMenu({
                         {hasCaptions && captions ? (
                             <Menu.Root>
                                 <Menu.Trigger
-                                    type="captions"
                                     className="media-menu__item media-menu__item--submenu"
                                     render={(props) => (
                                         <div {...props}>
                                             <CaptionsOffIcon className="media-icon" />
                                             <span>{t(captionsText)}</span>
                                             <span className="media-menu__hint">
-                                                <Menu.ItemValue className="media-menu__hint-label" />
+                                                <span className="media-menu__hint-label">
+                                                    {captions.options.find(
+                                                        (o) =>
+                                                            o.value ===
+                                                            captions.value,
+                                                    )?.label ?? ""}
+                                                </span>
                                                 <MenuChevron />
                                             </span>
                                         </div>
                                     )}
                                 />
                                 <Menu.Content className="media-menu__panel">
-                                    <Menu.Back className="media-menu__back">
-                                        <MenuChevron flipped />
+                                    <MenuBackButton className="media-menu__back">
                                         {t(captionsText)}
-                                    </Menu.Back>
+                                    </MenuBackButton>
                                     <Menu.Separator className="media-menu__separator" />
                                     <Menu.RadioGroup
                                         className="media-menu__group"
@@ -605,7 +638,7 @@ function TamashaSettingsMenu({
                             </Menu.Root>
                         ) : null}
                     </div>
-                </Menu.View>
+                </div>
             </Menu.Content>
         </Menu.Root>
     );
@@ -1024,7 +1057,7 @@ export const VideoJsPlayer = forwardRef(function VideoJsPlayer(
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
     return (
-        <Player.Provider>
+        <Player.Player>
             <I18nProvider locale="fa">
                 <TamashaVideoSkin
                     videoRef={videoRef}
@@ -1064,6 +1097,6 @@ export const VideoJsPlayer = forwardRef(function VideoJsPlayer(
                     onError={onError}
                 />
             </I18nProvider>
-        </Player.Provider>
+        </Player.Player>
     );
 });
