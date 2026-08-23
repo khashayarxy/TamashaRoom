@@ -679,44 +679,6 @@ export function MediaPiPControl() {
     );
 }
 
-/**
- * Centered big-play overlay for the paused video: the control bar auto-hides
- * when inactive, so without a persistent affordance a paused video shows no
- * way to start it until the surface is hovered/touched. Overlay-only — it
- * never takes layout space from the video. The control bar itself is already
- * an absolute overlay with fade (skin's `media-controls--root`).
- */
-export function MediaBigPlay() {
-    // No-arg call returns the store (actions); selector calls return slices.
-    const store = usePlayer() as { play?: () => Promise<void> };
-    const paused = usePlayer((s) => s.paused);
-    const ended = usePlayer((s) => s.ended);
-    const error = usePlayer((s) => s.error);
-    const visible = paused && !ended && !error;
-
-    return (
-        <div
-            aria-hidden={!visible}
-            className={cn(
-                "media-surface media-big-play absolute inset-0 z-[5] flex items-center justify-center",
-                "transition-opacity duration-300 motion-reduce:transition-none",
-                visible ? "opacity-100" : "pointer-events-none opacity-0",
-            )}
-        >
-            <MediaButton
-                aria-label="پخش"
-                tabIndex={visible ? undefined : -1}
-                className="media-button--big-play h-16 w-16 rounded-full bg-black/50 text-white backdrop-blur-sm transition-transform motion-safe:hover:scale-105 motion-safe:active:scale-95 md:h-20 md:w-20"
-                onClick={() => {
-                    void store.play?.();
-                }}
-            >
-                <PlayIcon className="h-8 w-8 ms-0.5 md:h-10 md:w-10" />
-            </MediaButton>
-        </div>
-    );
-}
-
 function MediaFullscreenControl() {
     return (
         <FullscreenButton
@@ -888,8 +850,6 @@ function TamashaVideoSkin({
                     </div>
                 </AlertDialog.Popup>
             </ErrorDialog.Root>
-
-            <MediaBigPlay />
 
             <Controls.Root className="media-surface media-controls media-controls--root">
                 <div className="media-surface media-controls media-controls--primary">
