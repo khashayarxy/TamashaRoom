@@ -1,13 +1,39 @@
 import { MemberList } from "@/Components/composite/member-list";
-import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { RoomChat } from "@/Components/composite/room-chat";
 import { RoomOnboarding } from "@/Components/composite/room-onboarding";
-import { RoomSettingsDialog } from "@/Components/composite/room-settings";
-import { SetVideoDialog } from "@/Components/composite/set-video-dialog";
-import { SubtitleManagerDialog } from "@/Components/composite/subtitle-manager-dialog";
 import { useSubtitleSettings } from "@/Components/composite/subtitle-overlay";
-import { SubtitleSettingsDialog } from "@/Components/composite/subtitle-settings";
-import { SyncedVideoJsPlayer } from "@/Components/Player/SyncedVideoJsPlayer";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+
+const SyncedVideoJsPlayer = lazy(() =>
+    import("@/Components/Player/SyncedVideoJsPlayer").then((m) => ({
+        default: m.SyncedVideoJsPlayer,
+    })),
+);
+const RoomSettingsDialog = lazy(() =>
+    import("@/Components/composite/room-settings").then((m) => ({
+        default: m.RoomSettingsDialog,
+    })),
+);
+const SetVideoDialog = lazy(() =>
+    import("@/Components/composite/set-video-dialog").then((m) => ({
+        default: m.SetVideoDialog,
+    })),
+);
+const SubtitleManagerDialog = lazy(() =>
+    import("@/Components/composite/subtitle-manager-dialog").then((m) => ({
+        default: m.SubtitleManagerDialog,
+    })),
+);
+const SubtitleSettingsDialog = lazy(() =>
+    import("@/Components/composite/subtitle-settings").then((m) => ({
+        default: m.SubtitleSettingsDialog,
+    })),
+);
+const ConfirmDialog = lazy(() =>
+    import("@/Components/composite/confirm-dialog").then((m) => ({
+        default: m.ConfirmDialog,
+    })),
+);
 import { Button } from "@/Components/ui/button";
 import { Card, CardContent } from "@/Components/ui/card";
 import { usePresence } from "@/Hooks/use-presence";
@@ -33,7 +59,6 @@ import {
 } from "lucide-react";
 import { router, usePage } from "@inertiajs/react";
 import { toast } from "sonner";
-import { useCallback, useEffect, useState } from "react";
 
 interface ChatMessage {
     id: number;
@@ -290,23 +315,43 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     )}
 
                 <div className="flex-1 relative min-h-0">
-                    <SyncedVideoJsPlayer
-                        roomId={room.id}
-                        canControl={isOwner}
-                        currentUserId={auth.user.id}
-                        onPlaybackAction={handlePlaybackAction}
-                        initialVideoUrl={room.video_url}
-                        className="h-full"
-                        onSuggestNext={suggestNext}
-                        onOpenSubtitleSettings={() => setShowSubSettings(true)}
-                        refreshKey={videoRefreshKey}
-                        subtitles={{
-                            cues,
-                            settings,
-                            loading: subLoading,
-                            error: subError,
-                        }}
-                    />
+                    {room.video_url || currentVideoUrl ? (
+                        <Suspense
+                            fallback={
+                                <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
+                                    <div className="h-12 w-12 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                                </div>
+                            }
+                        >
+                            <SyncedVideoJsPlayer
+                                roomId={room.id}
+                                canControl={isOwner}
+                                currentUserId={auth.user.id}
+                                onPlaybackAction={handlePlaybackAction}
+                                initialVideoUrl={room.video_url}
+                                className="h-full"
+                                onSuggestNext={suggestNext}
+                                onOpenSubtitleSettings={() =>
+                                    setShowSubSettings(true)
+                                }
+                                refreshKey={videoRefreshKey}
+                                subtitles={{
+                                    cues,
+                                    settings,
+                                    loading: subLoading,
+                                    error: subError,
+                                }}
+                            />
+                        </Suspense>
+                    ) : (
+                        <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
+                            <div className="text-center p-4">
+                                <p className="text-muted-foreground">
+                                    هنوز ویدیویی تنظیم نشده است
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -399,76 +444,101 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                 </Card>
             </div>
 
-            <SetVideoDialog
-                open={showSetVideo}
-                onClose={() => setShowSetVideo(false)}
-                onSetVideo={handleSetVideo}
-                loading={settingVideo}
-                initialUrl={currentVideoUrl}
-            />
+            {showSetVideo && (
+                <Suspense fallback={null}>
+                    <SetVideoDialog
+                        open={true}
+                        onClose={() => setShowSetVideo(false)}
+                        onSetVideo={handleSetVideo}
+                        loading={settingVideo}
+                        initialUrl={currentVideoUrl}
+                    />
+                </Suspense>
+            )}
 
-            <SubtitleManagerDialog
-                open={showSubManager}
-                onClose={() => setShowSubManager(false)}
-                isOwner={isOwner}
-                tracks={tracks}
-                activeTrackId={activeTrackId}
-                roomDefaultId={roomDefaultId}
-                tracksError={tracksError}
-                onUploadTrack={uploadTrack}
-                onSelectTrack={selectTrack}
-                onFollowDefault={followRoomDefault}
-                onSetDefault={setRoomDefault}
-                onRequestDelete={(id) => {
-                    setShowSubManager(false);
-                    setTrackToDelete(id);
-                }}
-            />
+            {showSubManager && (
+                <Suspense fallback={null}>
+                    <SubtitleManagerDialog
+                        open={true}
+                        onClose={() => setShowSubManager(false)}
+                        isOwner={isOwner}
+                        tracks={tracks}
+                        activeTrackId={activeTrackId}
+                        roomDefaultId={roomDefaultId}
+                        tracksError={tracksError}
+                        onUploadTrack={uploadTrack}
+                        onSelectTrack={selectTrack}
+                        onFollowDefault={followRoomDefault}
+                        onSetDefault={setRoomDefault}
+                        onRequestDelete={(id) => {
+                            setShowSubManager(false);
+                            setTrackToDelete(id);
+                        }}
+                    />
+                </Suspense>
+            )}
 
-            <SubtitleSettingsDialog
-                open={showSubSettings}
-                onClose={() => setShowSubSettings(false)}
-            />
+            {showSubSettings && (
+                <Suspense fallback={null}>
+                    <SubtitleSettingsDialog
+                        open={true}
+                        onClose={() => setShowSubSettings(false)}
+                    />
+                </Suspense>
+            )}
 
-            <RoomSettingsDialog
-                open={showRoomSettings}
-                onClose={() => setShowRoomSettings(false)}
-                room={{
-                    id: room.id,
-                    name: roomName,
-                    invite_code: roomInviteCode,
-                    is_locked: roomIsLocked,
-                }}
-                onUpdate={handleRoomUpdate}
-            />
+            {showRoomSettings && (
+                <Suspense fallback={null}>
+                    <RoomSettingsDialog
+                        open={true}
+                        onClose={() => setShowRoomSettings(false)}
+                        room={{
+                            id: room.id,
+                            name: roomName,
+                            invite_code: roomInviteCode,
+                            is_locked: roomIsLocked,
+                        }}
+                        onUpdate={handleRoomUpdate}
+                    />
+                </Suspense>
+            )}
 
-            <ConfirmDialog
-                open={trackToDelete !== null}
-                onClose={() => {
-                    if (!deletingTrack) setTrackToDelete(null);
-                }}
-                onConfirm={() =>
-                    trackToDelete !== null && deleteTrack(trackToDelete)
-                }
-                title="حذف زیرنویس"
-                description="آیا از حذف این زیرنویس اطمینان دارید؟ این عمل قابل بازگشت نیست."
-                confirmLabel="حذف شود"
-                confirmVariant="destructive"
-                loading={deletingTrack}
-            />
+            {trackToDelete !== null && (
+                <Suspense fallback={null}>
+                    <ConfirmDialog
+                        open={true}
+                        onClose={() => {
+                            if (!deletingTrack) setTrackToDelete(null);
+                        }}
+                        onConfirm={() =>
+                            trackToDelete !== null &&
+                            deleteTrack(trackToDelete)
+                        }
+                        title="حذف زیرنویس"
+                        description="آیا از حذف این زیرنویس اطمینان دارید؟ این عمل قابل بازگشت نیست."
+                        confirmLabel="حذف شود"
+                        confirmVariant="destructive"
+                        loading={deletingTrack}
+                    />
+                </Suspense>
+            )}
 
-            <ConfirmDialog
-                open={confirmLeave}
-                onClose={() => {
-                    if (!leavingRoom) setConfirmLeave(false);
-                }}
-                onConfirm={handleLeaveRoom}
-                title="خروج از اتاق"
-                description="آیا مطمئن هستید که می‌خواهید از این اتاق خارج شوید؟ برای بازگشت می‌توانید دوباره از لینک دعوت استفاده کنید."
-                confirmLabel="خروج"
-                confirmVariant="destructive"
-                loading={leavingRoom}
-            />
+            {confirmLeave && (
+                <Suspense fallback={null}>
+                    <ConfirmDialog
+                        open={true}
+                        onClose={() => {
+                            if (!leavingRoom) setConfirmLeave(false);
+                        }}
+                        onConfirm={handleLeaveRoom}
+                        title="خروج از اتاق"
+                        description="آیا مطمئن هستید که می‌خواهید از این اتاق خارج شوید؟ برای بازگشت می‌توانید دوباره از لینک دعوت استفاده کنید."
+                        confirmLabel="خروج"
+                        confirmVariant="destructive"
+                        loading={leavingRoom}
+                    />
+                </Suspense>
+            )}
         </div>
     );
 }
