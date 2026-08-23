@@ -47,7 +47,7 @@
     --primary-foreground: 0, 0%, 100%;
     --secondary: 240, 15%, 92%;
     --secondary-foreground: 240, 20%, 12%;
-    --destructive: 347, 77%, 50%;
+    --destructive: 347, 77%, 42%;
     --destructive-foreground: 0, 0%, 100%;
     --destructive-text: 347, 77%, 45%;
     --muted: 240, 15%, 92%;
@@ -71,7 +71,7 @@
     --primary-foreground: 0, 0%, 100%;
     --secondary: 240, 12%, 14%;
     --secondary-foreground: 240, 15%, 92%;
-    --destructive: 347, 77%, 50%;
+    --destructive: 347, 77%, 42%;
     --destructive-foreground: 0, 0%, 100%;
     --destructive-text: 347, 77%, 62%;
     --muted: 240, 12%, 14%;
