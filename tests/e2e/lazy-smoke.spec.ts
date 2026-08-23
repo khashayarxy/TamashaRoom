@@ -144,11 +144,10 @@ test.describe("Lazy smoke – Show code-split (player + dialogs)", () => {
             "/__test/setup-verified-room?local_video=1",
         );
         const { room_url: roomUrl2 } = await setup2.json();
-        await page.goto(roomUrl2);
-        await page.waitForLoadState("networkidle");
         await page.route(/\/proxy\/video\/\d+/, async (r) =>
             r.fulfill({ status: 502, contentType: "video/mp4", body: "" }),
         );
+        await page.goto(roomUrl2);
         // Wait for video element then open settings menu
         await page.waitForSelector("video", { timeout: 15000 });
         // Hover to reveal controls, then click settings gear
