@@ -90,11 +90,11 @@ docker compose exec laravel.test npm run dev   # Vite HMR on https://tamasharoom
 | Rebuild SSL | `mkcert -cert-file docker/ssl/tamasharoom.test.pem -key-file docker/ssl/tamasharoom.test-key.pem tamasharoom.test "*.tamasharoom.test" localhost 127.0.0.1 ::1 && docker compose restart nginx` |
 
 **Notes:**
-- `compose.yaml` uses `sail-8.4/app` (PHP 8.4 to match prod) + `nginx:alpine` sidecar (80→443) + `mysql:8.4` — **no Redis** (`CACHE_STORE=database`, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database` stay as-is).
+- `compose.yaml` uses `sail-8.4/app` (PHP 8.4 to match prod) + `nginx:alpine` sidecar (`0.0.0.0:80→80`, `0.0.0.0:443→443`) + `mysql:8.4` — **no Redis** (`CACHE_STORE=database`, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database` stay as-is).
 - `sail-node_modules` volume prevents Windows/WSL permission issues; host `node_modules` is not bind-mounted.
 - `.env` for Sail: `DB_HOST=mysql`, `APP_URL=https://tamasharoom.test`, `VITE_APP_URL=https://tamasharoom.test`, `VITE_HOST=0.0.0.0`, `APP_PORT=80`, `VITE_PORT=5173`. `.env.example` reflects these defaults.
 - `vite.config.js` auto-detects `docker/ssl/*.pem` — when present serves HMR over `wss://tamasharoom.test:5173`; in CI (no certs) falls back to `ws://localhost:5173`.
-- VPN-safe: all services bind `127.0.0.1` / `host.docker.internal:host-gateway`; no `0.0.0.0` external adapter exposure.
+- VPN-safe: `compose.yaml` binds `0.0.0.0:80/443` + `0.0.0.0:5173` (explicit) and nginx listens `80` + `[::]:80` / `443 ssl` + `[::]:443 ssl` + `http2 on` — so VPN virtual adapters (e.g., `198.18.x.x`, `10.x.x.x`) and `::1` both work; `host.docker.internal:host-gateway` for Docker DNS.
 
 ### VPN Troubleshooting
 
@@ -118,7 +118,27 @@ Local HTTPS (`https://tamasharoom.test`) is loopback-only and works with VPN **O
    ```
    `vite.config.js` HMR already uses `wss://tamasharoom.test:5173` (cert-aware) — no proxy detection.
 
-**Do NOT** add `10809`/`7890` to `compose.yaml:ports` or `docker/nginx/conf.d/default.conf` `listen` — keep only `80:80, 443:443, 5173:5173`.
+**Do NOT** add `10809`/`7890` to `compose.yaml:ports` or `docker/nginx/conf.d/default.conf` `listen` — keep only `0.0.0.0:80:80, 0.0.0.0:443:443, 0.0.0.0:5173:5173`.
+
+### Network / Firewall (explicit binding for VPN adapters)
+
+`compose.yaml` now uses explicit `0.0.0.0:` bindings and `docker/nginx/conf.d/default.conf` listens `80` + `[::]:80` / `443 ssl` + `[::]:443 ssl` (`http2 on`) — verified `nginx -t` ok and `docker ps` shows `0.0.0.0:80->80`, `0.0.0.0:443->443`. This covers VPN virtual adapters (Clash `198.18.x.x`, etc.) and `::1` without binding to specific VPN IPs.
+
+`sail` network is `driver: bridge` (default) — allows external ingress from host and VPN adapters; no `iptables` block.
+
+**Windows Firewall (if VPN still blocks):** Run once in **Admin PowerShell**:
+
+```powershell
+New-NetFirewallRule -DisplayName "Sail Local Dev" -Direction Inbound -Protocol TCP -LocalPort 80,443,5173 -Action Allow -Profile Any
+```
+
+Verify:
+
+```bash
+ping -4 -n 1 tamasharoom.test      # 127.0.0.1 <1ms
+curl --ssl-no-revoke https://tamasharoom.test          # 200
+HTTPS_PROXY=http://127.0.0.1:10809 curl --noproxy "*" --ssl-no-revoke https://tamasharoom.test # 200
+```
 
 ---
 
