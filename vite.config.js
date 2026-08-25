@@ -25,6 +25,8 @@ export default defineConfig({
             ? {
                   host: 'tamasharoom.test',
                   protocol: 'wss',
+                  port: 5173,
+                  clientPort: 5173,
               }
             : {
                   host: 'localhost',
