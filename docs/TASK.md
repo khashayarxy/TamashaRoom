@@ -38,6 +38,17 @@
 - [x] **Containers up:** `docker compose up -d --build` built `sail-8.4/app` (Ubuntu noble, PHP 8.4 + Node 24), `tamasharoom-mysql-1` healthy, `tamasharoom-laravel.test-1` up on `0.0.0.0:80→80` + `5173→5173`. `curl http://localhost → 200` with `<title>TamashaRoom</title>`. `docker compose exec laravel.test php artisan migrate --force` green (15 migrations), `npm install` inside container green (423 packages).
 - [x] **Docs:** `README.md` rewritten — new "Local Development (Docker — Laravel Sail)" section with `sail up -d`/`docker compose` instructions, explicit "local only, production remains cPanel/Apache" notice, and Sail 8.4/mysql/no-Redis table. `.gitignore` already covers `/vendor` + `/node_modules`.
 - [x] **Old Herd references retained in TASK.md history** for audit trail; new Sail is now the local default. Standing local verification still fast-only (`php artisan test` / `npm run test` etc. via `docker compose exec`).
+- [x] **Deprecated 2026-08-25:** Sail reverted to Laragon for performance & VPN compatibility — see next entry (compose.yaml + docker/ removed, .env reverted to 127.0.0.1/root).
+
+### Local Dev Migration: Sail → Laragon (Native Windows) — 2026-08-25
+
+**Context:** Docker/WSL2 `artisan serve` TTFB 4.5s + VPN `NO_PROXY` still required; Laragon native `nginx+php-fpm` gives <500ms and true loopback VPN-safe without Docker.
+
+- [x] **Sail removed:** `compose.yaml` + `docker/` (nginx/conf.d, ssl/mkcert) deleted, `docker compose down` (daemon was `dockerDesktopLinuxEngine` pipe missing — files removed directly). No `10809`/`7890` ports ever committed.
+- [x] **Env reverted to Laragon native** (per task): `.env` → `APP_URL=https://tamasharoom.test` kept, `DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_DATABASE=tamasharoom`, `DB_USERNAME=root`, `DB_PASSWORD=` (empty), `CACHE/QUEUE/SESSION=database` unchanged, **all `NO_PROXY`/`no_proxy` + `VITE_HOST`/`WWWGROUP`/`FORWARD_DB_PORT` removed**. `.gitignore` `/docker/ssl/` removed.
+- [x] **Vite for Laragon:** `vite.config.js:10-12` → `C:/laragon/etc/ssl/laragon.crt|key`, `host: tamasharoom.test`, `https` + `hmr wss` when cert exists, fallback to `localhost` http in CI.
+- [x] **Docs:** `README.md` rewritten — Laragon Full install, `C:\laragon\www\tamasharoom.test`, **Enable SSL** via Laragon UI, `npm run dev` (no `sail exec`), `php artisan test` native, explicit "Local dev uses Laragon. Production remains cPanel/Apache."
+- [x] **Verification (native, no Docker):** `php -v` 8.4.24, `node -v` 24.19.0, `php artisan test` (sqlite :memory:) + `npm run test` (vitest) on host — pending Laragon install for `https://tamasharoom.test` <500ms check (hosts `127.0.0.1 + ::1` already present via Sail mkcert, Laragon will re-add).
 
 ### Zero-API Email Verification in Tests (2026-08-23)
 

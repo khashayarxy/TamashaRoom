@@ -4,29 +4,27 @@ import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-// Sail-local HTTPS: mkcert certs at ./docker/ssl/ (host & container via bind mount).
-// When certs exist (local Sail), Vite serves HMR over wss://tamasharoom.test:5173.
+// Laragon-local HTTPS: Laragon auto-generates certs at C:/laragon/etc/ssl/ when SSL enabled.
+// When certs exist (local Laragon), Vite serves HMR over wss://tamasharoom.test:5173.
 // In CI (no certs), fallback to plain http/ws on localhost.
-const certPath = './docker/ssl/tamasharoom.test.pem';
-const keyPath = './docker/ssl/tamasharoom.test-key.pem';
+const certPath = 'C:/laragon/etc/ssl/laragon.crt';
+const keyPath = 'C:/laragon/etc/ssl/laragon.key';
 const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 export default defineConfig({
     server: {
-        host: '0.0.0.0',
+        host: 'tamasharoom.test',
         port: 5173,
         https: hasCerts
             ? {
                   cert: fs.readFileSync(certPath),
                   key: fs.readFileSync(keyPath),
               }
-            : undefined,
+            : false,
         hmr: hasCerts
             ? {
                   host: 'tamasharoom.test',
                   protocol: 'wss',
-                  port: 5173,
-                  clientPort: 5173,
               }
             : {
                   host: 'localhost',
