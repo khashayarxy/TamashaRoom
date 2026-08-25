@@ -1,17 +1,39 @@
+import fs from 'fs';
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+// Sail-local HTTPS: mkcert certs at ./docker/ssl/ (host & container via bind mount).
+// When certs exist (local Sail), Vite serves HMR over wss://tamasharoom.test:5173.
+// In CI (no certs), fallback to plain http/ws on localhost.
+const certPath = './docker/ssl/tamasharoom.test.pem';
+const keyPath = './docker/ssl/tamasharoom.test-key.pem';
+const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
+
 export default defineConfig({
     server: {
-        host: '127.0.0.1',
+        host: '0.0.0.0',
         port: 5173,
+        https: hasCerts
+            ? {
+                  cert: fs.readFileSync(certPath),
+                  key: fs.readFileSync(keyPath),
+              }
+            : undefined,
+        hmr: hasCerts
+            ? {
+                  host: 'tamasharoom.test',
+                  protocol: 'wss',
+              }
+            : {
+                  host: 'localhost',
+              },
         // Herd TLS runs on the site host; the browser lowercases URL hosts when
         // sending the Host header, but the laravel-vite-plugin derives the HMR
         // host from the (capitalized) project folder name. Vite's WebSocket
         // Host check is case-sensitive, so allow the lowercase form explicitly.
-        allowedHosts: ['tamasharoom.test'],
+        allowedHosts: ['tamasharoom.test', 'localhost'],
     },
     plugins: [
         {

@@ -26,6 +26,19 @@
 
 ## Completed
 
+### Local Dev Migration: Herd → Sail (MySQL-only, PHP 8.4, no Redis) — 2026-08-25
+
+**Context:** Herd removed, moved to Laravel Sail for isolated local dev while keeping production on shared cPanel (Apache, PHP 8.4, MySQL, no Docker/Redis). WSL 2 + Docker Desktop active.
+
+- [x] **Sail 1.67 installed** (`composer require laravel/sail --dev`), `php artisan sail:install --with=mysql --php=8.4` → `compose.yaml` with `sail-8.4/app` (PHP 8.4.24 matches prod), only `mysql:8.4` service, **no redis**. Verified `compose.yaml` contains no `redis` service, `CACHE_STORE=database`/`QUEUE_CONNECTION=database`/`SESSION_DRIVER=database` unchanged.
+- [x] **compose.yaml hardened for Windows/WSL:** `APP_PORT:80`, `VITE_PORT:5173` exposed, `sail-node_modules` volume added to avoid Windows bind-mount permission issues (host `node_modules` not bind-mounted).
+- [x] **Env parity:** `.env` → `DB_HOST=mysql`, `DB_DATABASE=tamasharoom`, `DB_USERNAME=sail`, `DB_PASSWORD=password`, `APP_URL=http://localhost`, `APP_PORT=80`, `VITE_PORT=5173`, `VITE_HOST=0.0.0.0`, `WWWGROUP/WWWUSER=1000`, `FORWARD_DB_PORT=3306`. `.env.example` updated to same Sail defaults for future contributors. Production stays `DB_HOST=127.0.0.1` on cPanel.
+- [x] **PHP extensions enabled** on Windows PHP 8.4 (WinGet): `extension=fileinfo`, `pdo_mysql`, `pdo_sqlite`, `gd`, `zip` — unblocked `composer require sail`.
+- [x] **Node cleanup:** `nvm uninstall 22.23.2` + `26.7.0`, now only `24.19.0` (both host and container `node -v` 24.19.0).
+- [x] **Containers up:** `docker compose up -d --build` built `sail-8.4/app` (Ubuntu noble, PHP 8.4 + Node 24), `tamasharoom-mysql-1` healthy, `tamasharoom-laravel.test-1` up on `0.0.0.0:80→80` + `5173→5173`. `curl http://localhost → 200` with `<title>TamashaRoom</title>`. `docker compose exec laravel.test php artisan migrate --force` green (15 migrations), `npm install` inside container green (423 packages).
+- [x] **Docs:** `README.md` rewritten — new "Local Development (Docker — Laravel Sail)" section with `sail up -d`/`docker compose` instructions, explicit "local only, production remains cPanel/Apache" notice, and Sail 8.4/mysql/no-Redis table. `.gitignore` already covers `/vendor` + `/node_modules`.
+- [x] **Old Herd references retained in TASK.md history** for audit trail; new Sail is now the local default. Standing local verification still fast-only (`php artisan test` / `npm run test` etc. via `docker compose exec`).
+
 ### Zero-API Email Verification in Tests (2026-08-23)
 
 **Task:** no external email API in any test layer (local + CI), no test-specific logic in production code.

@@ -106,6 +106,10 @@ yarn-debug.log*
 yarn-error.log*
 .npmrc
 
+# ─── Local SSL (mkcert) ───────────────────────────────────────────────────
+/docker/ssl/
+/docker/ssl/*.pem
+
 # ─── TypeScript ───────────────────────────────────────────────────────────
 *.tsbuildinfo
 .freebuff/desktop-v2.db
