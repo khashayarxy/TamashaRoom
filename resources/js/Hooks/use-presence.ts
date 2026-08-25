@@ -7,7 +7,6 @@ import {
     type PresenceBaseline,
     type PresenceMoment,
 } from "@/lib/presence-moments";
-import { usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface PresenceMember {
@@ -81,7 +80,6 @@ export function usePresence(
         typeof document !== "undefined" && document.hidden,
     );
     const cancelledRef = useRef(false);
-    const currentUserIdRef = useRef<number | null>(null);
     const channelRef = useRef<EchoPresenceChannel | null>(null);
     /** Live push-transport health — gates the roster polling fallback. */
     const pushHealthyRef = useRef(false);
@@ -98,21 +96,6 @@ export function usePresence(
     useEffect(() => {
         roomIdRef.current = roomId;
     }, [roomId]);
-
-    // Current user id for the kicked-self detection. Guarded so the hook still
-    // works outside the Inertia page context (component tests).
-    let currentUserId: number | null = null;
-    try {
-        const page = usePage();
-        currentUserId =
-            (page.props as { auth?: { user?: { id?: number } } }).auth?.user
-                ?.id ?? null;
-    } catch {
-        currentUserId = null;
-    }
-    useEffect(() => {
-        currentUserIdRef.current = currentUserId;
-    }, [currentUserId]);
 
     /**
      * Single path for authoritative roster snapshots — the initial GET,
