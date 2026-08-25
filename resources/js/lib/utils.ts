@@ -70,12 +70,3 @@ export function extractInviteCode(input: string): string {
     const match = trimmed.match(/\/rooms\/join\/([A-Za-z0-9]+)/);
     return match ? match[1] : trimmed;
 }
-
-const HTML_TAG_RE = /<[^>]*>/g;
-
-export function sanitizeText(text: string): string {
-    return text
-        .replace(HTML_TAG_RE, "")
-        .replace(/\u0000/g, "")
-        .trim();
-}
