@@ -1,34 +1,17 @@
-import fs from 'fs';
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-// Laragon-local HTTPS: Laragon auto-generates certs at C:/laragon/etc/ssl/ when SSL enabled.
-// When certs exist (local Laragon), Vite serves HMR over wss://tamasharoom.test:5173.
-// In CI (no certs), fallback to plain http/ws on localhost.
-const certPath = 'C:/laragon/etc/ssl/laragon.crt';
-const keyPath = 'C:/laragon/etc/ssl/laragon.key';
-const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
-
 export default defineConfig({
     server: {
         host: 'tamasharoom.test',
         port: 5173,
-        https: hasCerts
-            ? {
-                  cert: fs.readFileSync(certPath),
-                  key: fs.readFileSync(keyPath),
-              }
-            : false,
-        hmr: hasCerts
-            ? {
-                  host: 'tamasharoom.test',
-                  protocol: 'wss',
-              }
-            : {
-                  host: 'localhost',
-              },
+        https: true,
+        hmr: {
+            host: 'tamasharoom.test',
+            protocol: 'wss',
+        },
         // Herd TLS runs on the site host; the browser lowercases URL hosts when
         // sending the Host header, but the laravel-vite-plugin derives the HMR
         // host from the (capitalized) project folder name. Vite's WebSocket

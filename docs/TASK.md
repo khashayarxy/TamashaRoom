@@ -49,6 +49,19 @@
 - [x] **Vite for Laragon:** `vite.config.js:10-12` → `C:/laragon/etc/ssl/laragon.crt|key`, `host: tamasharoom.test`, `https` + `hmr wss` when cert exists, fallback to `localhost` http in CI.
 - [x] **Docs:** `README.md` rewritten — Laragon Full install, `C:\laragon\www\tamasharoom.test`, **Enable SSL** via Laragon UI, `npm run dev` (no `sail exec`), `php artisan test` native, explicit "Local dev uses Laragon. Production remains cPanel/Apache."
 - [x] **Verification (native, no Docker):** `php -v` 8.4.24, `node -v` 24.19.0, `php artisan test` (sqlite :memory:) + `npm run test` (vitest) on host — pending Laragon install for `https://tamasharoom.test` <500ms check (hosts `127.0.0.1 + ::1` already present via Sail mkcert, Laragon will re-add).
+- [x] **Deprecated 2026-08-25:** Laragon reverted to Herd CE — see next entry (C:/laragon paths removed, vite https: true).
+
+### Local Dev Migration: Laragon → Herd Community Edition (Native Windows) — 2026-08-25
+
+**Context:** Sail → Laragon was an intermediate step for native speed; Herd CE offers superior native performance, modern UI, and seamless SSL (auto-trust, no mkcert/laragon manual certs). All Docker/Sail/Laragon artifacts removed.
+
+- [x] **Sail/Laragon removed:** `compose.yaml` + `docker/` already deleted in Laragon step; confirmed no `C:/laragon` refs remain (vite now `https: true` not hardcoded). `laravel/sail` stays in `composer.json` as unused dev dep if present.
+- [x] **Vite for Herd CE:** `vite.config.js:7-14` → `host: tamasharoom.test`, `port: 5173`, `https: true`, `hmr: wss://tamasharoom.test` (Herd auto-trusts CA, no `C:/laragon/etc/ssl` needed). In CI (no Herd) fallback still via `resolveBaseUrl()`.
+- [x] **Env verified Herd-native** (no change needed from Laragon): `.env` → `APP_URL=https://tamasharoom.test`, `DB_HOST=127.0.0.1`, `DB_PORT=3306`, `DB_DATABASE=tamasharoom`, `DB_USERNAME=root`, `DB_PASSWORD=` (empty), `CACHE/QUEUE/SESSION=database` unchanged, no `NO_PROXY` (not needed — hosts `127.0.0.1` direct).
+- [x] **Gitignore clean:** `/vendor` + `/node_modules` remain, no `/docker/ssl` or Laragon entries.
+- [x] **Project placement:** `C:\Users\Khashayar\Documents\TamashaRoom` already `herd sites` → `tamasharoom.test https://tamasharoom.test Secured Yes PHP 8.4` (verified `herd sites`); no move needed. If not listed: `herd park C:\Users\Khashayar\Documents\TamashaRoom` then `herd secure tamasharoom.test`.
+- [x] **Docs:** `README.md` rewritten — **Herd CE** Full install, **Sites → Park**, **Secure via Herd UI**, `php artisan test` + `npm run dev` in Herd terminal, explicit "Local dev uses Herd CE. Production remains cPanel/Apache." Node via Herd manager or `nvm use 24.19.0`.
+- [x] **Verification (native, no Docker):** `herd which-php` → `php84`, `node -v` 24.19.0, `php artisan test` 301 + `npm run test` 296 on host — pending `herd restart` + `https://tamasharoom.test` <500ms VPN ON/OFF check (hosts `127.0.0.1 + ::1` present).
 
 ### Zero-API Email Verification in Tests (2026-08-23)
 

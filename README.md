@@ -30,69 +30,70 @@ It started as a late-night thought: *why is it so hard to watch a movie with som
 | **Styling** | Tailwind CSS 4, RTL-first (Persian) |
 | **Build** | Vite 5 |
 | **Infrastructure** | Shared cPanel hosting — Apache, single-core, no Docker, no Redis, no WebSockets. Broadcasting: Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when `BROADCAST_CONNECTION=null` (CI) or unconfigured. Future: Laravel Reverb self-hosted when scaling beyond 500 concurrent |
-| **Local Dev** | Laragon (Native Windows) — PHP 8.4 + Nginx + MySQL + Vite HMR 5173 (wss, Laragon SSL). No Docker, no Redis. Production stays on cPanel/Apache. |
+| **Local Dev** | Herd Community Edition (Native Windows) — PHP 8.4 + Nginx + MySQL + Vite HMR 5173 (wss, Herd SSL). No Docker, no Redis. Production stays on cPanel/Apache. |
 
 ---
 
-## Local Development (Laragon — Native Windows)
+## Local Development (Herd Community Edition — Native Windows)
 
-> **Local only** — Laragon is for native local development on Windows. Production remains on shared cPanel hosting (Apache, PHP 8.4, MySQL). Do not deploy Laragon to production. No Docker.
+> **Local only** — Herd CE is for native local development on Windows. Production remains on shared cPanel hosting (Apache, PHP 8.4, MySQL). Do not deploy Herd to production. No Docker, no Laragon.
 
-**Prerequisites:** Laragon **Full** (https://laragon.org/download/ — includes Nginx, PHP 8.4, MySQL, Node via Laragon or `nvm`), Composer, Node 24.x
+**Prerequisites:** Herd **Community Edition** (https://herd.laravel.com — includes Nginx, PHP 8.4, MySQL, Node manager), Composer, Node 24.19.0 (via Herd's Node manager or `nvm-windows` → `nvm use 24.19.0`)
 
 **Setup (once, ~5 min):**
 
-1. **Install Laragon Full** — during install select **PHP 8.4**, **Nginx**, **MySQL**. After install, open Laragon → Menu → PHP → Version → `php-8.4` (active).
+1. **Install Herd CE** — download from https://herd.laravel.com, install with **PHP 8.4**, **Nginx**. After install, open Herd → Settings → PHP → `8.4` (active, `herd which-php` → `C:/Users/Khashayar/.config/herd/bin/php84/php.exe`).
 
 2. **Add project:**
    ```bash
-   # Option A: Clone directly into Laragon www
-   git clone https://github.com/khashayarxy/TamashaRoom.git C:\laragon\www\tamasharoom.test
-   cd C:\laragon\www\tamasharoom.test
-
-   # Option B: Keep existing path and park via Laragon
-   # Laragon → Menu → www → Add → C:\Users\Khashayar\Documents\TamashaRoom → name tamasharoom.test
+   # Project is already at C:\Users\Khashayar\Documents\TamashaRoom — Herd auto-parks parent folders.
+   # Verify: Herd → Sites → tamasharoom.test → https://tamasharoom.test → C:\Users\Khashayar\Documents\TamashaRoom → Secured Yes, PHP 8.4
+   # If not listed: Herd → Settings → Sites → Park → Add C:\Users\Khashayar\Documents\TamashaRoom
+   # Or move to Herd sites: C:\Users\Khashayar\.config\herd\config\valet\Sites\tamasharoom
    ```
 
-3. **Hosts & SSL (automatic):** Laragon → Menu → **www** → `tamasharoom.test` → **Enable SSL** (or Right-click → Nginx → SSL → Enable). Laragon auto-adds `127.0.0.1 tamasharoom.test` to `C:\Windows\System32\drivers\etc\hosts` and generates certs at `C:\laragon\etc\ssl\laragon.crt` + `laragon.key` (trusted via Laragon's CA, no `mkcert` needed).
+3. **SSL (automatic):** Herd → Sites → `tamasharoom.test` → Right-click → **Secure** (or `herd secure tamasharoom.test`). Herd auto-adds `127.0.0.1 tamasharoom.test` + `::1 tamasharoom.test` to hosts and generates certs at `C:\Users\Khashayar\.config\herd\config\valet\Certificates\tamasharoom.test.crt` (trusted via Herd's CA at `.../CA/LaravelValetCASelfSigned.crt` — no `mkcert`/`laragon` needed).
 
-4. **Env & DB:**
+4. **Env & DB (Herd defaults):**
    ```bash
    cp .env.example .env
-   # .env is already Laragon-native: APP_URL=https://tamasharoom.test, DB_HOST=127.0.0.1, DB_USERNAME=root, DB_PASSWORD=, no NO_PROXY
+   # .env is already Herd-native: APP_URL=https://tamasharoom.test, DB_HOST=127.0.0.1, DB_PORT=3306, DB_DATABASE=tamasharoom, DB_USERNAME=root, DB_PASSWORD= (empty), no NO_PROXY
    composer install
    php artisan key:generate
    php artisan migrate --seed
    ```
 
-5. **Frontend:**
+5. **Frontend (Herd terminal):**
    ```bash
+   # Herd terminal already has php, node, composer in PATH (herd which-php, herd which-node)
    npm install
-   npm run dev   # Vite HMR on https://tamasharoom.test:5173 (wss, uses C:/laragon/etc/ssl/laragon.crt)
-   # App at https://tamasharoom.test (Nginx → php-fpm 8.4), HMR at wss://tamasharoom.test:5173
+   npm run dev   # Vite HMR on https://tamasharoom.test:5173 (wss, https: true, host tamasharoom.test)
+   # App at https://tamasharoom.test (Herd Nginx → php-fpm 8.4), HMR at wss://tamasharoom.test:5173
    ```
 
-6. **Reload:** Laragon → **Reload** (or **Start All**). Open `https://tamasharoom.test` — should be `<500ms` TTFB.
+6. **Reload:** Herd → **Restart** (or `herd restart`). Open `https://tamasharoom.test` — should be `<500ms` TTFB, works VPN ON/OFF (hosts `127.0.0.1` loopback, `NO_PROXY` not needed natively).
 
-**Common commands (native, no `sail exec`):**
+**Common commands (native, Herd terminal, no `sail exec`):**
 
 | Task | Command |
 |---|---|
-| Start | Laragon → **Start All** |
-| Stop | Laragon → **Stop** |
-| Reload Nginx | Laragon → **Reload** |
-| Artisan | `php artisan <cmd>` (e.g. `migrate`, `test`) |
+| Start | Herd → **Start** (auto) or `herd start` |
+| Stop | Herd → **Stop** or `herd stop` |
+| Restart Nginx | `herd restart` |
+| Secure | `herd secure tamasharoom.test` / `herd unsecure tamasharoom.test` |
+| Artisan | `php artisan <cmd>` (e.g. `migrate`, `test`) or `herd php artisan <cmd>` |
 | Tests | `php artisan test` + `npm run test` |
 | Vite build | `npm run build` |
-| MySQL shell | `mysql -u root -p` (Laragon → Database → Open) |
-| Nginx site conf | `C:\laragon\etc\nginx\sites-enabled\tamasharoom.test.conf` (auto-generated; edit only if rewrites needed) |
+| MySQL shell | `herd db` or `mysql -u root -p` (Herd → Database) |
+| Nginx site conf | `C:\Users\Khashayar\.config\herd\config\valet\Nginx\tamasharoom.test.conf` (auto-generated; edit only if rewrites needed) |
+| Node version | Herd → Settings → Node → `24.19.0` or `nvm use 24.19.0` |
 
 **Notes:**
-- **No Docker/Sail:** `compose.yaml` and `docker/` removed — `sail-8.4/app` + `nginx:alpine` no longer used. `laravel/sail` remains in `composer.json` as dev dep but is not used (remove with `composer remove laravel/sail` if desired).
+- **No Docker/Sail/Laragon:** `compose.yaml` + `docker/` + `C:/laragon` removed — `laravel/sail` remains in `composer.json` as unused dev dep (remove with `composer remove laravel/sail` if desired).
 - **No Redis:** `CACHE_STORE=database`, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database` unchanged.
-- `.env` for Laragon: `DB_HOST=127.0.0.1`, `APP_URL=https://tamasharoom.test`, no `NO_PROXY` (not needed natively — `hosts` is `127.0.0.1` direct, no container proxy).
-- `vite.config.js` reads `C:/laragon/etc/ssl/laragon.crt` when present → `https` + `hmr wss://tamasharoom.test`; in CI (no cert) falls back to `http/ws`.
-- **VPN-safe:** `hosts` is `127.0.0.1` loopback — works VPN ON/OFF; Laragon's Nginx binds `0.0.0.0:80/443` + `[::]:80/443` by default.
+- `.env` for Herd: `DB_HOST=127.0.0.1`, `APP_URL=https://tamasharoom.test`, no `NO_PROXY` (not needed natively — `hosts` is `127.0.0.1` direct).
+- `vite.config.js` uses `https: true` + `hmr wss://tamasharoom.test` — Herd's CA is trusted system-wide, Vite works without hardcoded `C:/laragon/...` paths; in CI (no Herd) Vite falls back via `https: true` self-signed (browser will warn, but CI uses `http://127.0.0.1:8000` fallback via `resolveBaseUrl()`).
+- **VPN-safe:** `hosts` is `127.0.0.1` + `::1` loopback — works VPN ON/OFF; Herd's Nginx binds `0.0.0.0:80/443` + `[::]:80/443` by default.
 
 ---
 
