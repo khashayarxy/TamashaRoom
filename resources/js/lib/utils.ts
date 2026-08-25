@@ -51,10 +51,6 @@ export function timeAgo(date: Date | string): string {
     return `${toPersianDigits(diffDays)} روز پیش`;
 }
 
-export function copyToClipboard(text: string): Promise<void> {
-    return navigator.clipboard.writeText(text);
-}
-
 /**
  * Copy to the clipboard, swallowing rejection (e.g. the Clipboard API being
  * unavailable or permission-denied) and reporting success/failure instead of

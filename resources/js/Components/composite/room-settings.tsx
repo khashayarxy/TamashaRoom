@@ -8,7 +8,7 @@ import {
     DialogTitle,
 } from "@/Components/ui/dialog";
 import { Input } from "@/Components/ui/input";
-import { copyToClipboard } from "@/lib/utils";
+import { safeCopyToClipboard } from "@/lib/utils";
 import api from "@/lib/api";
 import { Copy, Key, LinkIcon, Loader2, Lock, Unlock } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
@@ -91,14 +91,22 @@ export function RoomSettingsDialog({
         }
     };
 
-    const handleCopy = () => {
-        copyToClipboard(inviteCode);
-        toast.success("کد دعوت کپی شد");
+    const handleCopy = async () => {
+        const ok = await safeCopyToClipboard(inviteCode);
+        if (ok) {
+            toast.success("کد دعوت کپی شد");
+        } else {
+            toast.error("خطا در کپی کردن");
+        }
     };
 
-    const handleCopyLink = () => {
-        copyToClipboard(route("rooms.join", inviteCode));
-        toast.success("لینک دعوت کپی شد");
+    const handleCopyLink = async () => {
+        const ok = await safeCopyToClipboard(route("rooms.join", inviteCode));
+        if (ok) {
+            toast.success("لینک دعوت کپی شد");
+        } else {
+            toast.error("خطا در کپی کردن");
+        }
     };
 
     return (
