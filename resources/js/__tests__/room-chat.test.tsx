@@ -554,9 +554,7 @@ describe("RoomChat (owner moderation)", () => {
     });
 
     it("does not show report button on own messages", () => {
-        const messages = [
-            makeMessage({ id: 1, user_id: 1, body: "Mine" }),
-        ];
+        const messages = [makeMessage({ id: 1, user_id: 1, body: "Mine" })];
         render(
             <RoomChat roomId={1} initialMessages={messages} isOwner={false} />,
         );
@@ -596,10 +594,13 @@ describe("RoomChat (owner moderation)", () => {
         await user.click(screen.getByText("گزارش شود"));
 
         await waitFor(() => {
-            expect(mockPost).toHaveBeenCalledWith("/chat/1/messages/42/report", {
-                reason: undefined,
-                details: undefined,
-            });
+            expect(mockPost).toHaveBeenCalledWith(
+                "/chat/1/messages/42/report",
+                {
+                    reason: undefined,
+                    details: undefined,
+                },
+            );
         });
 
         const { toast } = await import("sonner");

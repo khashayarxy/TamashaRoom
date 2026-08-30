@@ -345,11 +345,9 @@ export function RoomChat({
 
     const isOwn = (userId: number) => userId === auth.user.id;
 
-    const canDelete = (msg: ChatMessageView) =>
-        isOwn(msg.user_id) || isOwner;
+    const canDelete = (msg: ChatMessageView) => isOwn(msg.user_id) || isOwner;
 
-    const canReport = (msg: ChatMessageView) =>
-        !isOwn(msg.user_id) && !isOwner;
+    const canReport = (msg: ChatMessageView) => !isOwn(msg.user_id) && !isOwner;
 
     const feed = [
         ...messages.map((msg) => ({
