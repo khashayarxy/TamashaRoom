@@ -90,7 +90,7 @@ class PlaybackDiagnosticsTest extends TestCase
 
         Log::spy();
 
-        for ($i = 0; $i < 30; $i++) {
+        for ($i = 0; $i < 60; $i++) {
             $response = $this->actingAs($user)->getJson("/proxy/video/{$room->id}");
             $this->assertNotRateLimited($response, "Proxy request $i");
         }
@@ -102,8 +102,8 @@ class PlaybackDiagnosticsTest extends TestCase
                 && ($context['http_status'] ?? null) === 429
                 && ($context['rate_limited'] ?? false) === true
                 && ($context['limiter'] ?? null) === 'proxy'
-                && ($context['limiter_limit'] ?? null) === 30
-                && ($context['limiter_current_count'] ?? 0) >= 29
+                && ($context['limiter_limit'] ?? null) === 60
+                && ($context['limiter_current_count'] ?? 0) >= 59
                 && ($context['endpoint'] ?? null) === 'proxy.video'
                 && ($context['room_id'] ?? null) == $room->id,
         );
