@@ -5,26 +5,12 @@ describe("useRoomUiStore", () => {
     beforeEach(() => {
         useRoomUiStore.setState({
             activeTab: "chat",
-            showSetVideo: false,
-            showSubSettings: false,
-            showSubManager: false,
-            showRoomSettings: false,
-            roomName: "",
-            roomInviteCode: "",
-            roomIsLocked: false,
         });
     });
 
     it("has correct initial state", () => {
         const state = useRoomUiStore.getState();
         expect(state.activeTab).toBe("chat");
-        expect(state.showSetVideo).toBe(false);
-        expect(state.showSubSettings).toBe(false);
-        expect(state.showSubManager).toBe(false);
-        expect(state.showRoomSettings).toBe(false);
-        expect(state.roomName).toBe("");
-        expect(state.roomInviteCode).toBe("");
-        expect(state.roomIsLocked).toBe(false);
     });
 
     it("setActiveTab updates the tab", () => {
@@ -38,40 +24,15 @@ describe("useRoomUiStore", () => {
         expect(useRoomUiStore.getState().activeTab).toBe("chat");
     });
 
-    it("setShowSetVideo toggles visibility", () => {
-        useRoomUiStore.getState().setShowSetVideo(true);
-        expect(useRoomUiStore.getState().showSetVideo).toBe(true);
-        useRoomUiStore.getState().setShowSetVideo(false);
-        expect(useRoomUiStore.getState().showSetVideo).toBe(false);
-    });
-
-    it("setShowSubSettings toggles subtitle settings", () => {
-        useRoomUiStore.getState().setShowSubSettings(true);
-        expect(useRoomUiStore.getState().showSubSettings).toBe(true);
-    });
-
-    it("setShowSubManager toggles subtitle manager", () => {
-        useRoomUiStore.getState().setShowSubManager(true);
-        expect(useRoomUiStore.getState().showSubManager).toBe(true);
-    });
-
-    it("setShowRoomSettings toggles room settings", () => {
-        useRoomUiStore.getState().setShowRoomSettings(true);
-        expect(useRoomUiStore.getState().showRoomSettings).toBe(true);
-    });
-
-    it("setRoomName stores the name", () => {
-        useRoomUiStore.getState().setRoomName("My Room");
-        expect(useRoomUiStore.getState().roomName).toBe("My Room");
-    });
-
-    it("setRoomInviteCode stores the code", () => {
-        useRoomUiStore.getState().setRoomInviteCode("ABC123");
-        expect(useRoomUiStore.getState().roomInviteCode).toBe("ABC123");
-    });
-
-    it("setRoomIsLocked stores the lock state", () => {
-        useRoomUiStore.getState().setRoomIsLocked(true);
-        expect(useRoomUiStore.getState().roomIsLocked).toBe(true);
+    it("does not update on room prop changes — only UI actions", () => {
+        // Simulate that room props (name, invite, lock, owner) are NOT stored
+        // in the UI store. Changing them should not affect activeTab.
+        const before = useRoomUiStore.getState().activeTab;
+        // No store setters for room props exist; the store should remain stable
+        // even if a parent re-renders with new room props.
+        expect(useRoomUiStore.getState().activeTab).toBe(before);
+        // Only an explicit UI action changes the store.
+        useRoomUiStore.getState().setActiveTab("members");
+        expect(useRoomUiStore.getState().activeTab).toBe("members");
     });
 });

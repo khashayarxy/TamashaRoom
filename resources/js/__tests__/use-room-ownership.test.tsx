@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useRoomOwnership } from "@/Hooks/use-room-ownership";
-import { useRoomUiStore } from "@/stores/room-ui";
 import type { PresenceMember } from "@/Hooks/use-presence";
 
 function makeMember(overrides: Partial<PresenceMember> = {}): PresenceMember {
@@ -18,10 +17,6 @@ function makeMember(overrides: Partial<PresenceMember> = {}): PresenceMember {
 }
 
 describe("useRoomOwnership", () => {
-    beforeEach(() => {
-        useRoomUiStore.setState({ ownerId: 0 });
-    });
-
     it("reports the current user as owner when they are the initial owner", () => {
         const { result } = renderHook(() =>
             useRoomOwnership({

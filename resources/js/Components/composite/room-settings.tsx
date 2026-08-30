@@ -23,7 +23,7 @@ interface RoomSettingsProps {
         invite_code: string;
         is_locked: boolean;
     };
-    onUpdate: (data: {
+    onUpdate?: (data: {
         name?: string;
         invite_code?: string;
         is_locked?: boolean;
@@ -54,7 +54,7 @@ export function RoomSettingsDialog({
         setSaving(true);
         try {
             const { data } = await api.patch(`/rooms/${room.id}`, { name });
-            onUpdate(data.room);
+            onUpdate?.(data.room);
             toast.success("نام اتاق با موفقیت تغییر کرد");
             onClose();
         } catch {
@@ -71,7 +71,7 @@ export function RoomSettingsDialog({
                 `/rooms/${room.id}/regenerate-invite`,
             );
             setInviteCode(data.invite_code);
-            onUpdate({ invite_code: data.invite_code });
+            onUpdate?.({ invite_code: data.invite_code });
             toast.success("لینک دعوت جدید ساخته شد");
         } catch {
             toast.error("خطا در ساخت لینک دعوت جدید");
@@ -84,7 +84,7 @@ export function RoomSettingsDialog({
         try {
             const { data } = await api.post(`/rooms/${room.id}/toggle-lock`);
             setIsLocked(data.is_locked);
-            onUpdate({ is_locked: data.is_locked });
+            onUpdate?.({ is_locked: data.is_locked });
             toast.success(data.is_locked ? "اتاق قفل شد" : "اتاق باز شد");
         } catch {
             toast.error("خطا در تغییر وضعیت قفل");

@@ -1,6 +1,5 @@
 import type { PresenceMember } from "@/Hooks/use-presence";
-import { useRoomUiStore } from "@/stores/room-ui";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const LOCAL_TRANSFER_COOLDOWN = 10_000;
 
@@ -15,8 +14,7 @@ export function useRoomOwnership({
     currentUserId,
     presenceMembers,
 }: UseRoomOwnershipOptions) {
-    const ownerId = useRoomUiStore((s) => s.ownerId);
-    const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
+    const [ownerId, setOwnerId] = useState(initialOwnerId);
     const localTransferAtRef = useRef(0);
 
     useEffect(() => {

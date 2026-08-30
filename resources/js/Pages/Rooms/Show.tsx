@@ -96,21 +96,10 @@ interface ShowRoomProps {
 export default function ShowRoom({ room }: ShowRoomProps) {
     const activeTab = useRoomUiStore((s) => s.activeTab);
     const setActiveTab = useRoomUiStore((s) => s.setActiveTab);
-    const showSetVideo = useRoomUiStore((s) => s.showSetVideo);
-    const setShowSetVideo = useRoomUiStore((s) => s.setShowSetVideo);
-    const showSubSettings = useRoomUiStore((s) => s.showSubSettings);
-    const setShowSubSettings = useRoomUiStore((s) => s.setShowSubSettings);
-    const showSubManager = useRoomUiStore((s) => s.showSubManager);
-    const setShowSubManager = useRoomUiStore((s) => s.setShowSubManager);
-    const showRoomSettings = useRoomUiStore((s) => s.showRoomSettings);
-    const setShowRoomSettings = useRoomUiStore((s) => s.setShowRoomSettings);
-    const roomName = useRoomUiStore((s) => s.roomName);
-    const setRoomName = useRoomUiStore((s) => s.setRoomName);
-    const roomInviteCode = useRoomUiStore((s) => s.roomInviteCode);
-    const setRoomInviteCode = useRoomUiStore((s) => s.setRoomInviteCode);
-    const roomIsLocked = useRoomUiStore((s) => s.roomIsLocked);
-    const setRoomIsLocked = useRoomUiStore((s) => s.setRoomIsLocked);
-    const setOwnerId = useRoomUiStore((s) => s.setOwnerId);
+    const [showSetVideo, setShowSetVideo] = useState(false);
+    const [showSubSettings, setShowSubSettings] = useState(false);
+    const [showSubManager, setShowSubManager] = useState(false);
+    const [showRoomSettings, setShowRoomSettings] = useState(false);
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(
         room.video_url,
     );
@@ -168,22 +157,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     };
 
     useEffect(() => {
-        setRoomName(room.name);
-        setRoomInviteCode(room.invite_code);
-        setRoomIsLocked(room.is_locked);
-        setOwnerId(room.owner.id);
         setShowOnboarding(true);
-    }, [
-        room.id,
-        room.name,
-        room.invite_code,
-        room.is_locked,
-        room.owner.id,
-        setRoomName,
-        setRoomInviteCode,
-        setRoomIsLocked,
-        setOwnerId,
-    ]);
+    }, [room.id]);
 
     const handleSetVideo = async (url: string) => {
         if (!url.trim() || settingVideo) return;
@@ -206,16 +181,6 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         } finally {
             setSettingVideo(false);
         }
-    };
-
-    const handleRoomUpdate = (data: {
-        name?: string;
-        invite_code?: string;
-        is_locked?: boolean;
-    }) => {
-        if (data.name) setRoomName(data.name);
-        if (data.invite_code) setRoomInviteCode(data.invite_code);
-        if (data.is_locked !== undefined) setRoomIsLocked(data.is_locked);
     };
 
     const handleKick = (_userId: number) => {
@@ -271,10 +236,10 @@ export default function ShowRoom({ room }: ShowRoomProps) {
             <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-0">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-xl font-bold">{roomName}</h1>
+                        <h1 className="text-xl font-bold">{room.name}</h1>
                         <p className="text-sm text-muted-foreground">
                             ساخته شده توسط {room.owner.name}
-                            {roomIsLocked && (
+                            {room.is_locked && (
                                 <span className="ms-2 text-warning">(قفل)</span>
                             )}
                         </p>
@@ -307,7 +272,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     showOnboarding && (
                         <RoomOnboarding
                             onCopyInvite={() =>
-                                handleCopy(route("rooms.join", roomInviteCode))
+                                handleCopy(route("rooms.join", room.invite_code))
                             }
                             onAddVideo={() => setShowSetVideo(true)}
                             onDismiss={() => setShowOnboarding(false)}
@@ -494,11 +459,10 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         onClose={() => setShowRoomSettings(false)}
                         room={{
                             id: room.id,
-                            name: roomName,
-                            invite_code: roomInviteCode,
-                            is_locked: roomIsLocked,
+                            name: room.name,
+                            invite_code: room.invite_code,
+                            is_locked: room.is_locked,
                         }}
-                        onUpdate={handleRoomUpdate}
                     />
                 </Suspense>
             )}
