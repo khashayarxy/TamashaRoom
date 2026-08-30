@@ -158,8 +158,28 @@ test.describe("Accessibility audit — auth pages", () => {
         await page.waitForLoadState("networkidle");
         expect(page.url()).toContain("/profile");
 
+        // Disable CSS transitions so Headless UI Dialog animations don't cause
+        // axe to sample mid-transition opacity values (blended foreground/background).
+        await page.evaluate(() => {
+            const style = document.createElement("style");
+            style.id = "disable-transitions";
+            style.textContent =
+                "*, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }";
+            document.head.appendChild(style);
+        });
+
         await page.getByRole("button", { name: "حذف حساب کاربری" }).click();
         await page.getByRole("dialog").waitFor();
+
+        // Force layout recompute and wait two frames for styles to settle.
+        await page.evaluate(() => {
+            void document.documentElement.offsetHeight;
+            return new Promise<void>((resolve) =>
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => resolve()),
+                ),
+            );
+        });
 
         const results = await new AxeBuilder({ page })
             .withTags([
