@@ -155,7 +155,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
         await expectBothThemesContrastSafe(page);
     });
 
-    test("Responsive nav (mobile viewport, menu open)", async ({ page }) => {
+    test("Responsive nav (mobile viewport)", async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto("/__test/setup-verified-room");
         await page.waitForLoadState("networkidle");
@@ -163,9 +163,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
         await page.waitForLoadState("networkidle");
         expect(page.url()).toContain("/profile");
 
-        // AuthenticatedLayout is the only layout rendering ResponsiveNavLink;
-        // its hamburger is the only visible <button> in <nav> at this width.
-        await page.locator("nav button:visible").click();
+        // AppLayout renders nav items directly in the header (no hamburger).
         await page
             .getByRole("link", { name: "داشبورد" })
             .waitFor({ state: "visible" });
