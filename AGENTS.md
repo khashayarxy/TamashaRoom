@@ -118,7 +118,7 @@ post-commit hook automatically runs `npm run build`.
 - Manual trigger: `.\scripts\auto-build.ps1`
 - Never manually run `npm run build` for local dev — the hook handles it.
 - Frontend detection: `resources/js/`, `resources/css/`, `vite.config.js`,
-  `package.json`, `tailwind.config.js`
+  `package.json`
 
 ## Keep docs/TASK.md in Sync
 
