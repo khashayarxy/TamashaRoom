@@ -156,14 +156,14 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
     });
 
     test("Responsive nav (mobile viewport)", async ({ page }) => {
-        await page.setViewportSize({ width: 390, height: 844 });
+        await page.setViewportSize({ width: 640, height: 844 });
         await page.goto("/__test/setup-verified-room");
         await page.waitForLoadState("networkidle");
         await page.goto("/profile");
         await page.waitForLoadState("networkidle");
         expect(page.url()).toContain("/profile");
 
-        // AppLayout renders nav items directly in the header (no hamburger).
+        // AppLayout nav items use `hidden sm:flex` — visible at ≥640px.
         await page
             .getByRole("link", { name: "داشبورد" })
             .waitFor({ state: "visible" });
