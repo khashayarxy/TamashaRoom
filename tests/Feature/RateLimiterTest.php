@@ -175,10 +175,11 @@ class RateLimiterTest extends TestCase
         $response->assertStatus(429);
     }
 
-    // ─── Video Proxy: 30/min per user ───────────────────────
+    // ─── Video Proxy: 60/min per user ───────────────────────
+    // Raised from 30 to 60 to absorb scrub-buffer bursts (5 seeks in 10s).
 
     #[Test]
-    public function proxy_limits_at_30_requests_per_minute(): void
+    public function proxy_limits_at_60_requests_per_minute(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $room = Room::factory()->create([
@@ -189,7 +190,7 @@ class RateLimiterTest extends TestCase
             'room_id' => $room->id, 'user_id' => $user->id, 'last_seen_at' => now(),
         ]);
 
-        for ($i = 0; $i < 30; $i++) {
+        for ($i = 0; $i < 60; $i++) {
             $response = $this->actingAs($user)
                 ->getJson("/proxy/video/{$room->id}");
             $this->assertNotRateLimited($response, "Proxy request $i");

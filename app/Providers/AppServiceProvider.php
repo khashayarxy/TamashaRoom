@@ -36,8 +36,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?? $request->ip());
         });
 
+        // Proxy relay for video range requests: 30/min proved tight for scrubbing
+        // (e.g. 5 seeks in 10s → 30/min, plus buffering). Raised to 60/min (1/s)
+        // to absorb legitimate bursts while still capping abuse. No prod 429s
+        // observed in logs for this limiter; kept at 60 (not 120) to preserve
+        // abuse ceiling. Re-evaluate if scrub-heavy E2E shows 429s.
         RateLimiter::for('proxy', function (Request $request) {
-            return Limit::perMinute(30)->by($request->user()?->id ?? $request->ip());
+            return Limit::perMinute(60)->by($request->user()?->id ?? $request->ip());
         });
 
         RateLimiter::for('presence', function (Request $request) {
