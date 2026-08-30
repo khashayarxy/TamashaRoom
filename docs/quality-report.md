@@ -155,7 +155,6 @@
 | File | Status |
 |---|---|
 | `resources/js/Layouts/GuestLayout.tsx` | ✅ Dark near-black bg, centered card, indigo accent bar |
-| `resources/js/Layouts/AuthenticatedLayout.tsx` | ✅ Palette tokens (dark indigo/rose), theme tokens, Persian |
 | `resources/js/Layouts/AppLayout.tsx` | ✅ Sidebar, header, main content slot |
 
 ### Stores (4 Zustand)

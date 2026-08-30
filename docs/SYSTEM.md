@@ -5374,7 +5374,7 @@ resources/js/Components/
 │ └── SyncedVideoJsPlayer.tsx  
 └── (plus legacy Breeze components at the root: PrimaryButton, TextInput, Modal, Dropdown, …)
 
-Layout components do not live under Components/ — they live in `resources/js/Layouts/` (AppLayout, AuthenticatedLayout, GuestLayout).  
+Layout components do not live under Components/ — they live in `resources/js/Layouts/` (AppLayout, GuestLayout).  
 
 ### The File Location Rule
 

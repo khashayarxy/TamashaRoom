@@ -131,7 +131,7 @@ resources/js/
 │   (plus legacy Breeze components: PrimaryButton, TextInput, Modal, Dropdown…)
 ├── Hooks/                       # use-playback-sync, use-presence, use-toast,
 │                                # use-room-ownership, use-suggest-next, use-subtitles
-├── Layouts/                     # AppLayout, AuthenticatedLayout, GuestLayout
+├── Layouts/                     # AppLayout, GuestLayout
 ├── stores/                      # Zustand (UI state only): theme, room-ui, subtitle
 ├── lib/                         # utils, api, types/
 └── types/                       # global/ambient type declarations

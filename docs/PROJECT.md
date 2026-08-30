@@ -187,7 +187,6 @@ resources/
 │   │   └── use-toast.ts
 │   ├── Layouts/
 │   │   ├── AppLayout.tsx           # Persistent Inertia layout
-│   │   ├── AuthenticatedLayout.tsx
 │   │   └── GuestLayout.tsx
 │   ├── lib/
 │   │   ├── api.ts                  # axios instance for JSON endpoints (web.php)
