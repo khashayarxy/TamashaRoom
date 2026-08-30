@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\CreateRoomAction;
 use App\Actions\DeleteRoomAction;
+use App\Actions\JoinRoomAction;
 use App\Http\Requests\JoinRoomRequest;
 use App\Http\Requests\StoreRoomRequest;
 use App\Http\Requests\UpdateRoomRequest;
@@ -17,10 +18,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -111,82 +109,19 @@ class RoomController extends Controller
         ]);
     }
 
-    public function join(JoinRoomRequest $request, string $inviteCode): RedirectResponse
+    public function join(JoinRoomRequest $request, string $inviteCode, JoinRoomAction $joinRoom): RedirectResponse
     {
-        return DB::transaction(function () use ($request, $inviteCode) {
-            $room = Room::query()->lockForUpdate()
-                ->where('invite_code', $inviteCode)
-                ->firstOrFail();
-
-            $authenticatedUser = $request->user();
-
-            if ($authenticatedUser !== null && ($authenticatedUser->id === $room->user_id || $room->members()->where('user_id', $authenticatedUser->id)->exists())) {
-                $room->members()->where('user_id', $authenticatedUser->id)->update([
-                    'presence_status' => 'online',
-                    'last_seen_at' => now(),
-                ]);
-                $room->touchActivity();
-                $this->presence->broadcastMembers($room);
-
-                return to_route('rooms.show', $room);
-            }
-
-            $isGuest = $authenticatedUser === null;
-            $createdGuest = null;
-
-            $user = $authenticatedUser;
-
-            if ($isGuest) {
-                $user = $this->createGuestUser($request->input('guest_name'));
-                $createdGuest = $user;
-            }
-
+        return DB::transaction(function () use ($request, $inviteCode, $joinRoom) {
             try {
-                Gate::forUser($user)->authorize('join', $room);
+                $room = $joinRoom->execute($request, $inviteCode);
             } catch (AuthorizationException $e) {
-                if ($createdGuest !== null) {
-                    $createdGuest->delete();
-                }
-
                 return back()
                     ->withInput(['invite_code' => $inviteCode])
                     ->withErrors(['invite_code' => $e->getMessage()]);
             }
 
-            RoomMember::firstOrCreate(
-                [
-                    'room_id' => $room->id,
-                    'user_id' => $user->id,
-                ],
-                [
-                    'last_seen_at' => now(),
-                    'presence_status' => 'online',
-                    'joined_at' => now(),
-                ]
-            );
-
-            $room->touchActivity();
-
-            if ($isGuest) {
-                Auth::login($user);
-            }
-
-            $this->presence->broadcastMembers($room);
-
             return to_route('rooms.show', $room);
         });
-    }
-
-    private function createGuestUser(?string $name): User
-    {
-        $displayName = trim((string) $name) !== '' ? trim($name) : 'مهمان';
-
-        return User::create([
-            'name' => $displayName,
-            'email' => 'guest-'.Str::uuid().'@tamasharoom.local',
-            'password' => Str::random(32),
-            'is_guest' => true,
-        ]);
     }
 
     public function members(Request $request, Room $room): JsonResponse
