@@ -90,7 +90,7 @@ Second SRT cue with طولانی`;
     const uploadResp = await page.evaluate(async ({ roomId, token, srtContent }) => {
       const formData = new FormData();
       formData.append("_token", token);
-      formData.append("file", new Blob([srtContent], { type: "text/plain" }), "test.srt");
+      formData.append("file", new Blob([srtContent], { type: "application/x-subrip" }), "test.srt");
       formData.append("label", "SRT Test");
       formData.append("language", "en");
       const resp = await fetch(`/subtitles/${roomId}`, {
