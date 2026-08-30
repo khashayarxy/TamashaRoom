@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\ChatMessage;
+use App\Models\MessageReport;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
@@ -142,7 +143,25 @@ class ChatTest extends TestCase
     }
 
     #[Test]
-    public function user_cannot_delete_others_message(): void
+    public function owner_can_delete_members_message(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->member->id,
+            'body' => 'Member message',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->deleteJson(route('chat.destroy', ['room' => $this->room, 'message' => $message]));
+
+        $response->assertOk()
+            ->assertJson(['status' => 'ok']);
+
+        $this->assertDatabaseMissing('chat_messages', ['id' => $message->id]);
+    }
+
+    #[Test]
+    public function member_cannot_delete_other_members_message(): void
     {
         $message = ChatMessage::create([
             'room_id' => $this->room->id,
@@ -227,5 +246,157 @@ class ChatTest extends TestCase
             ->assertCreated();
 
         Queue::assertNotPushed(BroadcastEvent::class);
+    }
+
+    #[Test]
+    public function member_can_report_message(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Reported message',
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.report', ['room' => $this->room, 'message' => $message]), [
+                'reason' => 'spam',
+                'details' => 'This is spam',
+            ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'status' => 'ok',
+                'message' => 'گزارش پیام ثبت شد.',
+            ]);
+
+        $this->assertDatabaseHas('message_reports', [
+            'message_id' => $message->id,
+            'reporter_id' => $this->member->id,
+            'reason' => 'spam',
+        ]);
+    }
+
+    #[Test]
+    public function owner_can_report_message(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->member->id,
+            'body' => 'Reported by owner',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson(route('chat.report', ['room' => $this->room, 'message' => $message]));
+
+        $response->assertOk()
+            ->assertJson(['status' => 'ok']);
+    }
+
+    #[Test]
+    public function duplicate_report_is_rejected(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Already reported',
+        ]);
+
+        MessageReport::create([
+            'room_id' => $this->room->id,
+            'message_id' => $message->id,
+            'reporter_id' => $this->member->id,
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.report', ['room' => $this->room, 'message' => $message]));
+
+        $response->assertUnprocessable()
+            ->assertJson([
+                'status' => 'error',
+                'message' => 'این پیام قبلاً توسط شما گزارش شده است.',
+            ]);
+    }
+
+    #[Test]
+    public function cannot_report_message_from_another_room(): void
+    {
+        $otherRoom = Room::factory()->create(['user_id' => $this->owner->id]);
+        $otherMessage = ChatMessage::create([
+            'room_id' => $otherRoom->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Other room message',
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.report', [
+                'room' => $this->room,
+                'message' => $otherMessage,
+            ]));
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseMissing('message_reports', [
+            'message_id' => $otherMessage->id,
+        ]);
+    }
+
+    #[Test]
+    public function stranger_cannot_report_message(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Owner message',
+        ]);
+
+        $response = $this->actingAs($this->stranger)
+            ->postJson(route('chat.report', ['room' => $this->room, 'message' => $message]));
+
+        $response->assertNotFound();
+    }
+
+    #[Test]
+    public function unauthenticated_user_cannot_report_message(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Owner message',
+        ]);
+
+        $response = $this->postJson(route('chat.report', [
+            'room' => $this->room,
+            'message' => $message,
+        ]));
+
+        $response->assertUnauthorized();
+    }
+
+    #[Test]
+    public function report_validates_reason_and_details_length(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Valid message',
+        ]);
+
+        $longReason = str_repeat('a', 101);
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.report', ['room' => $this->room, 'message' => $message]), [
+                'reason' => $longReason,
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['reason']);
+
+        $longDetails = str_repeat('a', 1001);
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.report', ['room' => $this->room, 'message' => $message]), [
+                'details' => $longDetails,
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['details']);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\ReportMessageAction;
 use App\Events\NewChatMessage;
 use App\Models\ChatMessage;
 use App\Models\Room;
@@ -61,5 +62,29 @@ class ChatController extends Controller
         $message->delete();
 
         return response()->json(['status' => 'ok']);
+    }
+
+    public function report(
+        Request $request,
+        Room $room,
+        ChatMessage $message,
+        ReportMessageAction $action,
+    ): JsonResponse {
+        $this->authorize('viewAny', [ChatMessage::class, $room]);
+
+        $message = $room->chatMessages()->whereKey($message->id)->firstOrFail();
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:100'],
+            'details' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        return $action->execute(
+            $room,
+            $message,
+            $request->user(),
+            $validated['reason'] ?? null,
+            $validated['details'] ?? null,
+        );
     }
 }
