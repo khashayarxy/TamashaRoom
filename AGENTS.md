@@ -108,6 +108,18 @@ php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
 
+## Auto-Build Workflow
+
+After EVERY commit that includes frontend changes (JS/CSS/Vite config), the
+post-commit hook automatically runs `npm run build`.
+
+- Pure backend commits skip the build (fast feedback)
+- Build failures block task completion (same as health check)
+- Manual trigger: `.\scripts\auto-build.ps1`
+- Never manually run `npm run build` for local dev — the hook handles it.
+- Frontend detection: `resources/js/`, `resources/css/`, `vite.config.js`,
+  `package.json`, `tailwind.config.js`
+
 ## Keep docs/TASK.md in Sync
 
 `docs/TASK.md` is the **single, canonical** record of what's done and what's

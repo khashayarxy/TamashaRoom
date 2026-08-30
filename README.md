@@ -177,6 +177,22 @@ curl -sk https://tamasharoom.test    # Should return HTTP 200
 
 ---
 
+## Auto-Build on Commit
+
+Frontend assets are automatically rebuilt after every commit that touches
+JS/CSS/Vite files. The post-commit hook detects changes in `resources/js/`,
+`resources/css/`, `vite.config.js`, `package.json`, and `tailwind.config.js`,
+then runs `npm run build` only when needed. Simply refresh
+`https://tamasharoom.test` to see your latest changes — no manual
+`npm run build` needed.
+
+If the build fails, the hook alerts you immediately and blocks task completion.
+Backend-only commits skip the build entirely (fast feedback).
+
+Manual trigger: `.\scripts\auto-build.ps1`
+
+---
+
 ## Post-Task Health Check
 
 After completing any task, always verify your local environment:

@@ -107,6 +107,7 @@ debug-*.cjs
 scripts/fix-hosts.ps1
 scripts/fix-proxy-bypass.ps1
 scripts/verify-local-env.ps1
+scripts/auto-build.ps1
 
 # ─── NPM & Yarn ───────────────────────────────────────────────────────────
 npm-debug.log*
