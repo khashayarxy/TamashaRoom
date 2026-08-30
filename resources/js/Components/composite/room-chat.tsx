@@ -67,6 +67,7 @@ export function RoomChat({
     const [body, setBody] = useState("");
     const [deleting, setDeleting] = useState<number | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+    const [tappedMsgId, setTappedMsgId] = useState<number | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [pollError, setPollError] = useState(false);
     const listRef = useRef<HTMLDivElement>(null);
@@ -352,6 +353,14 @@ export function RoomChat({
                         <div
                             key={item.key}
                             className={`flex gap-2 group ${isOwn(item.msg.user_id) ? "flex-row-reverse" : ""}`}
+                            onTouchStart={() =>
+                                isOwn(item.msg.user_id) &&
+                                setTappedMsgId(
+                                    tappedMsgId === item.msg.id
+                                        ? null
+                                        : item.msg.id,
+                                )
+                            }
                         >
                             <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                 <User className="h-4 w-4 text-primary" />
@@ -387,11 +396,16 @@ export function RoomChat({
                                 </div>
                                 {isOwn(item.msg.user_id) && (
                                     <button
+                                        tabIndex={0}
                                         onClick={() =>
                                             setConfirmDelete(item.msg.id)
                                         }
                                         disabled={deleting === item.msg.id}
-                                        className="absolute -top-1.5 -end-1.5 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center transition-opacity disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        className={`absolute -top-1.5 -end-1.5 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
+                                            tappedMsgId === item.msg.id
+                                                ? "opacity-100"
+                                                : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto"
+                                        }`}
                                         aria-label="حذف پیام"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
