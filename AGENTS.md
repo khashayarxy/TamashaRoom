@@ -94,6 +94,9 @@ php artisan test              # Backend feature/unit tests (PHPUnit)
 # Standing rule: local verification is fast-only; E2E + full a11y are verified
 # by GitHub Actions CI after push (see .skills/git-workflow/SKILL.md).
 
+# Local environment health check (run after every task)
+.\scripts\verify-local-env.ps1   # Hosts, VPN proxy bypass, Herd, SSL, connectivity
+
 # Database
 php artisan migrate
 php artisan db:seed

@@ -167,11 +167,27 @@ chrome://net-internals/#dns    → Clear host cache
 chrome://net-internals/#sockets → Flush socket pools
 ```
 
+**Known regression:** Windows Update, VPN client reconnects, or Happ/Xray proxy reinstall can reset `ProxyOverride` to defaults (removing `*.test`). If the site stops loading with VPN ON after previously working, re-run the bypass script or re-add the entries manually. The `scripts/fix-proxy-bypass.ps1` helper handles this in one command.
+
 **Verify (with VPN ON):**
 
 ```powershell
 curl -sk https://tamasharoom.test    # Should return HTTP 200
 ```
+
+---
+
+## Post-Task Health Check
+
+After completing any task, always verify your local environment:
+
+```powershell
+.\scripts\verify-local-env.ps1
+```
+
+This checks: Hosts file, Proxy bypass (VPN), Herd services, SSL cert, and HTTPS connectivity.
+
+**Never mark a task complete without this check passing.** The post-commit hook runs this automatically.
 
 ---
 
@@ -190,6 +206,7 @@ curl -sk https://tamasharoom.test    # Should return HTTP 200
 | `NVM requires a specific version` in Herd Node settings | Herd's NVM env vars conflict with system Node | Close Herd, remove `NVM_HOME`/`NVM_SYMLINK` from system env vars (Admin PowerShell), restart Herd |
 | Port 3306 already in use | Another MySQL instance (XAMPP, Laragon) running | Stop the conflicting service, or change Herd's MySQL port in Settings |
 | `ERR_CONNECTION_CLOSED` with VPN ON | VPN routes `.test` traffic through tunnel, bypassing local loopback | Add `*.test` to proxy bypass: Win+R → `inetcpl.cpl` → Connections → LAN Settings → Advanced → "Do not use proxy for" → add `<local>;*.test;localhost;127.*;::1`. Restart browser. See "VPN Compatibility" above. |
+| Site loads once with VPN, then breaks again | Windows/VPN client reset `ProxyOverride` to defaults | Re-run `.\scripts\fix-proxy-bypass.ps1` + flush DNS. See "Known regression" note above. |
 
 ---
 

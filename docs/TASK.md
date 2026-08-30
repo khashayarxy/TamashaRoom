@@ -1075,6 +1075,9 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] **#11** — Extracted `SetRoomVideoAction` from `PlaybackController::setVideo()` (URL validation, HEVC detection, codec check, playback mode, state update, broadcast)
 - [x] **Hosts file** — Removed `0.0.0.0` entries, standardized to `127.0.0.1` + `::1` for Herd CE domains
 - [x] **Proxy bypass** — Added `*.test` to Windows proxy override list for VPN compatibility
+- [x] **2026-08-30: VPN regression** — `ProxyOverride` reset to defaults by Windows/VPN client; re-applied `<local>;*.test;localhost;127.*;::1` via `Set-ItemProperty`; updated README with regression prevention note. No code change — system config only.
+- [x] **2026-08-30: Post-task verification skill** — Created `scripts/verify-local-env.ps1` (gitignored) for automated VPN/Hosts/SSL health check; added post-commit hook; updated AGENTS.md + README.md with mandatory verification rule.
+- [x] **2026-08-30: Bug fix batch (4 UI/UX issues)** — Toast z-index fix (`z-[9999]` on Sonner wrapper), room lock reactivity (`roomData` state + `handleRoomUpdate` in Show.tsx), import video helper text updated to MKV/MP4 x264 spec, `::selection` contrast improved (30% opacity) + global `cursor:pointer` for interactive elements. CI green (run `33329585289`).
 
 ### Future Features
 - [x] Room ownership transfer UX polish (update member list after transfer) — **fixed 2026-08-01 (Batch 2C, TAM-005)**: ownership state now derives from the reactive `room-ui` store via new `useRoomOwnership` hook; old owner loses owner-only controls immediately, new owner adopts ownership from presence data, failed transfers leave state untouched. See Completed section.
