@@ -1,3 +1,4 @@
+import { useFullscreenTarget } from "@/Hooks/use-fullscreen-target";
 import { useSubtitleStore } from "@/stores/subtitle";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -114,30 +115,8 @@ export function SubtitleOverlay({
     className,
 }: SubtitleOverlayProps) {
     const [currentText, setCurrentText] = useState<string | null>(null);
-    const [fullscreenElement, setFullscreenElement] = useState<Element | null>(
-        null,
-    );
+    const fullscreenElement = useFullscreenTarget();
     const rafRef = useRef<number>(0);
-
-    useEffect(() => {
-        const updateFs = () => {
-            const fsEl =
-                document.fullscreenElement ||
-                (document as unknown as { webkitFullscreenElement?: Element })
-                    .webkitFullscreenElement ||
-                null;
-            setFullscreenElement(fsEl);
-        };
-        updateFs();
-
-        document.addEventListener("fullscreenchange", updateFs);
-        document.addEventListener("webkitfullscreenchange", updateFs);
-
-        return () => {
-            document.removeEventListener("fullscreenchange", updateFs);
-            document.removeEventListener("webkitfullscreenchange", updateFs);
-        };
-    }, []);
 
     useEffect(() => {
         const video = videoRef.current;

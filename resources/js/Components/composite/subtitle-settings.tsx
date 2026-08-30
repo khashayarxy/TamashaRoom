@@ -4,9 +4,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/Components/ui/dialog";
+import { useFullscreenTarget } from "@/Hooks/use-fullscreen-target";
 import { useSubtitleStore } from "@/stores/subtitle";
 import { Subtitles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
     SubtitleBorderRadius,
@@ -46,29 +47,7 @@ export function SubtitleSettingsDialog({
     const update = useSubtitleStore((s) => s.update);
     const dialogRef = useRef<HTMLDialogElement>(null);
     const [activeTab, setActiveTab] = useState<"basic" | "advanced">("basic");
-    const [fullscreenElement, setFullscreenElement] = useState<Element | null>(
-        null,
-    );
-
-    useEffect(() => {
-        const updateFs = () => {
-            const fsEl =
-                document.fullscreenElement ||
-                (document as unknown as { webkitFullscreenElement?: Element })
-                    .webkitFullscreenElement ||
-                null;
-            setFullscreenElement(fsEl);
-        };
-        updateFs();
-
-        document.addEventListener("fullscreenchange", updateFs);
-        document.addEventListener("webkitfullscreenchange", updateFs);
-
-        return () => {
-            document.removeEventListener("fullscreenchange", updateFs);
-            document.removeEventListener("webkitfullscreenchange", updateFs);
-        };
-    }, []);
+    const fullscreenElement = useFullscreenTarget();
 
     const currentFont =
         settings.fontFamily === "IRANSansXFaNum-Regular" ||
