@@ -100,6 +100,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     const [showSubSettings, setShowSubSettings] = useState(false);
     const [showSubManager, setShowSubManager] = useState(false);
     const [showRoomSettings, setShowRoomSettings] = useState(false);
+    const [roomData, setRoomData] = useState(room);
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(
         room.video_url,
     );
@@ -154,6 +155,14 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         } else {
             toast.error("کپی شدن لینک ممکن نشد. لطفاً به‌صورت دستی کپی کنید.");
         }
+    };
+
+    const handleRoomUpdate = (data: {
+        name?: string;
+        invite_code?: string;
+        is_locked?: boolean;
+    }) => {
+        setRoomData((prev) => ({ ...prev, ...data }));
     };
 
     useEffect(() => {
@@ -460,11 +469,12 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                         open={true}
                         onClose={() => setShowRoomSettings(false)}
                         room={{
-                            id: room.id,
-                            name: room.name,
-                            invite_code: room.invite_code,
-                            is_locked: room.is_locked,
+                            id: roomData.id,
+                            name: roomData.name,
+                            invite_code: roomData.invite_code,
+                            is_locked: roomData.is_locked,
                         }}
+                        onUpdate={handleRoomUpdate}
                     />
                 </Suspense>
             )}

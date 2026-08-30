@@ -62,8 +62,7 @@ export function SetVideoDialog({
                         تنظیم ویدیو
                     </DialogTitle>
                     <DialogDescription>
-                        آدرس مستقیم فایل ویدیویی (MP4, WebM, ...) را برای پخش
-                        وارد کنید.
+                        لینک ویدیو با فرمت MKV یا MP4 و انکود x264 رو وارد کنید.
                     </DialogDescription>
                 </DialogHeader>
 
