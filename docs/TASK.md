@@ -1061,6 +1061,21 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] **Implement `DetermineVideoPlaybackModeAction`** — SSRF-safe HEAD check; returns `'direct'` when source has CORS `*` + `Accept-Ranges: bytes`; falls back to `'proxy'`; stored on room row; frontend `VideoPlayer` reads `playback_mode` to choose direct or proxy source
 - [x] **Add production error monitoring (Sentry)** — `sentry/sentry-laravel` v4.27 installed; `config/sentry.php` published; `.env.example` has `SENTRY_DSN` placeholder; disabled when DSN is empty
 
+### Batch 3 — Refactor & UX Improvements (2026-08-30)
+- [x] **#13** — Unified clipboard helper: deleted unsafe `copyToClipboard` from `utils.ts`, kept `safeCopyToClipboard` in `room-settings.tsx`
+- [x] **#14** — Unified `sanitizeText`: deleted looser `utils.ts` version + `HTML_TAG_RE`, kept stricter `subtitle-overlay.tsx` version
+- [x] **#17** — Removed vestigial `currentUserIdRef` + try/catch anti-pattern from `use-presence.ts`
+- [x] **#18** — Extracted `useFullscreenTarget` hook from `subtitle-overlay.tsx` + `subtitle-settings.tsx`
+- [x] **#20** — Extracted `partials/noscript.blade.php` + `partials/fallback.blade.php` from `app.blade.php`
+- [x] **#21** — Simplified `RoomPolicy::kick` via `ownerOrDenyForMember` + `allowed()`; kept `mimes:srt,vtt,txt`
+- [x] **#22** — Raised proxy rate limit 30→60/min for scrub bursts; updated `RateLimiterTest` + `PlaybackDiagnosticsTest`
+- [x] **#15** — Single source of truth for room state: store keeps only `activeTab`, `Show.tsx` uses props directly, `handleRoomUpdate` removed
+- [x] **#16** — Migrated Profile from `AuthenticatedLayout` to `AppLayout`; deleted `AuthenticatedLayout.tsx`
+- [x] **#10** — Extracted `JoinRoomAction` from `RoomController::join()` (guest creation, auth, membership, broadcast)
+- [x] **#11** — Extracted `SetRoomVideoAction` from `PlaybackController::setVideo()` (URL validation, HEVC detection, codec check, playback mode, state update, broadcast)
+- [x] **Hosts file** — Removed `0.0.0.0` entries, standardized to `127.0.0.1` + `::1` for Herd CE domains
+- [x] **Proxy bypass** — Added `*.test` to Windows proxy override list for VPN compatibility
+
 ### Future Features
 - [x] Room ownership transfer UX polish (update member list after transfer) — **fixed 2026-08-01 (Batch 2C, TAM-005)**: ownership state now derives from the reactive `room-ui` store via new `useRoomOwnership` hook; old owner loses owner-only controls immediately, new owner adopts ownership from presence data, failed transfers leave state untouched. See Completed section.
 - [ ] Self-hosted WebSocket migration (Laravel Reverb) for post-MVP VPS scaling (>500 concurrent) — Pusher Channels push delivery (primary) with tiered polling fallback was completed 2026-08-07 (DECISION-002a); self-hosted Reverb remains a post-MVP VPS roadmap item.

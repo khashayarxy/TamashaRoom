@@ -2,12 +2,25 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const herdCertPath = path.resolve(
+    process.env.HOME || process.env.USERPROFILE,
+    '.config/herd/config/valet/Certificates',
+);
+const herdKey = path.join(herdCertPath, 'tamasharoom.test.key');
+const herdCert = path.join(herdCertPath, 'tamasharoom.test.crt');
+const https =
+    fs.existsSync(herdKey) && fs.existsSync(herdCert)
+        ? { key: fs.readFileSync(herdKey), cert: fs.readFileSync(herdCert) }
+        : true;
 
 export default defineConfig({
     server: {
-        host: 'tamasharoom.test',
+        host: '0.0.0.0',
         port: 5173,
-        https: true,
+        https,
         hmr: {
             host: 'tamasharoom.test',
             protocol: 'wss',

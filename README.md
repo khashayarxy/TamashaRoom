@@ -30,7 +30,7 @@ It started as a late-night thought: *why is it so hard to watch a movie with som
 | **Styling** | Tailwind CSS 4, RTL-first (Persian) |
 | **Build** | Vite 5 |
 | **Infrastructure** | Shared cPanel hosting — Apache, single-core, no Docker, no Redis, no WebSockets. Broadcasting: Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when `BROADCAST_CONNECTION=null` (CI) or unconfigured. Future: Laravel Reverb self-hosted when scaling beyond 500 concurrent |
-| **Local Dev** | Herd Community Edition (Native Windows) — PHP 8.4 + Nginx + MySQL + Vite HMR 5173 (wss, Herd SSL). No Docker, no Redis. Production stays on cPanel/Apache. |
+| **Local Dev** | Herd Community Edition (Native Windows) — PHP 8.4 + Nginx + SQLite + Vite HMR 5173 (wss, Herd SSL). No Docker, no Redis. MySQL services require Herd Pro; local dev uses SQLite. Production stays on cPanel/Apache. |
 
 ---
 
@@ -38,7 +38,7 @@ It started as a late-night thought: *why is it so hard to watch a movie with som
 
 > **Local only** — Herd CE is for native local development on Windows. Production remains on shared cPanel hosting (Apache, PHP 8.4, MySQL). Do not deploy Herd to production. No Docker, no Laragon.
 
-**Prerequisites:** Herd **Community Edition** (https://herd.laravel.com — includes Nginx, PHP 8.4, MySQL, Node manager), Composer, Node 24.19.0 (via Herd's Node manager or `nvm-windows` → `nvm use 24.19.0`)
+**Prerequisites:** Herd **Community Edition** (https://herd.laravel.com — includes Nginx, PHP 8.4, Node manager), Composer, Node 24.19.0 (via Herd's Node manager or `nvm-windows` → `nvm use 24.19.0`)
 
 **Setup (once, ~5 min):**
 
@@ -57,7 +57,8 @@ It started as a late-night thought: *why is it so hard to watch a movie with som
 4. **Env & DB (Herd defaults):**
    ```bash
    cp .env.example .env
-   # .env is already Herd-native: APP_URL=https://tamasharoom.test, DB_HOST=127.0.0.1, DB_PORT=3306, DB_DATABASE=tamasharoom, DB_USERNAME=root, DB_PASSWORD= (empty), no NO_PROXY
+   # .env defaults to SQLite (DB_CONNECTION=sqlite) — no MySQL required.
+   # Session, cache, and queue use file-based drivers for local resilience.
    composer install
    php artisan key:generate
    php artisan migrate --seed
@@ -84,16 +85,111 @@ It started as a late-night thought: *why is it so hard to watch a movie with som
 | Artisan | `php artisan <cmd>` (e.g. `migrate`, `test`) or `herd php artisan <cmd>` |
 | Tests | `php artisan test` + `npm run test` |
 | Vite build | `npm run build` |
-| MySQL shell | `herd db` or `mysql -u root -p` (Herd → Database) |
+| MySQL shell | `herd db` (requires Herd Pro) or use SQLite: `sqlite3 database/database.sqlite` |
 | Nginx site conf | `C:\Users\Khashayar\.config\herd\config\valet\Nginx\tamasharoom.test.conf` (auto-generated; edit only if rewrites needed) |
 | Node version | Herd → Settings → Node → `24.19.0` or `nvm use 24.19.0` |
 
 **Notes:**
 - **No Docker/Sail/Laragon:** `compose.yaml` + `docker/` + `C:/laragon` removed — `laravel/sail` remains in `composer.json` as unused dev dep (remove with `composer remove laravel/sail` if desired).
-- **No Redis:** `CACHE_STORE=database`, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database` unchanged.
-- `.env` for Herd: `DB_HOST=127.0.0.1`, `APP_URL=https://tamasharoom.test`, no `NO_PROXY` (not needed natively — `hosts` is `127.0.0.1` direct).
-- `vite.config.js` uses `https: true` + `hmr wss://tamasharoom.test` — Herd's CA is trusted system-wide, Vite works without hardcoded `C:/laragon/...` paths; in CI (no Herd) Vite falls back via `https: true` self-signed (browser will warn, but CI uses `http://127.0.0.1:8000` fallback via `resolveBaseUrl()`).
+- **No Redis:** `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`, `SESSION_DRIVER=file` — local dev uses file-based drivers for resilience. Production uses `database`.
+- `.env` for Herd: `DB_CONNECTION=sqlite`, `APP_URL=https://tamasharoom.test`, no `NO_PROXY` (not needed natively — `hosts` is `127.0.0.1` direct).
+- **Herd CE vs Pro:** MySQL services (`herd services:start mysql`) require Herd Pro. Local dev uses SQLite. If you need MySQL locally, install Herd Pro or run MySQL manually on port 3306.
+- `vite.config.js` auto-detects Herd's SSL cert/key (`~/.config/herd/config/valet/Certificates/tamasharoom.test.*`) for the dev server, so Chrome trusts port 5173 the same as port 443. Falls back to Vite's self-signed cert if Herd certs are missing (CI). HMR at `wss://tamasharoom.test:5173`.
 - **VPN-safe:** `hosts` is `127.0.0.1` + `::1` loopback — works VPN ON/OFF; Herd's Nginx binds `0.0.0.0:80/443` + `[::]:80/443` by default.
+
+### Windows Hosts Configuration
+
+> **Critical:** Incorrect `hosts` entries cause SSL errors, DNS failures, and VPN blocking. Herd CE generates `0.0.0.0` entries which **block** connections instead of redirecting to localhost.
+
+**Correct format** — use ONLY these entries for TamashaRoom:
+
+```
+127.0.0.1   localhost
+127.0.0.1   tamasharoom.test
+::1         tamasharoom.test
+127.0.0.1   database.herd.test
+```
+
+- **Never use `0.0.0.0`** for domain mapping — it blackholes traffic.
+- **Always include both IPv4 (`127.0.0.1`) and IPv6 (`::1`)** for `.test` domains (modern browsers and Node.js resolve both).
+
+**Manual fix (Admin PowerShell):**
+
+```powershell
+# 1. Open Notepad as Administrator
+# 2. File → Open → C:\Windows\System32\drivers\etc\hosts
+# 3. Remove all 0.0.0.0 lines mapped to domain names
+# 4. Add the correct entries above
+# 5. Save, then flush DNS:
+ipconfig /flushdns
+```
+
+**Or use the helper script** (gitignored, not committed):
+
+```powershell
+# Admin PowerShell
+.\scripts\fix-hosts.ps1
+ipconfig /flushdns
+```
+
+**Verify:**
+
+```powershell
+ping -4 tamasharoom.test    # Should resolve to 127.0.0.1
+ping -6 tamasharoom.test    # Should resolve to ::1
+```
+
+### VPN Compatibility
+
+When VPN is active, Chrome/Edge may route all HTTPS traffic through the tunnel — including local `.test` domains that should resolve to `127.0.0.1`. This causes `ERR_CONNECTION_CLOSED` or `ERR_CONNECTION_TIMED_OUT`.
+
+**Fix — add `.test` to the proxy bypass list:**
+
+1. Win+R → `inetcpl.cpl` → Connections → LAN Settings → Advanced
+2. In **"Do not use proxy server for addresses beginning with"**, add:
+   ```
+   <local>;*.test;localhost;127.*;::1
+   ```
+3. OK → Apply → Restart browser
+
+**Or use the helper script** (gitignored, not committed):
+
+```powershell
+# Admin PowerShell
+.\scripts\fix-proxy-bypass.ps1
+# Then restart Chrome/Edge
+```
+
+**After changing proxy settings, clear Chrome's DNS cache:**
+
+```
+chrome://net-internals/#dns    → Clear host cache
+chrome://net-internals/#sockets → Flush socket pools
+```
+
+**Verify (with VPN ON):**
+
+```powershell
+curl -sk https://tamasharoom.test    # Should return HTTP 200
+```
+
+---
+
+## Troubleshooting Local Errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `SQLSTATE[HY000] [2002] No connection could be made` | MySQL not running / Herd CE doesn't support MySQL services | Switch to SQLite: set `DB_CONNECTION=sqlite` in `.env`, run `php artisan migrate` |
+| `Herd Pro is required to use services` | Herd CE doesn't include MySQL/Nginx services | Use Herd CE defaults (SQLite, built-in Nginx) or upgrade to Herd Pro |
+| `ERR_CERT_AUTHORITY_INVALID` | SSL certificate not trusted | Herd → Sites → `tamasharoom.test` → **Secure** (or `herd secure tamasharoom.test`) |
+| `Illuminate\Session\SessionServiceProvider::boot(): Failed to open session` | Session driver depends on missing DB table | Set `SESSION_DRIVER=file` in `.env`, run `php artisan config:clear` |
+| `500 Internal Server Error` after fresh clone | Missing `.env` or app key | `cp .env.example .env && php artisan key:generate && php artisan migrate` |
+| `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` on `:5173` | Vite's self-signed cert not trusted by Chrome | `vite.config.js` auto-detects Herd's cert/key — restart Vite after `herd secure tamasharoom.test`. If still broken, test in Incognito (`Ctrl+Shift+N`) or clear HSTS: `chrome://net-internals/#hsts` → Delete `tamasharoom.test` |
+| `tamasharoom.test` unreachable / DNS_PROBE_FINISHED_NXDOMAIN | `hosts` file has `0.0.0.0` entries (Herd-generated) blocking resolution | Edit `C:\Windows\System32\drivers\etc\hosts` as Admin — remove all `0.0.0.0` lines, add `127.0.0.1 tamasharoom.test` + `::1 tamasharoom.test`. Run `ipconfig /flushdns`. See "Windows Hosts Configuration" above. |
+| Vite HMR not connecting | `npm run dev` not running or Vite binds IPv6-only | Run `npm run dev` in Herd terminal. Check `vite.config.js` has `host: '0.0.0.0'`, `https` with Herd cert, and `hmr: { host: 'tamasharoom.test' }` |
+| `NVM requires a specific version` in Herd Node settings | Herd's NVM env vars conflict with system Node | Close Herd, remove `NVM_HOME`/`NVM_SYMLINK` from system env vars (Admin PowerShell), restart Herd |
+| Port 3306 already in use | Another MySQL instance (XAMPP, Laragon) running | Stop the conflicting service, or change Herd's MySQL port in Settings |
+| `ERR_CONNECTION_CLOSED` with VPN ON | VPN routes `.test` traffic through tunnel, bypassing local loopback | Add `*.test` to proxy bypass: Win+R → `inetcpl.cpl` → Connections → LAN Settings → Advanced → "Do not use proxy for" → add `<local>;*.test;localhost;127.*;::1`. Restart browser. See "VPN Compatibility" above. |
 
 ---
 

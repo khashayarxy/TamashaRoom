@@ -85,6 +85,9 @@ Homestead.yaml
 playwright.chrome.config.ts
 playwright.edge.config.ts
 
+# Playwright MCP server cache
+.playwright-mcp/
+
 # Machine-local test video fixtures and local streaming helpers. Never committed.
 /tests/fixtures/local-video-paths.md
 /tests/fixtures/media-server.cjs
@@ -99,6 +102,10 @@ debug-*.cjs
 /tools/debug/*
 !/tools/debug/README.md
 !/tools/debug/_harness.cjs
+
+# ─── System-Specific Scripts (not committed) ─────────────────────────────
+scripts/fix-hosts.ps1
+scripts/fix-proxy-bypass.ps1
 
 # ─── NPM & Yarn ───────────────────────────────────────────────────────────
 npm-debug.log*
