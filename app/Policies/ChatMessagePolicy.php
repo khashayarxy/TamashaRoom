@@ -27,6 +27,11 @@ class ChatMessagePolicy
             return Response::allow();
         }
 
+        // The room owner may delete any message in their room.
+        if ($user->id === $room->user_id) {
+            return Response::allow();
+        }
+
         // A room member may see the room but cannot delete others' messages.
         if ($room->members()->where('user_id', $user->id)->exists()) {
             return Response::deny();

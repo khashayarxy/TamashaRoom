@@ -7,6 +7,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/Components/ui/dialog";
+import type { ReactNode } from "react";
 
 interface ConfirmDialogProps {
     open: boolean;
@@ -17,6 +18,7 @@ interface ConfirmDialogProps {
     confirmLabel?: string;
     confirmVariant?: "primary" | "destructive";
     loading?: boolean;
+    children?: ReactNode;
 }
 
 export function ConfirmDialog({
@@ -28,6 +30,7 @@ export function ConfirmDialog({
     confirmLabel = "تأیید",
     confirmVariant = "destructive",
     loading = false,
+    children,
 }: ConfirmDialogProps) {
     return (
         <Dialog open={open} onClose={onClose}>
@@ -38,6 +41,7 @@ export function ConfirmDialog({
                         {description}
                     </DialogDescription>
                 </DialogHeader>
+                {children}
                 <DialogFooter className="justify-center sm:justify-center">
                     <Button
                         variant="ghost"

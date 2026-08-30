@@ -15,6 +15,7 @@ import {
     Smile,
     Send,
     Trash2,
+    Flag,
     User,
     UserMinus,
     UserPlus,
@@ -52,6 +53,7 @@ interface RoomChatProps {
     pollInterval?: number;
     onUnreadCountChange?: (count: number) => void;
     presenceMoments?: PresenceMoment[];
+    isOwner?: boolean;
 }
 
 export function RoomChat({
@@ -60,6 +62,7 @@ export function RoomChat({
     pollInterval = 3000,
     onUnreadCountChange,
     presenceMoments = [],
+    isOwner = false,
 }: RoomChatProps) {
     const { auth } = usePage().props;
     const [messages, setMessages] =
@@ -79,6 +82,10 @@ export function RoomChat({
     const pushHealthyRef = useRef(false);
     const lastPollAtRef = useRef(0);
     const [emojiPopoverOpen, setEmojiPopoverOpen] = useState(false);
+    const [reportTarget, setReportTarget] = useState<number | null>(null);
+    const [reportReason, setReportReason] = useState("");
+    const [reportDetails, setReportDetails] = useState("");
+    const [reporting, setReporting] = useState(false);
 
     const insertEmoji = (emoji: string) => {
         setBody((prev) => {
@@ -307,7 +314,42 @@ export function RoomChat({
         }
     };
 
+    const reportMessage = async () => {
+        if (reportTarget === null) return;
+        setReporting(true);
+        try {
+            await api.post(`/chat/${roomId}/messages/${reportTarget}/report`, {
+                reason: reportReason || undefined,
+                details: reportDetails || undefined,
+            });
+            toast.success("گزارش پیام ثبت شد.");
+        } catch (err: unknown) {
+            const msg =
+                err instanceof Object &&
+                "response" in err &&
+                err.response instanceof Object &&
+                "data" in err.response &&
+                typeof err.response.data === "object" &&
+                err.response.data !== null &&
+                "message" in err.response.data
+                    ? String((err.response.data as { message: string }).message)
+                    : "خطا در گزارش پیام. دوباره تلاش کنید.";
+            toast.error(msg);
+        } finally {
+            setReporting(false);
+            setReportTarget(null);
+            setReportReason("");
+            setReportDetails("");
+        }
+    };
+
     const isOwn = (userId: number) => userId === auth.user.id;
+
+    const canDelete = (msg: ChatMessageView) =>
+        isOwn(msg.user_id) || isOwner;
+
+    const canReport = (msg: ChatMessageView) =>
+        !isOwn(msg.user_id) && !isOwner;
 
     const feed = [
         ...messages.map((msg) => ({
@@ -354,7 +396,6 @@ export function RoomChat({
                             key={item.key}
                             className={`flex gap-2 group ${isOwn(item.msg.user_id) ? "flex-row-reverse" : ""}`}
                             onTouchStart={() =>
-                                isOwn(item.msg.user_id) &&
                                 setTappedMsgId(
                                     tappedMsgId === item.msg.id
                                         ? null
@@ -394,7 +435,7 @@ export function RoomChat({
                                         />
                                     )}
                                 </div>
-                                {isOwn(item.msg.user_id) && (
+                                {canDelete(item.msg) && (
                                     <button
                                         tabIndex={0}
                                         onClick={() =>
@@ -409,6 +450,22 @@ export function RoomChat({
                                         aria-label="حذف پیام"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                                {canReport(item.msg) && (
+                                    <button
+                                        tabIndex={0}
+                                        onClick={() =>
+                                            setReportTarget(item.msg.id)
+                                        }
+                                        className={`absolute -top-1.5 -end-1.5 h-6 w-6 rounded-full bg-warning text-warning-foreground flex items-center justify-center transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                                            tappedMsgId === item.msg.id
+                                                ? "opacity-100"
+                                                : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto"
+                                        }`}
+                                        aria-label="گزارش پیام"
+                                    >
+                                        <Flag className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                             </div>
@@ -483,6 +540,42 @@ export function RoomChat({
                 confirmVariant="destructive"
                 loading={deleting !== null}
             />
+
+            <ConfirmDialog
+                open={reportTarget !== null}
+                onClose={() => {
+                    setReportTarget(null);
+                    setReportReason("");
+                    setReportDetails("");
+                }}
+                onConfirm={reportMessage}
+                title="گزارش پیام"
+                description="دلیل گزارش این پیام را مشخص کنید (اختیاری)."
+                confirmLabel="گزارش شود"
+                confirmVariant="primary"
+                loading={reporting}
+            >
+                <div className="space-y-3 mt-3">
+                    <input
+                        type="text"
+                        value={reportReason}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        placeholder="دلیل (مثلاً هرزنامه، نامناسب)"
+                        maxLength={100}
+                        className="w-full h-9 rounded-xl border border-input bg-transparent px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        aria-label="دلیل گزارش"
+                    />
+                    <textarea
+                        value={reportDetails}
+                        onChange={(e) => setReportDetails(e.target.value)}
+                        placeholder="توضیحات بیشتر (اختیاری)"
+                        maxLength={1000}
+                        rows={3}
+                        className="w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                        aria-label="توضیحات گزارش"
+                    />
+                </div>
+            </ConfirmDialog>
         </div>
     );
 }

@@ -127,7 +127,11 @@ describe("RoomChat", () => {
         render(<RoomChat roomId={1} initialMessages={messages} />);
 
         await user.click(screen.getByRole("button", { name: "حذف پیام" }));
-        await user.click(screen.getByText("انصراف"));
+        // The delete ConfirmDialog's cancel button is inside the open dialog.
+        const dialogs = screen.getAllByRole("dialog");
+        const openDialog = dialogs.find((d) => d.hasAttribute("open"));
+        const cancelBtn = openDialog!.querySelectorAll("button")[0];
+        await user.click(cancelBtn);
 
         expect(mockDelete).not.toHaveBeenCalled();
         expect(screen.getByText("Keep me")).toBeInTheDocument();
@@ -492,6 +496,135 @@ describe("RoomChat", () => {
             },
             { timeout: 3000 },
         );
+    });
+});
+
+describe("RoomChat (owner moderation)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGet.mockResolvedValue({ data: [] });
+    });
+
+    it("shows delete button on all messages when isOwner is true", () => {
+        const messages = [
+            makeMessage({ id: 1, user_id: 1, body: "Mine" }),
+            makeMessage({ id: 2, user_id: 2, body: "Theirs" }),
+        ];
+        render(
+            <RoomChat roomId={1} initialMessages={messages} isOwner={true} />,
+        );
+
+        const deleteButtons = screen.getAllByRole("button", {
+            name: "حذف پیام",
+        });
+        expect(deleteButtons).toHaveLength(2);
+    });
+
+    it("does not show report button when isOwner is true", () => {
+        const messages = [
+            makeMessage({ id: 1, user_id: 2, body: "Other message" }),
+        ];
+        render(
+            <RoomChat roomId={1} initialMessages={messages} isOwner={true} />,
+        );
+
+        expect(
+            screen.queryByRole("button", { name: "گزارش پیام" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("shows report button on other users messages when not owner", () => {
+        const messages = [
+            makeMessage({ id: 1, user_id: 1, body: "Mine" }),
+            makeMessage({ id: 2, user_id: 2, body: "Theirs" }),
+        ];
+        render(
+            <RoomChat roomId={1} initialMessages={messages} isOwner={false} />,
+        );
+
+        // Report button exists for other users' messages
+        expect(
+            screen.getByRole("button", { name: "گزارش پیام" }),
+        ).toBeInTheDocument();
+        // Delete button only on own message (1), not on the other user's message
+        const deleteButtons = screen.getAllByRole("button", {
+            name: "حذف پیام",
+        });
+        expect(deleteButtons).toHaveLength(1);
+    });
+
+    it("does not show report button on own messages", () => {
+        const messages = [
+            makeMessage({ id: 1, user_id: 1, body: "Mine" }),
+        ];
+        render(
+            <RoomChat roomId={1} initialMessages={messages} isOwner={false} />,
+        );
+
+        expect(
+            screen.queryByRole("button", { name: "گزارش پیام" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("opens report dialog when report button is clicked", async () => {
+        const user = userEvent.setup();
+        const messages = [
+            makeMessage({ id: 1, user_id: 2, body: "Report this" }),
+        ];
+        render(
+            <RoomChat roomId={1} initialMessages={messages} isOwner={false} />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "گزارش پیام" }));
+
+        expect(screen.getByText("گزارش پیام")).toBeInTheDocument();
+        expect(screen.getByText("گزارش شود")).toBeInTheDocument();
+    });
+
+    it("calls api.post to report a message", async () => {
+        const user = userEvent.setup();
+        mockPost.mockResolvedValue({ data: { status: "ok" } });
+
+        const messages = [
+            makeMessage({ id: 42, user_id: 2, body: "Report me" }),
+        ];
+        render(
+            <RoomChat roomId={1} initialMessages={messages} isOwner={false} />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "گزارش پیام" }));
+        await user.click(screen.getByText("گزارش شود"));
+
+        await waitFor(() => {
+            expect(mockPost).toHaveBeenCalledWith("/chat/1/messages/42/report", {
+                reason: undefined,
+                details: undefined,
+            });
+        });
+
+        const { toast } = await import("sonner");
+        expect(toast.success).toHaveBeenCalledWith("گزارش پیام ثبت شد.");
+    });
+
+    it("allows owner to delete member message via confirm dialog", async () => {
+        const user = userEvent.setup();
+        mockDelete.mockResolvedValue({ data: { status: "ok" } });
+
+        const messages = [
+            makeMessage({ id: 10, user_id: 2, body: "Delete this" }),
+        ];
+        render(
+            <RoomChat roomId={1} initialMessages={messages} isOwner={true} />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "حذف پیام" }));
+        await user.click(screen.getByText("حذف شود"));
+
+        await waitFor(() => {
+            expect(mockDelete).toHaveBeenCalledWith("/chat/1/messages/10");
+        });
+
+        expect(screen.queryByText("Delete this")).not.toBeInTheDocument();
     });
 });
 

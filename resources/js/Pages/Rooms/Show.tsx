@@ -398,6 +398,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             initialMessages={room.chat_messages}
                             onUnreadCountChange={setChatUnread}
                             presenceMoments={presenceMoments}
+                            isOwner={isOwner}
                         />
                     </div>
                     <div
