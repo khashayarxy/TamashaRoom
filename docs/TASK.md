@@ -26,6 +26,16 @@
 
 ## Completed
 
+### Chat/Room Moderation MVP (2026-08-30)
+
+**Context:** Added report-message and owner-delete-any-message moderation capabilities to the chat system.
+
+- [x] **Backend:** `message_reports` migration (`2026_08_30_203304`), `MessageReport` model (room/message/reporter relationships), `ReportMessageAction` (duplicate prevention, Persian messages), `ChatController::report()` endpoint (`POST /chat/{room}/messages/{message}/report`, validates reason/details, scopes message to room).
+- [x] **Policy:** `ChatMessagePolicy::delete` updated to allow **room owner** in addition to message author.
+- [x] **Frontend:** `room-chat.tsx` rewritten — `isOwner` prop, `canDelete(msg)` (own + owner), `canReport(msg)` (not own, not owner), report dialog with reason/details fields, Flag icon. `confirm-dialog.tsx` updated with `children` prop support. `Show.tsx` passes `isOwner` to `RoomChat`.
+- [x] **Tests:** 20 backend tests (45 assertions) including 8 moderation-specific tests. 32 frontend tests including 20 owner-moderation tests. **Canonical counts: 309 PHPUnit, 297 Vitest.** All local checks pass (lint, type-check, Vitest, PHPUnit, pint, a11y contrast, docs drift).
+- [x] **CI:** `a1a0381` — all green (`gh run watch 33335070807`).
+
 ### Local Dev Migration: Herd → Sail (MySQL-only, PHP 8.4, no Redis) — 2026-08-25
 
 **Context:** Herd removed, moved to Laravel Sail for isolated local dev while keeping production on shared cPanel (Apache, PHP 8.4, MySQL, no Docker/Redis). WSL 2 + Docker Desktop active.
@@ -1083,7 +1093,7 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 ### Future Features
 - [x] Room ownership transfer UX polish (update member list after transfer) — **fixed 2026-08-01 (Batch 2C, TAM-005)**: ownership state now derives from the reactive `room-ui` store via new `useRoomOwnership` hook; old owner loses owner-only controls immediately, new owner adopts ownership from presence data, failed transfers leave state untouched. See Completed section.
 - [ ] Self-hosted WebSocket migration (Laravel Reverb) for post-MVP VPS scaling (>500 concurrent) — Pusher Channels push delivery (primary) with tiered polling fallback was completed 2026-08-07 (DECISION-002a); self-hosted Reverb remains a post-MVP VPS roadmap item.
-- [ ] Chat/room moderation — report message, owner can delete any message (not just their own)
+- [x] Chat/room moderation — report message, owner can delete any message (not just their own) — **done 2026-08-30**: `message_reports` migration, `MessageReport` model, `ReportMessageAction` (duplicate prevention), `ChatMessagePolicy::delete` now allows room owner, `ChatController::report()` endpoint (`POST /chat/{room}/messages/{message}/report`), frontend report dialog in `room-chat.tsx`, `isOwner` prop wired from `Show.tsx`, 32 frontend tests (20 owner-moderation-specific), 20 backend tests (8 moderation-specific). See Completed section.
 - [x] Cover profile, password-reset, verify-email pages with a11y audits — **done 2026-08-01 (Batch 2D, TAM-004)**: axe tests now cover `/reset-password/{token}`, `/confirm-password`, and the Profile delete-account modal open state; expanded to 19 tests across 5 spec files. See Completed section.
 - [x] E2E tests for chat, subtitle, lock/kick, and transfer flows (now covered — 22 Playwright E2E tests across 8 spec files)
 
