@@ -272,7 +272,9 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     showOnboarding && (
                         <RoomOnboarding
                             onCopyInvite={() =>
-                                handleCopy(route("rooms.join", room.invite_code))
+                                handleCopy(
+                                    route("rooms.join", room.invite_code),
+                                )
                             }
                             onAddVideo={() => setShowSetVideo(true)}
                             onDismiss={() => setShowOnboarding(false)}
