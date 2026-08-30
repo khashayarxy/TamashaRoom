@@ -48,8 +48,9 @@ class RoomPolicy
 
     public function kick(User $user, Room $room, User $target): Response
     {
-        if ($user->id !== $room->user_id) {
-            return $this->ownerOrDenyForMember($user, $room);
+        $owner = $this->ownerOrDenyForMember($user, $room);
+        if (! $owner->allowed()) {
+            return $owner;
         }
 
         return $target->id !== $room->user_id
