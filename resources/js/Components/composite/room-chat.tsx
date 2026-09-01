@@ -21,7 +21,14 @@ import {
     UserPlus,
     WifiOff,
 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+    FormEvent,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { toast } from "sonner";
 import type { PresenceMoment } from "@/lib/presence-moments";
 
@@ -349,20 +356,24 @@ export function RoomChat({
 
     const canReport = (msg: ChatMessageView) => !isOwn(msg.user_id) && !isOwner;
 
-    const feed = [
-        ...messages.map((msg) => ({
-            kind: "message" as const,
-            key: `m-${msg.id}`,
-            at: new Date(msg.created_at).getTime(),
-            msg,
-        })),
-        ...presenceMoments.map((moment) => ({
-            kind: "moment" as const,
-            key: moment.id,
-            at: moment.at,
-            moment,
-        })),
-    ].sort((a, b) => a.at - b.at);
+    const feed = useMemo(
+        () =>
+            [
+                ...messages.map((msg) => ({
+                    kind: "message" as const,
+                    key: `m-${msg.id}`,
+                    at: new Date(msg.created_at).getTime(),
+                    msg,
+                })),
+                ...presenceMoments.map((moment) => ({
+                    kind: "moment" as const,
+                    key: moment.id,
+                    at: moment.at,
+                    moment,
+                })),
+            ].sort((a, b) => a.at - b.at),
+        [messages, presenceMoments],
+    );
 
     return (
         <div className="flex flex-col h-full">

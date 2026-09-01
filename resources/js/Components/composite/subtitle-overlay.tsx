@@ -91,6 +91,31 @@ export function parseSubtitle(text: string): SubtitleCue[] {
     return text.includes("WEBVTT") ? parseVtt(text) : parseSrt(text);
 }
 
+export function findActiveCue(
+    cues: SubtitleCue[],
+    timeMs: number,
+): SubtitleCue | undefined {
+    let lo = 0;
+    let hi = cues.length - 1;
+    let candidate = -1;
+
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (cues[mid].start <= timeMs) {
+            candidate = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    if (candidate !== -1 && timeMs < cues[candidate].end) {
+        return cues[candidate];
+    }
+
+    return undefined;
+}
+
 export function useSubtitleSettings() {
     const settings = useSubtitleStore((s) => s.settings);
     const update = useSubtitleStore((s) => s.update);
@@ -124,9 +149,7 @@ export function SubtitleOverlay({
 
         const tick = () => {
             const timeMs = video.currentTime * 1000 + settings.offset;
-            const active = cues.find(
-                (c) => timeMs >= c.start && timeMs < c.end,
-            );
+            const active = findActiveCue(cues, timeMs);
             setCurrentText(active ? active.text : null);
             rafRef.current = requestAnimationFrame(tick);
         };
