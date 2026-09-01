@@ -21,3 +21,11 @@ Schedule::command('pusher:usage')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->description('Log Pusher presence-channel connection counts');
+
+Schedule::command('integrity:check --fix')
+    ->weeklyOn(1, '3:00')
+    ->description('Weekly data integrity check and auto-fix');
+
+Schedule::command('db:backup')
+    ->dailyAt('2:00')
+    ->description('Daily database backup with 7-day retention');
