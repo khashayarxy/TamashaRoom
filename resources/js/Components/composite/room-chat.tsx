@@ -200,7 +200,14 @@ export function RoomChat({
             (healthy) => {
                 pushHealthyRef.current = healthy;
                 if (healthy) {
+                    const t = toast as unknown as { dismiss?: (id: string) => void };
+                    t.dismiss?.("push-connection-lost");
                     void fetchMessages();
+                } else {
+                    toast.error("اتصال قطع شد — در حال تلاش مجدد...", {
+                        id: "push-connection-lost",
+                        duration: Infinity,
+                    });
                 }
             },
         );

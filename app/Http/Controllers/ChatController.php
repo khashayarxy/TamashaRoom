@@ -62,19 +62,27 @@ class ChatController extends Controller
 
     public function destroy(Request $request, Room $room, ChatMessage $message): JsonResponse
     {
-        // Scope the delete to the {room} route parameter so a message id from
-        // another room can never be targeted here (matches SubtitleController).
-        $message = $room->chatMessages()->whereKey($message->id)->firstOrFail();
+        // Idempotent delete: if already deleted in this room, return success silently.
+        // For cross-room requests, preserve 404 to avoid leaking existence.
+        $existing = $room->chatMessages()->whereKey($message->id)->first();
 
-        $this->authorize('delete', [$message, $room]);
+        if ($existing === null) {
+            if (ChatMessage::whereKey($message->id)->exists()) {
+                abort(404);
+            }
 
-        $message->delete();
+            return response()->json(['status' => 'ok', 'already_deleted' => true]);
+        }
+
+        $this->authorize('delete', [$existing, $room]);
+
+        $existing->delete();
 
         AuditLog::create([
             'user_id' => $request->user()->id,
             'action' => 'message.deleted',
             'auditable_type' => ChatMessage::class,
-            'auditable_id' => $message->id,
+            'auditable_id' => $existing->id,
             'context' => [
                 'ip' => $request->ip(),
                 'room_id' => $room->id,

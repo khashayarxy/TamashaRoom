@@ -6,14 +6,15 @@ namespace App\Actions;
 
 use App\Enums\PlaybackMode;
 use App\Exceptions\VideoUrlValidationException;
+use App\Services\HttpRetryService;
 use App\Services\UrlSecurityService;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class DetermineVideoPlaybackModeAction
 {
     public function __construct(
         private readonly UrlSecurityService $urlSecurity,
+        private readonly HttpRetryService $httpRetry = new HttpRetryService,
     ) {}
 
     public function execute(string $url): PlaybackMode
@@ -25,9 +26,7 @@ class DetermineVideoPlaybackModeAction
         }
 
         try {
-            $response = Http::withoutRedirecting()
-                ->timeout(3)
-                ->head($url);
+            $response = $this->httpRetry->head($url, 3, 500);
 
             if (! $response->successful()) {
                 return PlaybackMode::Proxy;
