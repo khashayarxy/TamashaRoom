@@ -72,12 +72,12 @@ class PresenceService
     {
         $timeout = now()->subSeconds(self::STALE_TIMEOUT_SECONDS);
 
-        $affectedRoomIds = RoomMember::query()
+        $staleMembers = RoomMember::query()
             ->where('presence_status', 'online')
             ->where('last_seen_at', '<', $timeout)
-            ->select('room_id')
-            ->distinct()
-            ->pluck('room_id');
+            ->with(['room', 'user'])
+            ->get()
+            ->groupBy('room_id');
 
         $updated = RoomMember::query()
             ->where('presence_status', 'online')
@@ -87,8 +87,8 @@ class PresenceService
                 'disconnected_at' => now(),
             ]);
 
-        foreach ($affectedRoomIds as $roomId) {
-            $room = Room::find($roomId);
+        foreach ($staleMembers as $members) {
+            $room = $members->first()->room;
 
             if ($room !== null) {
                 $this->dispatchPresenceEvent($room);
