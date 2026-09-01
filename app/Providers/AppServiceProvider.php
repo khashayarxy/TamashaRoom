@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Sentry\State\Scope;
+
+use function Sentry\configureScope;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -78,5 +81,23 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('subtitles', function (Request $request) {
             return Limit::perMinute(10)->by($request->user()?->id ?? $request->ip());
         });
+
+        // Bind authenticated user to Sentry scope for error context (when DSN configured).
+        // Guarded so local dev with dummy DSN still works — no exception if Sentry not booted.
+        if (app()->bound('sentry') || config('sentry.dsn')) {
+            try {
+                configureScope(function (Scope $scope): void {
+                    if (auth()->check()) {
+                        $user = auth()->user();
+                        $scope->setUser([
+                            'id' => $user->getAuthIdentifier(),
+                            'email' => $user->email ?? null,
+                        ]);
+                    }
+                });
+            } catch (\Throwable) {
+                // Sentry not configured — silent no-op.
+            }
+        }
     }
 }

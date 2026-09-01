@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\PlaybackController;
 use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\ProfileController;
@@ -20,6 +21,8 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
+Route::get('/api/health', HealthCheckController::class)->name('health');
 
 // Cloudflare Speed Brain opt-out. CF auto-enables Speed Brain on zones and
 // injects a `Speculation-Rules: "/cdn-cgi/speculation"` response header; the
