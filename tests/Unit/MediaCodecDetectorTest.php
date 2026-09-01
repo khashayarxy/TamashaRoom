@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Services\CodecDetectionResult;
+use App\Enums\CodecDetectionResult;
 use App\Services\MediaCodecDetector;
 use Tests\TestCase;
 

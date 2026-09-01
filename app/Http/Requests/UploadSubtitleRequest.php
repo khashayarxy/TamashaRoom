@@ -20,7 +20,7 @@ class UploadSubtitleRequest extends FormRequest
             'file' => [
                 'required',
                 'file',
-                'mimes:srt,vtt,txt',
+                'mimes:srt,vtt',
                 'max:2048',
             ],
             'label' => ['sometimes', 'string', 'max:255'],

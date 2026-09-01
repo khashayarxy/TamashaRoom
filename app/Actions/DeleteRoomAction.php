@@ -22,7 +22,11 @@ class DeleteRoomAction
      */
     public function execute(Room $room): void
     {
-        $this->deleteFilesForRooms(collect([$room->load('subtitleTracks')]));
+        if (! $room->relationLoaded('subtitleTracks')) {
+            $room->load('subtitleTracks');
+        }
+
+        $this->deleteFilesForRooms(collect([$room]));
 
         DB::transaction(function () use ($room): void {
             $room->subtitleTracks()->delete();

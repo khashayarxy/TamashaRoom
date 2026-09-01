@@ -18,6 +18,14 @@ class SubtitleTrack extends Model
         'original_extension',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'room_id' => 'integer',
+            'user_id' => 'integer',
+        ];
+    }
+
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);

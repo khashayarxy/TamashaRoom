@@ -16,7 +16,7 @@ class SetRoomVideoAction
     public function __construct(
         private readonly UrlSecurityService $urlSecurity,
         private readonly DetermineVideoPlaybackModeAction $determineMode,
-        private readonly MediaCodecDetector $codecDetector = new MediaCodecDetector,
+        private readonly MediaCodecDetector $codecDetector,
     ) {}
 
     /**

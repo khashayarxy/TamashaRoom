@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
@@ -71,6 +73,10 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('room-create', function (Request $request) {
             return Limit::perMinute(5)->by($request->user()?->id ?? $request->ip());
+        });
+
+        RateLimiter::for('subtitles', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->id ?? $request->ip());
         });
     }
 }

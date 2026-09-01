@@ -257,6 +257,12 @@ export function RoomChat({
         }
     }, [unreadCount]);
 
+    useEffect(() => {
+        return () => {
+            document.title = "تماشاروم";
+        };
+    }, []);
+
     const sendMessage = async (e: FormEvent) => {
         e.preventDefault();
         if (!body.trim()) return;

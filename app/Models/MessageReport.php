@@ -17,6 +17,15 @@ class MessageReport extends Model
         'details',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'room_id' => 'integer',
+            'message_id' => 'integer',
+            'reporter_id' => 'integer',
+        ];
+    }
+
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);

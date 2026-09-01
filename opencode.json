@@ -1,12 +1,77 @@
-{"mcp": {"laravel-boost": {
+{"mcp": {
+  "laravel-boost": {
     "type": "local",
     "enabled": true,
     "command": [
-        "php",
-        "artisan",
-        "boost:mcp"
+      "php",
+      "artisan",
+      "boost:mcp"
     ]
-}},
+  },
+  // Context7 — up-to-date Laravel 13 / React 19 / Vite 5 docs (prevents hallucinated APIs).
+  // Priority 1 — highest ROI for code accuracy. No API key required.
+  "context7": {
+    "type": "local",
+    "enabled": true,
+    "command": [
+      "npx",
+      "-y",
+      "@upstash/context7-mcp"
+    ]
+  },
+  // Playwright — autonomous UI browsing, screenshots, clicks on https://tamasharoom.test.
+  // Priority 1 — critical for UI debugging. No API key required.
+  "playwright": {
+    "type": "local",
+    "enabled": true,
+    "command": [
+      "npx",
+      "-y",
+      "@playwright/mcp@latest"
+    ]
+  },
+  // Filesystem — direct read/write in project root (Windows path uses forward slashes).
+  // Priority 2 — enables autonomous file editing without copy-paste.
+  "filesystem": {
+    "type": "local",
+    "enabled": true,
+    "command": [
+      "npx",
+      "-y",
+      "@modelcontextprotocol/server-filesystem",
+      "C:/Users/Khashayar/Documents/TamashaRoom"
+    ]
+  },
+  // SQLite — direct DB queries (EXPLAIN, index checks). Local dev only.
+  // NOTE: Native sqlite MCP packages (mcp-sqlite, @mokei/mcp-sqlite) require
+  // sqlite3 native bindings that fail on Herd/Windows without build tools.
+  // TamashaRoom already exposes DB via laravel-boost's database-query + database-schema
+  // tools (verified below) — use those instead. This entry is kept for reference
+  // and disabled; enable only if native bindings are fixed.
+  // To enable: npx -y @mokei/mcp-sqlite C:/Users/Khashayar/Documents/TamashaRoom/database/database.sqlite
+  "sqlite": {
+    "type": "local",
+    "enabled": false,
+    "command": [
+      "npx",
+      "-y",
+      "@mokei/mcp-sqlite",
+      "C:/Users/Khashayar/Documents/TamashaRoom/database/database.sqlite"
+    ]
+  },
+  // Fetch — external docs (Pusher, Apinator). Built-in webfetch covers this;
+  // @modelcontextprotocol/server-fetch does not exist on npm (404). Kept disabled.
+  // Use OpenCode's webfetch tool for URL fetching. Brave Search requires API key — ask first.
+  "fetch": {
+    "type": "local",
+    "enabled": false,
+    "command": [
+      "npx",
+      "-y",
+      "@modelcontextprotocol/server-fetch"
+    ]
+  }
+},
   "$schema": "https://opencode.ai/config.json",
 
   // Provider setup:

@@ -1,4 +1,5 @@
 import { useFullscreenTarget } from "@/Hooks/use-fullscreen-target";
+import { cn } from "@/lib/utils";
 import { useSubtitleStore } from "@/stores/subtitle";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -244,8 +245,4 @@ export function SubtitleOverlay({
     return fullscreenElement
         ? createPortal(overlayContent, fullscreenElement)
         : overlayContent;
-}
-
-function cn(...classes: (string | false | null | undefined)[]): string {
-    return classes.filter(Boolean).join(" ");
 }

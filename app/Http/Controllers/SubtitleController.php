@@ -86,7 +86,7 @@ class SubtitleController extends Controller
 
         $vttContent = $this->converter->convertToVtt($content, $extension);
 
-        $label = $request->input('label', $file->getClientOriginalName());
+        $label = mb_substr((string) $request->input('label', $file->getClientOriginalName()), 0, 255);
         $language = $request->input('language', 'fa');
 
         $filename = sprintf('%d_%s.vtt', time(), substr(md5($label), 0, 8));

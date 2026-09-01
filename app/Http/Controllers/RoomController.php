@@ -164,11 +164,7 @@ class RoomController extends Controller
 
     public function kick(Request $request, Room $room, int $targetId): JsonResponse
     {
-        $target = User::find($targetId);
-
-        if ($target === null) {
-            abort(404);
-        }
+        $target = User::findOrFail($targetId);
 
         $this->authorize('kick', [$room, $target]);
 
@@ -204,11 +200,7 @@ class RoomController extends Controller
 
     public function transfer(Request $request, Room $room, int $targetId): JsonResponse
     {
-        $target = User::find($targetId);
-
-        if ($target === null) {
-            abort(404);
-        }
+        $target = User::findOrFail($targetId);
 
         $this->authorize('transfer', $room);
 

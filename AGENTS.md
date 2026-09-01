@@ -108,6 +108,25 @@ php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 ```
 
+## MCP Setup (OpenCode)
+
+`opencode.json` (`mcp` key) is the source of truth — restart OpenCode after editing it.
+
+| MCP | Package | Status | Purpose |
+|---|---|---|---|
+| `laravel-boost` | `php artisan boost:mcp` | ✅ active | DB schema/query, app-info, search-docs |
+| `context7` | `@upstash/context7-mcp` | ✅ active | Laravel 13 / React 19 / Vite 5 docs (no hallucination) |
+| `playwright` | `@playwright/mcp@latest` | ✅ active | Browse `https://tamasharoom.test`, screenshots, clicks |
+| `filesystem` | `@modelcontextprotocol/server-filesystem` | ✅ active | Direct R/W in `C:/Users/Khashayar/Documents/TamashaRoom` |
+| `sqlite` | `@mokei/mcp-sqlite` | ⚠️ disabled | Requires native `sqlite3` bindings (fails on Herd/Windows) — use `laravel-boost` `database-query`/`database-schema` instead |
+| `fetch` | `@modelcontextprotocol/server-fetch` | ⚠️ disabled | 404 on npm — use built-in `webfetch`/`websearch` tools |
+
+- `context7` + `playwright` are **mandatory** for AI-assisted tasks (highest ROI).
+- All use `npx -y` (no interactive prompt). Paths use forward slashes.
+- Reset recovery: copy snippet from `opencode.json` comments or run the `npx -y <package>` commands above.
+- `sqlite`/`fetch` disabled intentionally — covered by `laravel-boost` and `webfetch`; `Brave Search` needs `BRAVE_API_KEY` — ask before enabling.
+- Verify after change: `npx -y @upstash/context7-mcp --help`, `npx -y @playwright/mcp@latest --help`, `.\scripts\verify-local-env.ps1`
+
 ## Auto-Build Workflow
 
 After EVERY commit that includes frontend changes (JS/CSS/Vite config), the

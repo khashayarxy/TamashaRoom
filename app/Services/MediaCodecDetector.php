@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CodecDetectionResult;
 use Illuminate\Support\Facades\Log;
 
 class MediaCodecDetector

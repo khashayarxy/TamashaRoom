@@ -72,9 +72,14 @@ export function SubtitleSettingsDialog({
                 </DialogHeader>
 
                 {/* Tab Switcher */}
-                <div className="flex rounded-xl bg-secondary p-1 mb-3 shrink-0">
+                <div
+                    role="tablist"
+                    className="flex rounded-xl bg-secondary p-1 mb-3 shrink-0"
+                >
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={activeTab === "basic"}
                         onClick={() => setActiveTab("basic")}
                         className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors text-center ${
                             activeTab === "basic"
@@ -86,6 +91,8 @@ export function SubtitleSettingsDialog({
                     </button>
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={activeTab === "advanced"}
                         onClick={() => setActiveTab("advanced")}
                         className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors text-center ${
                             activeTab === "advanced"

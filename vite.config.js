@@ -17,6 +17,9 @@ const https =
         : true;
 
 export default defineConfig({
+    build: {
+        sourcemap: false,
+    },
     server: {
         host: '0.0.0.0',
         port: 5173,

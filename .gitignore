@@ -1,3 +1,9 @@
+# ─── Sensitive Certificates & Keys (never commit) ─────────────────────────
+*.pem
+*.key
+*.crt
+*.pfx
+
 # ─── Environment & Sensitive ──────────────────────────────────────────────
 .env
 .env.backup
