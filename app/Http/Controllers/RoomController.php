@@ -69,10 +69,12 @@ class RoomController extends Controller
         // Keep chronological (oldest-first) order, matching ChatController::index.
         $room->setRelation('chatMessages', $room->chatMessages->reverse()->values());
 
-        // The `is_owner` accessor on RoomMember reads `$this->room`; set the
-        // relation explicitly so Inertia serialization never lazy-loads it
-        // (mirrors RoomController::members).
-        $room->members->each->setRelation('room', $room);
+        // Explicitly append `is_owner` instead of relying on $appends (which
+        // would lazy-load `room` when serialized without eager loading).
+        $room->members->each(function (RoomMember $member) use ($room): void {
+            $member->setRelation('room', $room);
+            $member->append('is_owner');
+        });
 
         return Inertia::render('Rooms/Show', [
             'room' => $room,
@@ -130,7 +132,10 @@ class RoomController extends Controller
 
         $room->load('members.user:id,name');
 
-        $room->members->each->setRelation('room', $room);
+        $room->members->each(function (RoomMember $member) use ($room): void {
+            $member->setRelation('room', $room);
+            $member->append('is_owner');
+        });
 
         return response()->json($room->members);
     }

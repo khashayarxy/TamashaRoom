@@ -19,10 +19,6 @@ class RoomMember extends Model
         'disconnected_at',
     ];
 
-    protected $appends = [
-        'is_owner',
-    ];
-
     protected $hidden = [
         'room',
     ];

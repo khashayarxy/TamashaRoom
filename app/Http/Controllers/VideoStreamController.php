@@ -22,9 +22,10 @@ class VideoStreamController extends Controller
         $videoUrl = $room->video_url;
 
         if ($videoUrl === null || $videoUrl === '') {
-            return response()->stream(function (): void {
-                echo json_encode(['error' => 'No video source configured.']);
-            }, 404, ['Content-Type' => 'application/json']);
+            return response()->stream(function (): void {}, 404, [
+                'Content-Type' => 'video/mp4',
+                'X-Proxy-Error' => 'No video source configured.',
+            ]);
         }
 
         return $this->proxy->stream($request, $videoUrl);

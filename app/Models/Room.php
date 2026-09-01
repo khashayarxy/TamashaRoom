@@ -69,6 +69,11 @@ class Room extends Model
         return $this->hasMany(SubtitleTrack::class);
     }
 
+    public function activeSubtitleTrack(): BelongsTo
+    {
+        return $this->belongsTo(SubtitleTrack::class, 'active_subtitle_track_id');
+    }
+
     public static function generateInviteCode(): string
     {
         return Str::random(12);

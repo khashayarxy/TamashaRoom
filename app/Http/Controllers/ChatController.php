@@ -79,12 +79,24 @@ class ChatController extends Controller
             'details' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        return $action->execute(
+        $report = $action->execute(
             $room,
             $message,
             $request->user(),
             $validated['reason'] ?? null,
             $validated['details'] ?? null,
         );
+
+        if ($report === null) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'این پیام قبلاً توسط شما گزارش شده است.',
+            ], 422);
+        }
+
+        return response()->json([
+            'status' => 'ok',
+            'message' => 'گزارش پیام ثبت شد.',
+        ]);
     }
 }

@@ -8,12 +8,13 @@ use App\Models\ChatMessage;
 use App\Models\MessageReport;
 use App\Models\Room;
 use App\Models\User;
-use Illuminate\Http\JsonResponse;
 
 class ReportMessageAction
 {
     /**
      * Report a chat message. Prevents duplicate reports by the same user.
+     *
+     * @return MessageReport|null null when already reported (duplicate)
      */
     public function execute(
         Room $room,
@@ -21,29 +22,21 @@ class ReportMessageAction
         User $reporter,
         ?string $reason = null,
         ?string $details = null,
-    ): JsonResponse {
+    ): ?MessageReport {
         $existing = MessageReport::where('message_id', $message->id)
             ->where('reporter_id', $reporter->id)
             ->first();
 
         if ($existing) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'این پیام قبلاً توسط شما گزارش شده است.',
-            ], 422);
+            return null;
         }
 
-        MessageReport::create([
+        return MessageReport::create([
             'room_id' => $room->id,
             'message_id' => $message->id,
             'reporter_id' => $reporter->id,
             'reason' => $reason,
             'details' => $details,
-        ]);
-
-        return response()->json([
-            'status' => 'ok',
-            'message' => 'گزارش پیام ثبت شد.',
         ]);
     }
 }

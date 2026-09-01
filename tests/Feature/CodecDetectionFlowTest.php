@@ -33,10 +33,11 @@ class CodecDetectionFlowTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJson([
-            'status' => 'error',
-            'message' => 'این ویدیو با کدک HEVC/x265 فشرده‌سازی شده که فعلاً پشتیبانی نمی‌شود. لطفاً از فایل‌های MP4 یا MKV با کدک H.264 استفاده کنید.',
-        ]);
+        $response->assertJsonValidationErrors(['video_url']);
+        $this->assertStringContainsString(
+            'HEVC',
+            json_encode($response->json(), JSON_UNESCAPED_UNICODE),
+        );
     }
 
     public function test_allows_h264_video_to_be_set(): void

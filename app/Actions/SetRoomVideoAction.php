@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Enums\PlaybackMode;
 use App\Events\PlaybackStateChanged;
 use App\Models\Room;
 use App\Services\MediaCodecDetector;
 use App\Services\UrlSecurityService;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class SetRoomVideoAction
 {
@@ -21,25 +22,23 @@ class SetRoomVideoAction
     /**
      * Set a new video URL for a room, broadcasting the change.
      *
-     * Returns JSON response with status, state_version, and playback_mode.
+     * @return array{state_version: int, server_timestamp: float|null, playback_mode: PlaybackMode}
      */
-    public function execute(Room $room, string $videoUrl, int $userId): JsonResponse
+    public function execute(Room $room, string $videoUrl, int $userId): array
     {
         $error = $this->urlSecurity->validateVideoUrl($videoUrl);
 
         if ($error !== null) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $error,
-            ], 422);
+            throw ValidationException::withMessages([
+                'video_url' => $error,
+            ]);
         }
 
         $codecResult = $this->codecDetector->detectFromUrl($videoUrl);
         if ($codecResult->isConfidentlyHEVC()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'این ویدیو با کدک HEVC/x265 فشرده‌سازی شده که فعلاً پشتیبانی نمی‌شود. لطفاً از فایل‌های MP4 یا MKV با کدک H.264 استفاده کنید.',
-            ], 422);
+            throw ValidationException::withMessages([
+                'video_url' => 'این ویدیو با کدک HEVC/x265 فشرده‌سازی شده که فعلاً پشتیبانی نمی‌شود. لطفاً از فایل‌های MP4 یا MKV با کدک H.264 استفاده کنید.',
+            ]);
         }
 
         $playbackMode = $this->determineMode->execute($videoUrl);
@@ -57,11 +56,10 @@ class SetRoomVideoAction
 
         broadcast(new PlaybackStateChanged($room, $userId))->toOthers();
 
-        return response()->json([
-            'status' => 'ok',
+        return [
             'state_version' => $room->state_version,
             'server_timestamp' => $room->server_timestamp,
             'playback_mode' => $playbackMode,
-        ]);
+        ];
     }
 }

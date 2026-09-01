@@ -4,67 +4,31 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Actions\DetermineVideoPlaybackModeAction;
 use App\Actions\SetRoomVideoAction;
-use App\Enums\PlaybackMode;
-use App\Events\PlaybackStateChanged;
+use App\Actions\UpdatePlaybackStateAction;
 use App\Http\Requests\UpdatePlaybackRequest;
 use App\Models\Room;
-use App\Services\UrlSecurityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PlaybackController extends Controller
 {
     public function __construct(
-        private readonly UrlSecurityService $urlSecurity,
-        private readonly DetermineVideoPlaybackModeAction $determineMode,
         private readonly SetRoomVideoAction $setVideoAction,
+        private readonly UpdatePlaybackStateAction $updatePlaybackAction,
     ) {}
 
     public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse
     {
         $this->authorize('update', $room);
 
-        $videoUrl = $request->video_url ?? $room->video_url;
-        $playbackMode = $room->playback_mode;
+        $result = $this->updatePlaybackAction->execute(
+            $room,
+            $request->validated(),
+            $request->user()->id,
+        );
 
-        if ($videoUrl !== $room->video_url) {
-            if ($videoUrl !== null) {
-                $error = $this->urlSecurity->validateVideoUrl($videoUrl);
-
-                if ($error !== null) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => $error,
-                    ], 422);
-                }
-
-                $playbackMode = $this->determineMode->execute($videoUrl);
-            } else {
-                $playbackMode = PlaybackMode::Proxy;
-            }
-        }
-
-        $room->updatePlaybackState([
-            'is_playing' => $request->is_playing,
-            'position_seconds' => $request->position_seconds,
-            'duration_seconds' => $request->duration_seconds,
-            'playback_rate' => $request->playback_rate ?? 1.0,
-            'video_url' => $videoUrl,
-            'playback_mode' => $playbackMode,
-        ]);
-
-        $room->refresh();
-
-        broadcast(new PlaybackStateChanged($room, $request->user()->id))->toOthers();
-
-        return response()->json([
-            'status' => 'ok',
-            'state_version' => $room->state_version,
-            'server_timestamp' => $room->server_timestamp,
-            'playback_mode' => $room->playback_mode?->value ?? PlaybackMode::Proxy->value,
-        ]);
+        return response()->json(array_merge(['status' => 'ok'], $result));
     }
 
     public function setVideo(Request $request, Room $room): JsonResponse
@@ -75,7 +39,14 @@ class PlaybackController extends Controller
             'video_url' => 'required|url',
         ]);
 
-        return $this->setVideoAction->execute($room, $validated['video_url'], $request->user()->id);
+        $result = $this->setVideoAction->execute($room, $validated['video_url'], $request->user()->id);
+
+        return response()->json([
+            'status' => 'ok',
+            'state_version' => $result['state_version'],
+            'server_timestamp' => $result['server_timestamp'],
+            'playback_mode' => $result['playback_mode'],
+        ]);
     }
 
     public function state(Room $room): JsonResponse
