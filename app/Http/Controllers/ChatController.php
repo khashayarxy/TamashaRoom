@@ -6,8 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Actions\ReportMessageAction;
 use App\Events\NewChatMessage;
+use App\Models\AuditLog;
 use App\Models\ChatMessage;
 use App\Models\Room;
+use App\Services\ContentModerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -28,13 +30,20 @@ class ChatController extends Controller
         return response()->json($messages);
     }
 
-    public function store(Request $request, Room $room): JsonResponse
+    public function store(Request $request, Room $room, ContentModerator $moderator): JsonResponse
     {
         $this->authorize('create', [ChatMessage::class, $room]);
 
         $validated = $request->validate([
             'body' => 'required|string|max:500',
         ]);
+
+        if ($moderator->containsBlockedContent($validated['body'])) {
+            return response()->json([
+                'message' => 'پیام شما حاوی کلمات نامناسب است.',
+                'errors' => ['body' => ['پیام شما حاوی کلمات نامناسب است.']],
+            ], 422);
+        }
 
         $message = ChatMessage::create([
             'room_id' => $room->id,
@@ -60,6 +69,17 @@ class ChatController extends Controller
         $this->authorize('delete', [$message, $room]);
 
         $message->delete();
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'message.deleted',
+            'auditable_type' => ChatMessage::class,
+            'auditable_id' => $message->id,
+            'context' => [
+                'ip' => $request->ip(),
+                'room_id' => $room->id,
+            ],
+        ]);
 
         return response()->json(['status' => 'ok']);
     }

@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Services\PresenceService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class MarkStaleMembersOffline extends Command
 {
@@ -15,7 +16,14 @@ class MarkStaleMembersOffline extends Command
 
     public function handle(PresenceService $presence): int
     {
-        $count = $presence->markStaleAsOffline();
+        try {
+            $count = $presence->markStaleAsOffline();
+        } catch (\Throwable $e) {
+            report($e);
+            Log::error('Presence sweep failed', ['error' => $e->getMessage()]);
+
+            return self::FAILURE;
+        }
 
         if ($count > 0) {
             $this->info("Marked {$count} stale member(s) as offline.");

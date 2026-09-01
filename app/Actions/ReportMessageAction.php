@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Models\AuditLog;
 use App\Models\ChatMessage;
 use App\Models\MessageReport;
 use App\Models\Room;
@@ -31,12 +32,25 @@ class ReportMessageAction
             return null;
         }
 
-        return MessageReport::create([
+        $report = MessageReport::create([
             'room_id' => $room->id,
             'message_id' => $message->id,
             'reporter_id' => $reporter->id,
             'reason' => $reason,
             'details' => $details,
         ]);
+
+        AuditLog::create([
+            'user_id' => $reporter->id,
+            'action' => 'message.reported',
+            'auditable_type' => ChatMessage::class,
+            'auditable_id' => $message->id,
+            'context' => [
+                'room_id' => $room->id,
+                'reason' => $reason,
+            ],
+        ]);
+
+        return $report;
     }
 }

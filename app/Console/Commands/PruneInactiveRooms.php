@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Actions\DeleteRoomAction;
 use App\Models\Room;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class PruneInactiveRooms extends Command
 {
@@ -16,22 +17,29 @@ class PruneInactiveRooms extends Command
 
     public function handle(DeleteRoomAction $deleteRoom): int
     {
-        $days = (int) $this->option('days');
-        $cutoff = now()->subDays($days);
+        try {
+            $days = (int) $this->option('days');
+            $cutoff = now()->subDays($days);
 
-        $count = 0;
+            $count = 0;
 
-        Room::with('subtitleTracks')
-            ->where('last_activity_at', '<', $cutoff)
-            ->chunkById(50, function ($rooms) use ($deleteRoom, &$count): void {
-                foreach ($rooms as $room) {
-                    $deleteRoom->execute($room);
-                    $count++;
-                }
-            });
+            Room::with('subtitleTracks')
+                ->where('last_activity_at', '<', $cutoff)
+                ->chunkById(50, function ($rooms) use ($deleteRoom, &$count): void {
+                    foreach ($rooms as $room) {
+                        $deleteRoom->execute($room);
+                        $count++;
+                    }
+                });
 
-        $this->info("Pruned {$count} inactive room(s) older than {$days} days.");
+            $this->info("Pruned {$count} inactive room(s) older than {$days} days.");
 
-        return self::SUCCESS;
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            report($e);
+            Log::error('Prune inactive rooms failed', ['error' => $e->getMessage()]);
+
+            return self::FAILURE;
+        }
     }
 }

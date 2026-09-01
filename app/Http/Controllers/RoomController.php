@@ -10,6 +10,7 @@ use App\Actions\JoinRoomAction;
 use App\Http\Requests\JoinRoomRequest;
 use App\Http\Requests\StoreRoomRequest;
 use App\Http\Requests\UpdateRoomRequest;
+use App\Models\AuditLog;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
@@ -144,8 +145,20 @@ class RoomController extends Controller
     {
         $this->authorize('update', $room);
 
-        $room->update($request->validated());
+        $validated = $request->validated();
+        $room->update($validated);
         $room->touchActivity();
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'room.settings.updated',
+            'auditable_type' => Room::class,
+            'auditable_id' => $room->id,
+            'context' => [
+                'ip' => $request->ip(),
+                'changes' => $validated,
+            ],
+        ]);
 
         return response()->json([
             'status' => 'ok',
@@ -169,6 +182,17 @@ class RoomController extends Controller
         $this->authorize('kick', [$room, $target]);
 
         $room->members()->where('user_id', $target->id)->delete();
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'member.kicked',
+            'auditable_type' => Room::class,
+            'auditable_id' => $room->id,
+            'context' => [
+                'ip' => $request->ip(),
+                'target_user_id' => $target->id,
+            ],
+        ]);
 
         $this->presence->broadcastMembers($room);
 
@@ -206,8 +230,21 @@ class RoomController extends Controller
 
         $room->members()->where('user_id', $target->id)->firstOrFail();
 
+        $previousOwnerId = $room->user_id;
         $room->user_id = $target->id;
         $room->save();
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'ownership.transferred',
+            'auditable_type' => Room::class,
+            'auditable_id' => $room->id,
+            'context' => [
+                'ip' => $request->ip(),
+                'previous_owner_id' => $previousOwnerId,
+                'new_owner_id' => $target->id,
+            ],
+        ]);
 
         $this->presence->broadcastMembers($room);
 
