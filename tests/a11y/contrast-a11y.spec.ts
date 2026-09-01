@@ -308,7 +308,7 @@ test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
             // The offset slider is on the "پیشرفته" tab (subtitle settings redesign).
             // Scope the range selector to the open dialog: the room player also
             // has range/seekbar controls outside the dialog.
-            await page.getByRole("button", { name: "پیشرفته" }).click();
+            await page.getByRole("tab", { name: "پیشرفته" }).click();
             const offsetSlider = page.locator(
                 'dialog[open] input[type="range"][max="5000"]',
             );
