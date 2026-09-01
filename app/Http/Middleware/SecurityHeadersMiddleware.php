@@ -53,12 +53,12 @@ class SecurityHeadersMiddleware
         $response->headers->set('Permissions-Policy', $permissions, true);
 
         // The client-side Echo instance (resources/js/lib/echo.ts) dials
-        // wss://ws-{cluster}.pusher.com (or a custom VITE_PUSHER_HOST for a
-        // future Reverb endpoint) when BROADCAST_CONNECTION=pusher. connect-src
+        // wss://ws-{cluster}.pusher.com (or wss://api.apinator.io when
+        // BROADCAST_CONNECTION=apinator) when push is active. connect-src
         // must allow that WebSocket origin or push never connects and the room
-        // hooks silently fall back to nothing. Only emitted when the pusher
+        // hooks silently fall back to nothing. Only emitted when a push
         // driver is actually active.
-        $pusherOrigin = $this->pusherWebSocketOrigin();
+        $pusherOrigin = $this->broadcastWebSocketOrigin();
 
         if (app()->environment('local')) {
             $viteOrigins = [
@@ -144,7 +144,7 @@ class SecurityHeadersMiddleware
     }
 
     /**
-     * The WebSocket origin the Echo client dials when the pusher driver is
+     * The WebSocket origin the Echo client dials when a push driver is
      * active. Mirrors resources/js/lib/echo.ts: PUSHER_HOST (VITE_PUSHER_HOST
      * client-side) overrides the default ws-{cluster}.pusher.com, and
      * PUSHER_SCHEME decides ws:// vs wss://. The cluster is read from the
@@ -152,12 +152,21 @@ class SecurityHeadersMiddleware
      * mt1 default instead of emitting a broken "ws-.pusher.com" origin, and
      * tests can pin it via config(). PUSHER_HOST/PUSHER_SCHEME stay raw env —
      * the driver's `host` option is the REST API host (api-*.pusher.com),
-     * which is NOT the WebSocket host. Null when broadcasting is not pusher,
-     * so the CSP stays as tight as ever.
+     * which is NOT the WebSocket host. Apinator (BROADCAST_CONNECTION=apinator)
+     * dials wss://{APINATOR_HOST} (default api.apinator.io). Null when
+     * broadcasting is not pusher/apinator, so the CSP stays as tight as ever.
      */
-    private function pusherWebSocketOrigin(): ?string
+    private function broadcastWebSocketOrigin(): ?string
     {
-        if (config('broadcasting.default') !== 'pusher') {
+        $driver = config('broadcasting.default');
+
+        if ($driver === 'apinator') {
+            $host = (string) env('APINATOR_HOST', 'api.apinator.io');
+
+            return 'wss://'.$host;
+        }
+
+        if ($driver !== 'pusher') {
             return null;
         }
 
@@ -168,5 +177,13 @@ class SecurityHeadersMiddleware
         $host = $host !== '' ? $host : 'ws-'.$cluster.'.pusher.com';
 
         return ($scheme === 'https' ? 'wss://' : 'ws://').$host;
+    }
+
+    /**
+     * @deprecated Use broadcastWebSocketOrigin() instead.
+     */
+    private function pusherWebSocketOrigin(): ?string
+    {
+        return $this->broadcastWebSocketOrigin();
     }
 }
