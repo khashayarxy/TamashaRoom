@@ -20,7 +20,7 @@ class UploadSubtitleRequest extends FormRequest
             'file' => [
                 'required',
                 'file',
-                'mimes:srt,vtt',
+                'extensions:srt,vtt',
                 'max:2048',
             ],
             'label' => ['sometimes', 'string', 'max:255'],
@@ -59,6 +59,7 @@ class UploadSubtitleRequest extends FormRequest
         return [
             'file.required' => 'Please select a subtitle file.',
             'file.mimes' => 'Only SRT and VTT files are allowed.',
+            'file.extensions' => 'Only SRT and VTT files are allowed.',
             'file.max' => 'File size must not exceed 2 MB.',
         ];
     }
