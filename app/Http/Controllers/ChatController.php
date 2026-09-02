@@ -10,11 +10,14 @@ use App\Models\AuditLog;
 use App\Models\ChatMessage;
 use App\Models\Room;
 use App\Services\ContentModerator;
+use App\Traits\HasFeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ChatController extends Controller
 {
+    use HasFeatureFlags;
+
     public function index(Request $request, Room $room): JsonResponse
     {
         $this->authorize('viewAny', [ChatMessage::class, $room]);
@@ -38,7 +41,7 @@ class ChatController extends Controller
             'body' => 'required|string|max:500',
         ]);
 
-        if ($moderator->containsBlockedContent($validated['body'])) {
+        if ($this->featureEnabled('chat_moderation') && $moderator->containsBlockedContent($validated['body'])) {
             return response()->json([
                 'message' => 'پیام شما حاوی کلمات نامناسب است.',
                 'errors' => ['body' => ['پیام شما حاوی کلمات نامناسب است.']],
