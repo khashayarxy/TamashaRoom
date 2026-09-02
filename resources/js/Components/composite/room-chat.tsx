@@ -391,7 +391,7 @@ export function RoomChat({
     );
 
     return (
-        <div className="flex flex-col h-full">
+        <div data-testid="chat-panel" className="flex flex-col h-full">
             <div ref={listRef} className="flex-1 overflow-y-auto space-y-3 p-4">
                 {pollError && (
                     <div role="status" className="flex justify-center py-1">
