@@ -9,6 +9,11 @@ export default defineConfig({
         include: ['resources/js/**/*.{test,spec}.{ts,tsx}'],
         setupFiles: ['resources/js/__tests__/setup.ts'],
         globals: true,
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'html', 'json'],
+            reportsDirectory: 'storage/app/coverage/vitest',
+        },
     },
     resolve: {
         alias: {

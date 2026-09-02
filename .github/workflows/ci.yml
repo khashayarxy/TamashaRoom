@@ -80,6 +80,29 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
 
+      - name: Generate PHPUnit Coverage
+        run: php artisan test --coverage --min=80
+        continue-on-error: true
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+
+      - name: Generate Vitest Coverage
+        run: npm run test -- --coverage
+        continue-on-error: true
+
+      - name: Upload Coverage Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: storage/app/coverage/
+          if-no-files-found: warn
+
+      - name: Run Visual Regression Tests
+        run: npx playwright test visual-regression --config=tests/e2e/playwright.config.ts
+        continue-on-error: true
+
       - name: Run Pint style check
         run: ./vendor/bin/pint --test
 
