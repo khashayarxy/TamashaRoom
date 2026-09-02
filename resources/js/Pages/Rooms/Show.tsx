@@ -34,8 +34,10 @@ const ConfirmDialog = lazy(() =>
         default: m.ConfirmDialog,
     })),
 );
+import { PageErrorFallback } from "@/Components/composite/page-error-fallback";
 import { Button } from "@/Components/ui/button";
 import { Card, CardContent } from "@/Components/ui/card";
+import { ErrorBoundary } from "@/Components/ui/error-boundary";
 import { usePresence } from "@/Hooks/use-presence";
 import { useRoomOwnership } from "@/Hooks/use-room-ownership";
 import { useSuggestNext } from "@/Hooks/use-suggest-next";
@@ -241,7 +243,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     // room height never extends under the browser chrome during scroll —
     // vh alone overflows on mobile browsers.
     return (
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)] supports-[height:100dvh]:h-[calc(100dvh-8.5rem)]">
+        <ErrorBoundary fallback={<PageErrorFallback />}>
+            <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)] supports-[height:100dvh]:h-[calc(100dvh-8.5rem)]">
             <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-0">
                 <div className="flex items-center justify-between">
                     <div>
@@ -515,7 +518,8 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                     />
                 </Suspense>
             )}
-        </div>
+            </div>
+        </ErrorBoundary>
     );
 }
 

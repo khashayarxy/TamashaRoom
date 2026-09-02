@@ -6,7 +6,9 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/Components/composite/confirm-dialog";
 import { RoomCard, type RoomCardRoom } from "@/Components/composite/room-card";
+import { PageErrorFallback } from "@/Components/composite/page-error-fallback";
 import { Button } from "@/Components/ui/button";
+import { ErrorBoundary } from "@/Components/ui/error-boundary";
 import { Input } from "@/Components/ui/input";
 import AppLayout from "@/Layouts/AppLayout";
 import {
@@ -105,8 +107,9 @@ export default function Dashboard({ rooms }: { rooms: RoomCardRoom[] }) {
     };
 
     return (
-        <div className="space-y-8 lg:space-y-10">
-            <Head title="داشبورد" />
+        <ErrorBoundary fallback={<PageErrorFallback />}>
+            <div className="space-y-8 lg:space-y-10">
+                <Head title="داشبورد" />
 
             <header className="space-y-2">
                 <h1 className="text-3xl font-bold tracking-tight">
@@ -278,19 +281,20 @@ export default function Dashboard({ rooms }: { rooms: RoomCardRoom[] }) {
                 </div>
             )}
 
-            <ConfirmDialog
-                open={roomToDelete !== null}
-                onClose={() => {
-                    if (!deleting) setRoomToDelete(null);
-                }}
-                onConfirm={deleteRoom}
-                title={`حذف ${roomToDelete?.name ?? ""}`}
-                description={`آیا از حذف "${roomToDelete?.name ?? ""}" مطمئن هستید؟ این عمل قابل بازگشت نیست.`}
-                confirmLabel="حذف شود"
-                confirmVariant="destructive"
-                loading={deleting}
-            />
-        </div>
+                <ConfirmDialog
+                    open={roomToDelete !== null}
+                    onClose={() => {
+                        if (!deleting) setRoomToDelete(null);
+                    }}
+                    onConfirm={deleteRoom}
+                    title={`حذف ${roomToDelete?.name ?? ""}`}
+                    description={`آیا از حذف "${roomToDelete?.name ?? ""}" مطمئن هستید؟ این عمل قابل بازگشت نیست.`}
+                    confirmLabel="حذف شود"
+                    confirmVariant="destructive"
+                    loading={deleting}
+                />
+            </div>
+        </ErrorBoundary>
     );
 }
 

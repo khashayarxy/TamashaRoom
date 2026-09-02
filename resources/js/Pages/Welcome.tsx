@@ -1,7 +1,9 @@
 import { Head, Link } from "@inertiajs/react";
 import { Moon, Play, Sun, Tv } from "lucide-react";
 
+import { PageErrorFallback } from "@/Components/composite/page-error-fallback";
 import { buttonVariants } from "@/Components/ui/button";
+import { ErrorBoundary } from "@/Components/ui/error-boundary";
 import { toPersianDigits } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
 
@@ -21,7 +23,7 @@ export default function Welcome({ auth }: PageProps) {
           };
 
     return (
-        <>
+        <ErrorBoundary fallback={<PageErrorFallback />}>
             <Head title="تماشاروم – با هم ببینید" />
 
             <button
@@ -199,6 +201,6 @@ export default function Welcome({ auth }: PageProps) {
                     تماشاروم &copy; {new Date().getFullYear()}
                 </footer>
             </div>
-        </>
+        </ErrorBoundary>
     );
 }

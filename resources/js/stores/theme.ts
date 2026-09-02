@@ -1,5 +1,10 @@
 import { create } from "zustand";
 
+/**
+ * UI-only theme store (Zustand).
+ * Persists `dark` to localStorage and mirrors to `document.documentElement`.
+ * No server state — theme is a pure client preference.
+ */
 interface ThemeState {
     dark: boolean;
     toggle: () => void;

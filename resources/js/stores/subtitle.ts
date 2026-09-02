@@ -2,6 +2,12 @@ import { create } from "zustand";
 import type { SubtitleSettings } from "@/lib/types/subtitle";
 import { subtitleSettingsSchema } from "@/lib/validation";
 
+/**
+ * UI-only subtitle preference store (Zustand).
+ * Persists SubtitleSettings to localStorage (Zod-validated).
+ * No server state — active track id lives in hooks; appearance lives here.
+ */
+
 const SETTINGS_KEY = "tamasharoom-subtitle-settings";
 
 const DEFAULT_SETTINGS: SubtitleSettings = {
