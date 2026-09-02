@@ -16,24 +16,61 @@ export default defineConfig({
     retries: 0,
     workers: 1,
     reporter: "list",
-    use: {
-        channel: 'chrome',
-        baseURL,
-        headless: true,
-        // page.request runs on Node's TLS stack, which does not trust Herd's
-        // local CA (the browser does) — see tests/a11y/playwright.config.ts.
-        ignoreHTTPSErrors: true,
-        launchOptions: {
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                // Never route the test browser through the system proxy: a
-                // local VPN client (127.0.0.1 proxy) breaks direct access to
-                // the local Herd domain with ERR_CONNECTION_CLOSED.
-                "--proxy-server=direct://",
-            ],
+    projects: [
+        {
+            name: "chromium",
+            use: {
+                ...devices["Desktop Chrome"],
+                channel: "chrome",
+                baseURL,
+                headless: true,
+                ignoreHTTPSErrors: true,
+                launchOptions: {
+                    args: [
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--proxy-server=direct://",
+                    ],
+                },
+            },
         },
-    },
+        {
+            name: "firefox",
+            use: {
+                ...devices["Desktop Firefox"],
+                baseURL,
+                headless: true,
+                ignoreHTTPSErrors: true,
+            },
+        },
+        {
+            name: "webkit",
+            use: {
+                ...devices["Desktop Safari"],
+                baseURL,
+                headless: true,
+                ignoreHTTPSErrors: true,
+            },
+        },
+        {
+            name: "mobile-chrome",
+            use: {
+                ...devices["Pixel 5"],
+                baseURL,
+                headless: true,
+                ignoreHTTPSErrors: true,
+            },
+        },
+        {
+            name: "mobile-safari",
+            use: {
+                ...devices["iPhone 13"],
+                baseURL,
+                headless: true,
+                ignoreHTTPSErrors: true,
+            },
+        },
+    ],
     webServer: {
         // php artisan serve is single-threaded by default; give it a few workers
         // so multiple browser contexts polling concurrently don't serialize on one
