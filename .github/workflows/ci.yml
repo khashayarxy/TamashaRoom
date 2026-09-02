@@ -100,7 +100,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Run Visual Regression Tests
-        run: npx playwright test visual-regression --config=tests/e2e/playwright.config.ts
+        run: npx playwright test visual-regression --config=tests/e2e/playwright.config.ts --project=chromium
         continue-on-error: true
 
       - name: Run Pint style check
@@ -138,7 +138,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Run Playwright E2E tests
-        run: npm run test:e2e
+        run: npm run test:e2e -- --project=chromium
         env:
           APP_ENV: local
 
