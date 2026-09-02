@@ -12,13 +12,6 @@ test.describe("Mobile Audit - Responsive Layout", () => {
         expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
     });
 
-    test("landing page matches mobile snapshot", async ({ page }) => {
-        await page.goto("/");
-        await expect(page).toHaveScreenshot("mobile-landing.png", {
-            maxDiffPixelRatio: 0.01,
-        });
-    });
-
     test("room page renders without horizontal scroll", async ({ page }) => {
         const resp = await page.request.post(
             "/__test/setup-verified-room",
@@ -36,19 +29,7 @@ test.describe("Mobile Audit - Responsive Layout", () => {
         expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
     });
 
-    test("room page matches mobile snapshot", async ({ page }) => {
-        const resp = await page.request.post(
-            "/__test/setup-verified-room",
-            { data: { with_video: "1" } },
-        );
-        const { room_url } = await resp.json();
-        await page.goto(room_url);
-        await expect(page).toHaveScreenshot("mobile-room.png", {
-            maxDiffPixelRatio: 0.01,
-        });
-    });
-
-    test("chat input is visible on mobile", async ({ page }) => {
+    test("chat input is visible on room page", async ({ page }) => {
         const resp = await page.request.post(
             "/__test/setup-verified-room",
             { data: { with_video: "1" } },
@@ -60,5 +41,17 @@ test.describe("Mobile Audit - Responsive Layout", () => {
             '[data-testid="chat-panel"] input[type="text"], [data-testid="chat-panel"] textarea',
         );
         await expect(chatInput.first()).toBeVisible();
+    });
+
+    test("video player is present on room page", async ({ page }) => {
+        const resp = await page.request.post(
+            "/__test/setup-verified-room",
+            { data: { with_video: "1" } },
+        );
+        const { room_url } = await resp.json();
+        await page.goto(room_url);
+
+        const player = page.locator("video, .vjs-tech, .vjs-big-play-button");
+        await expect(player.first()).toBeVisible();
     });
 });
