@@ -36,7 +36,11 @@ export class ErrorBoundary extends Component<
         this.props.onError?.(error, info);
 
         // Best-effort Sentry bridge when @sentry/browser is loaded (no hard dep).
-        const sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
+        const sentry = (
+            window as unknown as {
+                Sentry?: { captureException?: (e: unknown) => void };
+            }
+        ).Sentry;
         sentry?.captureException?.(error);
     }
 

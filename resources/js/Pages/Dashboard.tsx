@@ -111,175 +111,180 @@ export default function Dashboard({ rooms }: { rooms: RoomCardRoom[] }) {
             <div className="space-y-8 lg:space-y-10">
                 <Head title="داشبورد" />
 
-            <header className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight">
-                    اتاق‌های من
-                </h1>
-                <p className="text-base text-muted-foreground">
-                    یک اتاق بساز، دوستانت را دعوت کن و با هم فیلم ببین.
-                </p>
-            </header>
+                <header className="space-y-2">
+                    <h1 className="text-3xl font-bold tracking-tight">
+                        اتاق‌های من
+                    </h1>
+                    <p className="text-base text-muted-foreground">
+                        یک اتاق بساز، دوستانت را دعوت کن و با هم فیلم ببین.
+                    </p>
+                </header>
 
-            <section
-                aria-label="ایجاد یا پیوستن به اتاق"
-                className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
-            >
-                <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-                    <div>
-                        <h2 className="text-xl font-bold">ساخت اتاق جدید</h2>
-                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                            فقط یک نام کافی است؛ اتاقت در چند ثانیه آماده
-                            می‌شود.
-                        </p>
-                        <div className="mt-4">
-                            {showCreateForm ? (
-                                <form
-                                    onSubmit={createRoom}
-                                    noValidate
-                                    className="space-y-3"
-                                >
-                                    <Input
-                                        label="نام اتاق"
-                                        placeholder="مثلاً فیلم شب جمعه"
-                                        value={roomName}
-                                        onChange={(e) =>
-                                            setRoomName(e.target.value)
-                                        }
-                                        maxLength={255}
-                                        autoFocus
-                                        aria-invalid={
-                                            Boolean(errors.name) || undefined
-                                        }
-                                        aria-describedby={
-                                            errors.name
-                                                ? "create-room-error"
-                                                : undefined
-                                        }
-                                    />
-                                    {errors.name && (
-                                        <p
-                                            id="create-room-error"
-                                            role="alert"
-                                            className="text-sm text-destructive-text"
-                                        >
-                                            {errors.name}
-                                        </p>
-                                    )}
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button
-                                            type="submit"
-                                            loading={creating}
-                                        >
-                                            {creating
-                                                ? "در حال ساخت..."
-                                                : "ساخت اتاق"}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={() =>
-                                                setShowCreateForm(false)
+                <section
+                    aria-label="ایجاد یا پیوستن به اتاق"
+                    className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+                >
+                    <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+                        <div>
+                            <h2 className="text-xl font-bold">
+                                ساخت اتاق جدید
+                            </h2>
+                            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                                فقط یک نام کافی است؛ اتاقت در چند ثانیه آماده
+                                می‌شود.
+                            </p>
+                            <div className="mt-4">
+                                {showCreateForm ? (
+                                    <form
+                                        onSubmit={createRoom}
+                                        noValidate
+                                        className="space-y-3"
+                                    >
+                                        <Input
+                                            label="نام اتاق"
+                                            placeholder="مثلاً فیلم شب جمعه"
+                                            value={roomName}
+                                            onChange={(e) =>
+                                                setRoomName(e.target.value)
                                             }
-                                        >
-                                            انصراف
-                                        </Button>
-                                    </div>
-                                </form>
-                            ) : (
+                                            maxLength={255}
+                                            autoFocus
+                                            aria-invalid={
+                                                Boolean(errors.name) ||
+                                                undefined
+                                            }
+                                            aria-describedby={
+                                                errors.name
+                                                    ? "create-room-error"
+                                                    : undefined
+                                            }
+                                        />
+                                        {errors.name && (
+                                            <p
+                                                id="create-room-error"
+                                                role="alert"
+                                                className="text-sm text-destructive-text"
+                                            >
+                                                {errors.name}
+                                            </p>
+                                        )}
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                type="submit"
+                                                loading={creating}
+                                            >
+                                                {creating
+                                                    ? "در حال ساخت..."
+                                                    : "ساخت اتاق"}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                onClick={() =>
+                                                    setShowCreateForm(false)
+                                                }
+                                            >
+                                                انصراف
+                                            </Button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <Button
+                                        size="lg"
+                                        onClick={() => setShowCreateForm(true)}
+                                    >
+                                        <Plus className="h-5 w-5" />
+                                        اتاق جدید بساز
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="lg:border-s lg:border-border lg:ps-8">
+                            <h2 className="text-xl font-bold">کد دعوت داری؟</h2>
+                            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                                با کد یا لینک دعوت، به اتاق دوستانت بپیوند.
+                            </p>
+                            <form
+                                onSubmit={joinRoom}
+                                noValidate
+                                className="mt-4 space-y-3"
+                            >
+                                <Input
+                                    ref={joinInputRef}
+                                    label="کد یا لینک دعوت"
+                                    placeholder="کد یا لینک دعوت را وارد کنید"
+                                    value={joinCode}
+                                    onChange={(e) =>
+                                        setJoinCode(e.target.value)
+                                    }
+                                    aria-invalid={
+                                        Boolean(pageErrors?.invite_code) ||
+                                        undefined
+                                    }
+                                    aria-describedby={
+                                        pageErrors?.invite_code
+                                            ? "join-error"
+                                            : undefined
+                                    }
+                                />
+                                {pageErrors?.invite_code && (
+                                    <p
+                                        id="join-error"
+                                        role="alert"
+                                        className="text-sm text-destructive-text"
+                                    >
+                                        {pageErrors.invite_code}
+                                    </p>
+                                )}
                                 <Button
-                                    size="lg"
-                                    onClick={() => setShowCreateForm(true)}
+                                    type="submit"
+                                    variant="secondary"
+                                    loading={joining}
                                 >
-                                    <Plus className="h-5 w-5" />
-                                    اتاق جدید بساز
+                                    <Link2 className="h-4 w-4" />
+                                    پیوستن به اتاق
                                 </Button>
-                            )}
+                            </form>
                         </div>
                     </div>
+                </section>
 
-                    <div className="lg:border-s lg:border-border lg:ps-8">
-                        <h2 className="text-xl font-bold">کد دعوت داری؟</h2>
-                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                            با کد یا لینک دعوت، به اتاق دوستانت بپیوند.
+                {rooms.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-14 text-center">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Tv className="h-7 w-7" />
+                        </div>
+                        <h2 className="mt-4 text-xl font-bold">
+                            هنوز اتاقی ندارید
+                        </h2>
+                        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                            اولین اتاق را بسازید و کد دعوتش را برای دوستانتان
+                            بفرستید؛ در چند ثانیه آماده می‌شود.
                         </p>
-                        <form
-                            onSubmit={joinRoom}
-                            noValidate
-                            className="mt-4 space-y-3"
-                        >
-                            <Input
-                                ref={joinInputRef}
-                                label="کد یا لینک دعوت"
-                                placeholder="کد یا لینک دعوت را وارد کنید"
-                                value={joinCode}
-                                onChange={(e) => setJoinCode(e.target.value)}
-                                aria-invalid={
-                                    Boolean(pageErrors?.invite_code) ||
-                                    undefined
-                                }
-                                aria-describedby={
-                                    pageErrors?.invite_code
-                                        ? "join-error"
-                                        : undefined
-                                }
-                            />
-                            {pageErrors?.invite_code && (
-                                <p
-                                    id="join-error"
-                                    role="alert"
-                                    className="text-sm text-destructive-text"
-                                >
-                                    {pageErrors.invite_code}
-                                </p>
-                            )}
-                            <Button
-                                type="submit"
-                                variant="secondary"
-                                loading={joining}
-                            >
-                                <Link2 className="h-4 w-4" />
-                                پیوستن به اتاق
+                        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                            <Button onClick={() => setShowCreateForm(true)}>
+                                <Plus className="h-4 w-4" />
+                                اولین اتاق را بسازید
                             </Button>
-                        </form>
+                            <Button variant="outline" onClick={focusJoinInput}>
+                                <Link2 className="h-4 w-4" />
+                                پیوستن با کد دعوت
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            </section>
-
-            {rooms.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-14 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <Tv className="h-7 w-7" />
+                ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {rooms.map((room) => (
+                            <RoomCard
+                                key={room.id}
+                                room={room}
+                                onCopyInvite={handleCopy}
+                                onDelete={setRoomToDelete}
+                            />
+                        ))}
                     </div>
-                    <h2 className="mt-4 text-xl font-bold">
-                        هنوز اتاقی ندارید
-                    </h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-                        اولین اتاق را بسازید و کد دعوتش را برای دوستانتان
-                        بفرستید؛ در چند ثانیه آماده می‌شود.
-                    </p>
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                        <Button onClick={() => setShowCreateForm(true)}>
-                            <Plus className="h-4 w-4" />
-                            اولین اتاق را بسازید
-                        </Button>
-                        <Button variant="outline" onClick={focusJoinInput}>
-                            <Link2 className="h-4 w-4" />
-                            پیوستن با کد دعوت
-                        </Button>
-                    </div>
-                </div>
-            ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {rooms.map((room) => (
-                        <RoomCard
-                            key={room.id}
-                            room={room}
-                            onCopyInvite={handleCopy}
-                            onDelete={setRoomToDelete}
-                        />
-                    ))}
-                </div>
-            )}
+                )}
 
                 <ConfirmDialog
                     open={roomToDelete !== null}

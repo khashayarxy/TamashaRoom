@@ -245,279 +245,286 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     return (
         <ErrorBoundary fallback={<PageErrorFallback />}>
             <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)] supports-[height:100dvh]:h-[calc(100dvh-8.5rem)]">
-            <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-0">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-bold">{room.name}</h1>
-                        <p className="text-sm text-muted-foreground">
-                            ساخته شده توسط {room.owner.name}
-                            {room.is_locked && (
-                                <span className="ms-2 text-warning">(قفل)</span>
-                            )}
-                        </p>
-                    </div>
-                    {isOwner && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowRoomSettings(true)}
-                        >
-                            <Settings className="h-4 w-4" />
-                            تنظیمات اتاق
-                        </Button>
-                    )}
-                    {!isOwner && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirmLeave(true)}
-                        >
-                            <LogOut className="h-4 w-4" />
-                            خروج از اتاق
-                        </Button>
-                    )}
-                </div>
-
-                {isOwner &&
-                    room.video_url === null &&
-                    room.members.length <= 1 &&
-                    showOnboarding && (
-                        <RoomOnboarding
-                            onCopyInvite={() =>
-                                handleCopy(
-                                    route("rooms.join", room.invite_code),
-                                )
-                            }
-                            onAddVideo={() => setShowSetVideo(true)}
-                            onDismiss={() => setShowOnboarding(false)}
-                        />
-                    )}
-
-                <div className="flex-1 relative min-h-0">
-                    {room.video_url || currentVideoUrl ? (
-                        <Suspense
-                            fallback={
-                                <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
-                                    <div className="h-12 w-12 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                                </div>
-                            }
-                        >
-                            <SyncedVideoJsPlayer
-                                roomId={room.id}
-                                canControl={isOwner}
-                                currentUserId={auth.user.id}
-                                onPlaybackAction={handlePlaybackAction}
-                                initialVideoUrl={room.video_url}
-                                className="h-full"
-                                onSuggestNext={suggestNext}
-                                onOpenSubtitleSettings={() =>
-                                    setShowSubSettings(true)
-                                }
-                                refreshKey={videoRefreshKey}
-                                subtitles={{
-                                    cues,
-                                    settings,
-                                    loading: subLoading,
-                                    error: subError,
-                                }}
-                            />
-                        </Suspense>
-                    ) : (
-                        <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
-                            <div className="text-center p-4">
-                                <p className="text-muted-foreground">
-                                    هنوز ویدیویی تنظیم نشده است
-                                </p>
-                            </div>
+                <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-0">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-xl font-bold">{room.name}</h1>
+                            <p className="text-sm text-muted-foreground">
+                                ساخته شده توسط {room.owner.name}
+                                {room.is_locked && (
+                                    <span className="ms-2 text-warning">
+                                        (قفل)
+                                    </span>
+                                )}
+                            </p>
                         </div>
-                    )}
-                </div>
+                        {isOwner && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowRoomSettings(true)}
+                            >
+                                <Settings className="h-4 w-4" />
+                                تنظیمات اتاق
+                            </Button>
+                        )}
+                        {!isOwner && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setConfirmLeave(true)}
+                            >
+                                <LogOut className="h-4 w-4" />
+                                خروج از اتاق
+                            </Button>
+                        )}
+                    </div>
 
-                <div className="flex flex-wrap gap-2">
-                    {isOwner && (
+                    {isOwner &&
+                        room.video_url === null &&
+                        room.members.length <= 1 &&
+                        showOnboarding && (
+                            <RoomOnboarding
+                                onCopyInvite={() =>
+                                    handleCopy(
+                                        route("rooms.join", room.invite_code),
+                                    )
+                                }
+                                onAddVideo={() => setShowSetVideo(true)}
+                                onDismiss={() => setShowOnboarding(false)}
+                            />
+                        )}
+
+                    <div className="flex-1 relative min-h-0">
+                        {room.video_url || currentVideoUrl ? (
+                            <Suspense
+                                fallback={
+                                    <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
+                                        <div className="h-12 w-12 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                                    </div>
+                                }
+                            >
+                                <SyncedVideoJsPlayer
+                                    roomId={room.id}
+                                    canControl={isOwner}
+                                    currentUserId={auth.user.id}
+                                    onPlaybackAction={handlePlaybackAction}
+                                    initialVideoUrl={room.video_url}
+                                    className="h-full"
+                                    onSuggestNext={suggestNext}
+                                    onOpenSubtitleSettings={() =>
+                                        setShowSubSettings(true)
+                                    }
+                                    refreshKey={videoRefreshKey}
+                                    subtitles={{
+                                        cues,
+                                        settings,
+                                        loading: subLoading,
+                                        error: subError,
+                                    }}
+                                />
+                            </Suspense>
+                        ) : (
+                            <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
+                                <div className="text-center p-4">
+                                    <p className="text-muted-foreground">
+                                        هنوز ویدیویی تنظیم نشده است
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {isOwner && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowSetVideo(true)}
+                            >
+                                <Tv className="h-4 w-4" />
+                                ویدیو
+                            </Button>
+                        )}
+
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setShowSetVideo(true)}
+                            onClick={() => setShowSubManager(true)}
                         >
-                            <Tv className="h-4 w-4" />
-                            ویدیو
+                            <Subtitles className="h-4 w-4" />
+                            زیرنویس
                         </Button>
-                    )}
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowSubManager(true)}
-                    >
-                        <Subtitles className="h-4 w-4" />
-                        زیرنویس
-                    </Button>
+                    </div>
                 </div>
-            </div>
 
-            {/* On mobile the room stacks: without flex-1 + min-h-0 this column
+                {/* On mobile the room stacks: without flex-1 + min-h-0 this column
                 takes its full content height, so the chat card spills below
                 the room container and the page scrolls under the chat's own
                 scroll. lg:flex-none keeps the desktop row layout at w-80. */}
-            <div className="flex-1 min-h-0 lg:w-80 lg:flex-none flex flex-col">
-                <div className="flex rounded-xl bg-secondary p-1 mb-3">
-                    <button
-                        onClick={() => {
-                            setActiveTab("chat");
-                            setChatUnread(0);
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                            activeTab === "chat"
-                                ? "bg-card text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        <MessageSquare className="h-4 w-4" />
-                        چت
-                        {chatUnread > 0 && activeTab !== "chat" && (
-                            <span className="h-5 min-w-[20px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center px-1">
-                                {chatUnread}
-                            </span>
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("members")}
-                        className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                            activeTab === "members"
-                                ? "bg-card text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                        }`}
-                    >
-                        <Users className="h-4 w-4" />
-                        اعضا
-                    </button>
+                <div className="flex-1 min-h-0 lg:w-80 lg:flex-none flex flex-col">
+                    <div className="flex rounded-xl bg-secondary p-1 mb-3">
+                        <button
+                            onClick={() => {
+                                setActiveTab("chat");
+                                setChatUnread(0);
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                activeTab === "chat"
+                                    ? "bg-card text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                            }`}
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                            چت
+                            {chatUnread > 0 && activeTab !== "chat" && (
+                                <span className="h-5 min-w-[20px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center px-1">
+                                    {chatUnread}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("members")}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                activeTab === "members"
+                                    ? "bg-card text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                            }`}
+                        >
+                            <Users className="h-4 w-4" />
+                            اعضا
+                        </button>
+                    </div>
+
+                    <Card className="flex-1 overflow-hidden">
+                        <div
+                            className={
+                                activeTab === "chat" ? "h-full" : "hidden"
+                            }
+                        >
+                            <RoomChat
+                                roomId={room.id}
+                                initialMessages={room.chat_messages}
+                                onUnreadCountChange={setChatUnread}
+                                presenceMoments={presenceMoments}
+                                isOwner={isOwner}
+                            />
+                        </div>
+                        <div
+                            className={
+                                activeTab === "members" ? "h-full" : "hidden"
+                            }
+                        >
+                            <CardContent className="p-4">
+                                <MemberList
+                                    members={presenceMembers}
+                                    roomId={room.id}
+                                    ownerId={ownerId}
+                                    connected={connected}
+                                    currentUserId={auth.user.id}
+                                    onKick={handleKick}
+                                    onTransfer={handleTransfer}
+                                />
+                            </CardContent>
+                        </div>
+                    </Card>
                 </div>
 
-                <Card className="flex-1 overflow-hidden">
-                    <div className={activeTab === "chat" ? "h-full" : "hidden"}>
-                        <RoomChat
-                            roomId={room.id}
-                            initialMessages={room.chat_messages}
-                            onUnreadCountChange={setChatUnread}
-                            presenceMoments={presenceMoments}
-                            isOwner={isOwner}
+                {showSetVideo && (
+                    <Suspense fallback={null}>
+                        <SetVideoDialog
+                            open={true}
+                            onClose={() => setShowSetVideo(false)}
+                            onSetVideo={handleSetVideo}
+                            loading={settingVideo}
+                            initialUrl={currentVideoUrl}
                         />
-                    </div>
-                    <div
-                        className={
-                            activeTab === "members" ? "h-full" : "hidden"
-                        }
-                    >
-                        <CardContent className="p-4">
-                            <MemberList
-                                members={presenceMembers}
-                                roomId={room.id}
-                                ownerId={ownerId}
-                                connected={connected}
-                                currentUserId={auth.user.id}
-                                onKick={handleKick}
-                                onTransfer={handleTransfer}
-                            />
-                        </CardContent>
-                    </div>
-                </Card>
-            </div>
+                    </Suspense>
+                )}
 
-            {showSetVideo && (
-                <Suspense fallback={null}>
-                    <SetVideoDialog
-                        open={true}
-                        onClose={() => setShowSetVideo(false)}
-                        onSetVideo={handleSetVideo}
-                        loading={settingVideo}
-                        initialUrl={currentVideoUrl}
-                    />
-                </Suspense>
-            )}
+                {showSubManager && (
+                    <Suspense fallback={null}>
+                        <SubtitleManagerDialog
+                            open={true}
+                            onClose={() => setShowSubManager(false)}
+                            isOwner={isOwner}
+                            tracks={tracks}
+                            activeTrackId={activeTrackId}
+                            roomDefaultId={roomDefaultId}
+                            tracksError={tracksError}
+                            onUploadTrack={uploadTrack}
+                            onSelectTrack={selectTrack}
+                            onFollowDefault={followRoomDefault}
+                            onSetDefault={setRoomDefault}
+                            onRequestDelete={(id) => {
+                                setShowSubManager(false);
+                                setTrackToDelete(id);
+                            }}
+                        />
+                    </Suspense>
+                )}
 
-            {showSubManager && (
-                <Suspense fallback={null}>
-                    <SubtitleManagerDialog
-                        open={true}
-                        onClose={() => setShowSubManager(false)}
-                        isOwner={isOwner}
-                        tracks={tracks}
-                        activeTrackId={activeTrackId}
-                        roomDefaultId={roomDefaultId}
-                        tracksError={tracksError}
-                        onUploadTrack={uploadTrack}
-                        onSelectTrack={selectTrack}
-                        onFollowDefault={followRoomDefault}
-                        onSetDefault={setRoomDefault}
-                        onRequestDelete={(id) => {
-                            setShowSubManager(false);
-                            setTrackToDelete(id);
-                        }}
-                    />
-                </Suspense>
-            )}
+                {showSubSettings && (
+                    <Suspense fallback={null}>
+                        <SubtitleSettingsDialog
+                            open={true}
+                            onClose={() => setShowSubSettings(false)}
+                        />
+                    </Suspense>
+                )}
 
-            {showSubSettings && (
-                <Suspense fallback={null}>
-                    <SubtitleSettingsDialog
-                        open={true}
-                        onClose={() => setShowSubSettings(false)}
-                    />
-                </Suspense>
-            )}
+                {showRoomSettings && (
+                    <Suspense fallback={null}>
+                        <RoomSettingsDialog
+                            open={true}
+                            onClose={() => setShowRoomSettings(false)}
+                            room={{
+                                id: roomData.id,
+                                name: roomData.name,
+                                invite_code: roomData.invite_code,
+                                is_locked: roomData.is_locked,
+                            }}
+                            onUpdate={handleRoomUpdate}
+                        />
+                    </Suspense>
+                )}
 
-            {showRoomSettings && (
-                <Suspense fallback={null}>
-                    <RoomSettingsDialog
-                        open={true}
-                        onClose={() => setShowRoomSettings(false)}
-                        room={{
-                            id: roomData.id,
-                            name: roomData.name,
-                            invite_code: roomData.invite_code,
-                            is_locked: roomData.is_locked,
-                        }}
-                        onUpdate={handleRoomUpdate}
-                    />
-                </Suspense>
-            )}
+                {trackToDelete !== null && (
+                    <Suspense fallback={null}>
+                        <ConfirmDialog
+                            open={true}
+                            onClose={() => {
+                                if (!deletingTrack) setTrackToDelete(null);
+                            }}
+                            onConfirm={() =>
+                                trackToDelete !== null &&
+                                deleteTrack(trackToDelete)
+                            }
+                            title="حذف زیرنویس"
+                            description="آیا از حذف این زیرنویس اطمینان دارید؟ این عمل قابل بازگشت نیست."
+                            confirmLabel="حذف شود"
+                            confirmVariant="destructive"
+                            loading={deletingTrack}
+                        />
+                    </Suspense>
+                )}
 
-            {trackToDelete !== null && (
-                <Suspense fallback={null}>
-                    <ConfirmDialog
-                        open={true}
-                        onClose={() => {
-                            if (!deletingTrack) setTrackToDelete(null);
-                        }}
-                        onConfirm={() =>
-                            trackToDelete !== null && deleteTrack(trackToDelete)
-                        }
-                        title="حذف زیرنویس"
-                        description="آیا از حذف این زیرنویس اطمینان دارید؟ این عمل قابل بازگشت نیست."
-                        confirmLabel="حذف شود"
-                        confirmVariant="destructive"
-                        loading={deletingTrack}
-                    />
-                </Suspense>
-            )}
-
-            {confirmLeave && (
-                <Suspense fallback={null}>
-                    <ConfirmDialog
-                        open={true}
-                        onClose={() => {
-                            if (!leavingRoom) setConfirmLeave(false);
-                        }}
-                        onConfirm={handleLeaveRoom}
-                        title="خروج از اتاق"
-                        description="آیا مطمئن هستید که می‌خواهید از این اتاق خارج شوید؟ برای بازگشت می‌توانید دوباره از لینک دعوت استفاده کنید."
-                        confirmLabel="خروج"
-                        confirmVariant="destructive"
-                        loading={leavingRoom}
-                    />
-                </Suspense>
-            )}
+                {confirmLeave && (
+                    <Suspense fallback={null}>
+                        <ConfirmDialog
+                            open={true}
+                            onClose={() => {
+                                if (!leavingRoom) setConfirmLeave(false);
+                            }}
+                            onConfirm={handleLeaveRoom}
+                            title="خروج از اتاق"
+                            description="آیا مطمئن هستید که می‌خواهید از این اتاق خارج شوید؟ برای بازگشت می‌توانید دوباره از لینک دعوت استفاده کنید."
+                            confirmLabel="خروج"
+                            confirmVariant="destructive"
+                            loading={leavingRoom}
+                        />
+                    </Suspense>
+                )}
             </div>
         </ErrorBoundary>
     );
