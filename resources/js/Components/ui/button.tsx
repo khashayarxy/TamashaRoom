@@ -4,7 +4,7 @@ import { ButtonHTMLAttributes, forwardRef } from "react";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: "primary" | "secondary" | "destructive" | "ghost" | "outline";
-    size?: "sm" | "md" | "lg";
+    size?: "sm" | "md" | "lg" | "icon";
     loading?: boolean;
 }
 
@@ -26,6 +26,7 @@ const sizeStyles = {
     sm: "h-8 px-3 text-xs",
     md: "h-10 px-4 text-sm",
     lg: "h-12 px-6 text-base",
+    icon: "h-10 w-10 p-0",
 };
 
 export function buttonVariants({
@@ -34,7 +35,7 @@ export function buttonVariants({
     className,
 }: {
     variant?: "primary" | "secondary" | "destructive" | "ghost" | "outline";
-    size?: "sm" | "md" | "lg";
+    size?: "sm" | "md" | "lg" | "icon";
     className?: string;
 } = {}): string {
     return cn(baseStyles, variantStyles[variant], sizeStyles[size], className);
@@ -55,10 +56,16 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             <button
                 ref={ref}
                 className={buttonVariants({ variant, size, className })}
+                aria-busy={loading || undefined}
                 {...props}
                 disabled={loading || props.disabled}
             >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {loading && (
+                    <Loader2
+                        className="h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                    />
+                )}
                 {props.children}
             </button>
         );

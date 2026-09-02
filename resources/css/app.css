@@ -26,6 +26,17 @@
     --color-success: hsl(var(--success));
     --color-warning: hsl(var(--warning));
 
+    /* Brand/surface aliases — watch-party semantic layer over base tokens.
+       Brand reuses primary (violet) to stay within the established palette;
+       surface maps to background/card/muted so light/dark resolve automatically. */
+    --color-brand: hsl(var(--primary));
+    --color-brand-foreground: hsl(var(--primary-foreground));
+    --color-brand-muted: hsl(var(--accent));
+    --color-surface: hsl(var(--background));
+    --color-surface-card: hsl(var(--card));
+    --color-surface-elevated: hsl(var(--muted));
+    --color-surface-border: hsl(var(--border));
+
     --font-sans:
         "Vazirmatn", "Inter Variable", system-ui, -apple-system,
         BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -34,6 +45,8 @@
         Consolas, monospace;
 
     --radius: 0.5rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
 
     --z-sticky: 200;
     --z-popover: 500;

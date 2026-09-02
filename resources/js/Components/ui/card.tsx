@@ -1,12 +1,18 @@
 import { cn } from "@/lib/utils";
 import { HTMLAttributes, forwardRef } from "react";
 
-const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-    ({ className, ...props }, ref) => (
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+    hoverable?: boolean;
+}
+
+const Card = forwardRef<HTMLDivElement, CardProps>(
+    ({ className, hoverable = false, ...props }, ref) => (
         <div
             ref={ref}
             className={cn(
                 "rounded-2xl border border-border bg-card text-card-foreground shadow-sm",
+                hoverable &&
+                    "transition-shadow hover:shadow-lg hover:border-surface-border",
                 className,
             )}
             {...props}
