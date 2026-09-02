@@ -1,0 +1,37 @@
+#!/bin/sh
+
+echo "🔍 Running pre-commit checks..."
+
+# PHP Code Style (Pint)
+echo "   Checking PHP code style..."
+./vendor/bin/pint --dirty --test
+if [ $? -ne 0 ]; then
+  echo "❌ PHP code style issues found. Run: ./vendor/bin/pint"
+  exit 1
+fi
+
+# TypeScript Type Check
+echo "   Checking TypeScript types..."
+npm run type-check > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript errors found. Run: npm run type-check"
+  exit 1
+fi
+
+# ESLint
+echo "   Checking ESLint..."
+npm run lint > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "❌ ESLint errors found. Run: npm run lint"
+  exit 1
+fi
+
+# PHPUnit (fast subset — only changed files would be ideal, but run full for now)
+echo "   Running quick PHP tests..."
+php artisan test --stop-on-failure > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "❌ PHP tests failed. Run: php artisan test"
+  exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"
