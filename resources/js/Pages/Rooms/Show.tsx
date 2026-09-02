@@ -246,14 +246,16 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         <ErrorBoundary fallback={<PageErrorFallback />}>
             <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)] supports-[height:100dvh]:h-[calc(100dvh-8.5rem)]">
                 <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-0">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-xl font-bold">{room.name}</h1>
-                            <p className="text-sm text-muted-foreground">
-                                ساخته شده توسط {room.owner.name}
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/40 px-4 py-3 backdrop-blur">
+                        <div className="min-w-0">
+                            <h1 className="truncate text-xl font-bold tracking-tight">
+                                {room.name}
+                            </h1>
+                            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                <span>ساخته شده توسط {room.owner.name}</span>
                                 {room.is_locked && (
-                                    <span className="ms-2 text-warning">
-                                        (قفل)
+                                    <span className="inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning">
+                                        قفل
                                     </span>
                                 )}
                             </p>
@@ -295,11 +297,11 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             />
                         )}
 
-                    <div className="flex-1 relative min-h-0">
+                    <div className="flex-1 relative min-h-0 overflow-hidden rounded-2xl border border-border/50 bg-black shadow-2xl">
                         {room.video_url || currentVideoUrl ? (
                             <Suspense
                                 fallback={
-                                    <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
+                                    <div className="flex items-center justify-center h-full bg-black">
                                         <div className="h-12 w-12 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                                     </div>
                                 }
@@ -310,7 +312,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     currentUserId={auth.user.id}
                                     onPlaybackAction={handlePlaybackAction}
                                     initialVideoUrl={room.video_url}
-                                    className="h-full"
+                                    className="h-full rounded-2xl overflow-hidden"
                                     onSuggestNext={suggestNext}
                                     onOpenSubtitleSettings={() =>
                                         setShowSubSettings(true)
@@ -325,11 +327,19 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                 />
                             </Suspense>
                         ) : (
-                            <div className="flex items-center justify-center h-full bg-muted rounded-2xl">
-                                <div className="text-center p-4">
-                                    <p className="text-muted-foreground">
+                            <div className="flex items-center justify-center h-full bg-muted">
+                                <div className="text-center p-6">
+                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                        <Tv className="h-6 w-6" />
+                                    </div>
+                                    <p className="mt-3 text-sm font-medium text-muted-foreground">
                                         هنوز ویدیویی تنظیم نشده است
                                     </p>
+                                    {isOwner && (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            دکمه ویدیو را برای افزودن لینک بزنید
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}
