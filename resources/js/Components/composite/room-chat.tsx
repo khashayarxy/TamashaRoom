@@ -208,7 +208,7 @@ export function RoomChat({
                 } else {
                     toast.error("اتصال قطع شد — در حال تلاش مجدد...", {
                         id: "push-connection-lost",
-                        duration: Infinity,
+                        duration: 10000,
                     });
                 }
             },

@@ -97,7 +97,7 @@ class SecurityHeadersMiddleware
             $viteWsOriginsStr = implode(' ', array_unique($viteWsOrigins));
 
             $csp = "default-src 'self'; "
-                ."script-src 'self' 'unsafe-inline' {$viteOriginsStr}; "
+                ."script-src 'self' 'unsafe-inline' 'unsafe-eval' {$viteOriginsStr}; "
                 ."style-src 'self' 'unsafe-inline' {$viteOriginsStr}; "
                 ."img-src 'self' data: blob: https:; "
                 ."font-src 'self' data: blob: {$viteOriginsStr}; "
@@ -110,7 +110,7 @@ class SecurityHeadersMiddleware
                 ."form-action 'self'";
         } else {
             $csp = "default-src 'self'; "
-                ."script-src 'self' 'nonce-{$nonce}'; "
+                ."script-src 'self' 'nonce-{$nonce}' 'unsafe-eval'; "
                 ."style-src 'self' 'unsafe-inline'; "
                 ."img-src 'self' data: blob: https:; "
                 ."font-src 'self' data:; "

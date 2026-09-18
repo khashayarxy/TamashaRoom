@@ -92,6 +92,17 @@ class SecurityTest extends TestCase
             $scriptMatches[1],
         );
 
+        // 'unsafe-eval' is deliberately allowed: the Pusher realtime path
+        // threw CSP eval violations in production without it. Static audit
+        // (2026-09-18) found no eval/new-Function in pusher-js, laravel-echo,
+        // or @videojs — the likely source is Zod's startup probe — but prod
+        // realtime broke until this was added, so it stays until a revert
+        // experiment on production proves otherwise. Do not remove lightly.
+        $this->assertStringContainsString(
+            'unsafe-eval',
+            $scriptMatches[1],
+        );
+
         preg_match("/'nonce-([^']+)'/", $csp, $matches);
         $this->assertNotEmpty($matches);
         $nonce = $matches[1];
