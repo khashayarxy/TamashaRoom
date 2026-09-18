@@ -36,6 +36,14 @@
 - [x] **Tests:** 20 backend tests (45 assertions) including 8 moderation-specific tests. 32 frontend tests including 20 owner-moderation tests. **Canonical counts: 309 PHPUnit, 297 Vitest.** All local checks pass (lint, type-check, Vitest, PHPUnit, pint, a11y contrast, docs drift).
 - [x] **CI:** `a1a0381` — all green (`gh run watch 33335070807`).
 
+### Recent Production & Ops Optimizations (2026-09-18)
+
+**Context:** Three operational batches back-porting production hotfixes, connection-UX polish, and shared-hosting tooling. Canonical counts after these batches: **311 PHPUnit, 297 Vitest.**
+
+- [x] **Production Hotfix (`8f49dce`):** verified `PUSHER_HOST`/`VITE_PUSHER_HOST` already empty in `.env.example` (bad value lived only in prod `.env`); added `'unsafe-eval'` to CSP `script-src` (local + strict branches) for Pusher JS compat — static audit found no eval in pusher-js/laravel-echo/@videojs (likely Zod probe), pinned as intentional in `SecurityTest` with revert experiment proposed; connection-lost toast `Infinity` → 10s.
+- [x] **Connection & Report UX (`642a3a3`):** report dialog fields gained `id`/`name` + `sr-only` labels (`report-reason`/`reason`, `report-details`/`description`); unhealthy-push toast `error` → positive `info` copy; new `success` toast on reconnect (`push-connection-restored`, 5s); sonner mock gained `info` (8 push-transport tests fixed).
+- [x] **Shared Hosting Optimization (`ba4fa74`):** new tracked `scripts/deploy-package.ps1` (rebuild + zip `public/build` → `deploy-assets.zip`; assets-only, never vendor; pure-ASCII for PS 5.1) + `.gitignore` zip rule; `LOG_DAILY_DAYS=3` in `.env.example` (`config/logging.php` reads `LOG_DAILY_DAYS`, not `LOG_DAYS`); `/api/health` gained an `opcache` check + `HealthCheckTest`; checklist gained `--classmap-authoritative` flags, packaging pointer, retention row. Declined: public `opcache-status.php` (security — health endpoint covers it), new `DEPLOYMENT.md` (checklist is authoritative); verified pre-existing: `.htaccess` hardening, silent cron, task try/catch.
+
 ### Completed Phases (2026-08-20 → 2026-09-01)
 
 **Context:** Consolidated log of all development phases completed since production deployment. Individual detailed entries exist for Phases 1-7 (2026-08-22) and 8/14 Part 1 (2026-08-20) in their respective dated entries above.
