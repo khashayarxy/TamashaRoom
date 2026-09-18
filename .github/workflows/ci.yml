@@ -101,7 +101,6 @@ jobs:
 
       - name: Run Visual Regression Tests
         run: npx playwright test visual-regression --config=tests/e2e/playwright.config.ts --project=chromium
-        continue-on-error: true
 
       - name: Run Pint style check
         run: ./vendor/bin/pint --test
