@@ -36,6 +36,23 @@
 - [x] **Tests:** 20 backend tests (45 assertions) including 8 moderation-specific tests. 32 frontend tests including 20 owner-moderation tests. **Canonical counts: 309 PHPUnit, 297 Vitest.** All local checks pass (lint, type-check, Vitest, PHPUnit, pint, a11y contrast, docs drift).
 - [x] **CI:** `a1a0381` — all green (`gh run watch 33335070807`).
 
+### Completed Phases (2026-08-20 → 2026-09-01)
+
+**Context:** Consolidated log of all development phases completed since production deployment. Individual detailed entries exist for Phases 1-7 (2026-08-22) and 8/14 Part 1 (2026-08-20) in their respective dated entries above.
+
+- [x] **Security & Performance Audit (Phases 1-3):** DB indexes for chat_messages + room_members; N+1 fix in PresenceService::markStaleAsOffline; backend architecture refactors (Actions, DTOs, Relationships); frontend perf (useMemo chat feed, binary search subtitles); FLOAT→DECIMAL precision + CSP Apinator origin; security hardening (rate limits, session secure, gitignore certs, strict_types). See individual entries for Phases 1-7 (2026-08-22).
+- [x] **Enterprise Features (Phase 4):** Sentry error tracking integration (user context binding); health check endpoint (`/api/health`); audit logging system (`audit_logs` table + 5 sensitive actions); content moderation service (blocklist + ChatController integration); scheduled tasks hardening (try/catch + Sentry reporting). See individual entries (2026-08-20).
+- [x] **Resilience & Ops (Phases 6, 7):** Graceful degradation (Pusher fallback + UI indicator); HttpRetryService with exponential backoff; idempotency guards (join/delete/report); data integrity checks (`integrity:check` command); backup automation (`db:backup` command + RESTORE.md); rollback documentation (ROLLBACK.md + INCIDENT_TEMPLATE.md). See individual entries (2026-08-20).
+- [x] **Testing Infrastructure (Phase 7):** Coverage reporting (`tests/coverage/`); visual regression testing (Playwright screenshot baselines); mobile audit tests (`mobile-audit.spec.ts`); cross-browser config (5 projects: chromium/firefox/webkit/mobile-chrome/mobile-safari); CI restricted to `--project=chromium`. See individual entry (2026-08-20).
+- [x] **DevOps Guardrails (Phase 7):** Pre-commit hooks (pint, type-check, lint, fast tests, health check, auto-build); PR template with checklist; branch protection docs (`BRANCH_PROTECTION.md`). See individual entry (2026-08-20).
+- [x] **Architecture Documentation (Phase 7):** Architecture Decision Records (ADR-001 Herd, ADR-002 Pusher, ADR-003 SQLite); database schema ERD (`DATABASE_SCHEMA.md`). See individual entry (2026-08-20).
+- [x] **Scalability Strategy (Phase 5):** Caching strategy docs (`CACHING_STRATEGY.md` — Redis migration plan, key patterns, TTLs); queue strategy docs (`QUEUE_STRATEGY.md` — async jobs list, database driver setup). See individual entry (2026-08-20). (`90cad8e`)
+- [x] **DevOps & Feature Flags (Phase 9):** Zero-downtime deploy docs (`ZERO_DOWNTIME_DEPLOY.md` — symlink strategy, deploy.sh); feature flags implementation (`config/features.php` — 5 env-based toggles: FEATURE_CHAT_MODERATION, FEATURE_SUBTITLE_UPLOAD, FEATURE_ROOM_LOCKING, FEATURE_AUDIT_LOGGING, FEATURE_NEW_UI_DESIGN); `HasFeatureFlags` trait integrated in ChatController. (`ea43f83`)
+- [x] **Operational Testing (Phase 15):** Production smoke test docs (`PRODUCTION_SMOKE_TEST.md`); browser compatibility docs (`BROWSER_COMPATIBILITY.md` — feature matrix); Playwright mobile audit tests (`mobile-audit.spec.ts` — functional only, no snapshot assertions); cross-browser Playwright config (5 projects). (`5a51585`)
+- [x] **Design System Foundation (Phase 8/14 Part 1):** Tailwind CSS 4 @theme extended with brand/surface semantic aliases and radius-xl/2xl; Button component (`icon` size, `aria-busy`); Input component (`text-start` RTL, error state); Card component (`hoverable` prop); new Container/Section/Grid layout primitives; Zustand stores documented (theme, room-ui, subtitle); `useDebounce` hook (300ms default); ErrorBoundary enhanced (`fallback` prop, `onError` callback, Sentry bridge); `PageErrorFallback` Persian UI; route-level ErrorBoundaries on Welcome, Dashboard, Show. (`726e894`, `37aaac8`, `64837b7`)
+- [x] **Landing Page Redesign (Phase 8/14 Part 2):** Complete rewrite of `Welcome.tsx` — sticky header with backdrop-blur, Hero section with gradient glow + dual CTAs, Features Grid (Sync/Chat/Subtitles) using Grid+Card primitives, How It Works 3-step flow, Footer with minimal links. All semantic tokens, RTL logical props. (`036cb86`)
+- [x] **Watch Page Redesign (Phase 8/14 Part 3):** Header polish (backdrop-blur, lock as warning badge), player container (rounded-2xl, shadow-2xl, cinema feel), empty state enhanced with icon+hint. Layout logic unchanged (flex-col lg:flex-row, sidebar tabs via room-ui store). (`6afb5b3`)
+
 ### Local Dev Migration: Herd → Sail (MySQL-only, PHP 8.4, no Redis) — 2026-08-25
 
 **Context:** Herd removed, moved to Laravel Sail for isolated local dev while keeping production on shared cPanel (Apache, PHP 8.4, MySQL, no Docker/Redis). WSL 2 + Docker Desktop active.
@@ -698,9 +715,9 @@ The pre-existing `auth-a11y` "Verify email page" failure (tracked as **TAM-010**
 - [x] Queue worker — process jobs one batch at a time
 
 ## Testing
-- [x] **274** PHPUnit tests passing (2086 assertions) — verified by runtime run on 2026-08-13: `php artisan test` 274/274. No data providers — static count equals runtime count. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
-- [x] **235** Frontend Vitest tests passing — verified by runtime run on 2026-08-13: `npm run test` 235/235. No parameterized tests — static count equals runtime count.
-- [x] **24** Playwright E2E tests passing — verified by runtime run on 2026-08-12: `npm run test:e2e` 24/24 (chat 3, keyboard-a11y 1, lock-kick-transfer 4, multi-tab-reconnect 2, playback-sync-verification 4, presence-moments 1, room 3, subtitle 4, tap-to-play 2).
+- [x] **309** PHPUnit tests passing — verified 2026-09-01. (Canonical count; skills reference `docs/TASK.md` rather than hardcoding it.)
+- [x] **297** Frontend Vitest tests passing — verified 2026-09-01.
+- [x] **24** Playwright E2E tests passing — verified 2026-08-12: `npm run test:e2e` 24/24 (chat 3, keyboard-a11y 1, lock-kick-transfer 4, multi-tab-reconnect 2, playback-sync-verification 4, presence-moments 1, room 3, subtitle 4, tap-to-play 2).
 - [x] **19** axe accessibility tests passing — verified 2026-08-12: `npm run test:a11y` 19/19 (a11y 3, auth-a11y 6, contrast-a11y 8, room-a11y 1, welcome-a11y 1).
 - [x] Build verification (tsc + vite), `npm run check:docs`, Prettier `format:check`, Pint `--test`, `git diff --check` — all clean 2026-08-12.
 
