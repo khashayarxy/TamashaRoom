@@ -102,6 +102,14 @@ jobs:
       - name: Run Visual Regression Tests
         run: npx playwright test visual-regression --config=tests/e2e/playwright.config.ts --project=chromium
 
+      - name: Upload visual test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-test-results
+          path: test-results/
+          if-no-files-found: warn
+
       - name: Run Pint style check
         run: ./vendor/bin/pint --test
 
