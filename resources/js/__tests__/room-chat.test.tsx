@@ -27,7 +27,12 @@ vi.mock("@/lib/echo", async (importOriginal) => {
 });
 
 vi.mock("sonner", () => ({
-    toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() },
+    toast: {
+        success: vi.fn(),
+        error: vi.fn(),
+        info: vi.fn(),
+        message: vi.fn(),
+    },
 }));
 
 vi.mock("@inertiajs/react", () => ({

@@ -204,12 +204,22 @@ export function RoomChat({
                         dismiss?: (id: string) => void;
                     };
                     t.dismiss?.("push-connection-lost");
+                    toast.success(
+                        "اتصال موفقیت آمیز بود. از تماشای فیلم و سریال در کنار دوستانتون لذت ببرید.",
+                        {
+                            id: "push-connection-restored",
+                            duration: 5000,
+                        },
+                    );
                     void fetchMessages();
                 } else {
-                    toast.error("اتصال قطع شد — در حال تلاش مجدد...", {
-                        id: "push-connection-lost",
-                        duration: 10000,
-                    });
+                    toast.info(
+                        "در حال اتصال شما به سرورهای تماشاروم هستیم، لطفا کمی صبر کنید...",
+                        {
+                            id: "push-connection-lost",
+                            duration: 10000,
+                        },
+                    );
                 }
             },
         );
@@ -580,7 +590,12 @@ export function RoomChat({
                 loading={reporting}
             >
                 <div className="space-y-3 mt-3">
+                    <label htmlFor="report-reason" className="sr-only">
+                        دلیل گزارش
+                    </label>
                     <input
+                        id="report-reason"
+                        name="reason"
                         type="text"
                         value={reportReason}
                         onChange={(e) => setReportReason(e.target.value)}
@@ -589,7 +604,12 @@ export function RoomChat({
                         className="w-full h-9 rounded-xl border border-input bg-transparent px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                         aria-label="دلیل گزارش"
                     />
+                    <label htmlFor="report-details" className="sr-only">
+                        توضیحات گزارش
+                    </label>
                     <textarea
+                        id="report-details"
+                        name="description"
                         value={reportDetails}
                         onChange={(e) => setReportDetails(e.target.value)}
                         placeholder="توضیحات بیشتر (اختیاری)"
