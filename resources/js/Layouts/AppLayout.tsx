@@ -1,7 +1,9 @@
 import { Button, buttonVariants } from "@/Components/ui/button";
+import { ProfileDialog } from "@/Components/composite/profile-dialog";
 import { Link, router, usePage } from "@inertiajs/react";
 import { Home, LogOut, Moon, Plus, Sun, Tv, User } from "lucide-react";
 import { PropsWithChildren } from "react";
+import { useProfileDialogStore } from "@/stores/profile-dialog";
 import { useThemeStore } from "@/stores/theme";
 import { CREATE_ROOM_INTENT_KEY } from "@/lib/utils";
 
@@ -76,8 +78,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             )}
                         </Button>
 
-                        <Link
-                            href={route("profile.edit")}
+                        <button
+                            type="button"
+                            onClick={() =>
+                                useProfileDialogStore.getState().setOpen(true)
+                            }
+                            aria-haspopup="dialog"
                             className={buttonVariants({
                                 variant: "ghost",
                                 size: "sm",
@@ -87,7 +93,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             <span className="hidden sm:inline">
                                 {user.name}
                             </span>
-                        </Link>
+                        </button>
 
                         <button
                             onClick={() => router.post(route("logout"))}
@@ -106,6 +112,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
             <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
                 {children}
             </main>
+            <ProfileDialog />
         </div>
     );
 }

@@ -50,6 +50,35 @@
 
     --z-sticky: 200;
     --z-popover: 500;
+
+    /* Dialog entry animations (no animation library installed — these
+       keyframes back the `animate-dialog-*` utilities used by the native
+       Dialog primitive). The global prefers-reduced-motion block below
+       collapses them automatically for motion-sensitive users. */
+    --animate-dialog-in: dialog-in 150ms ease-out;
+    --animate-dialog-side-in: dialog-side-in 200ms ease-out;
+
+    @keyframes dialog-in {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @keyframes dialog-side-in {
+        from {
+            opacity: 0;
+            transform: translateX(1rem);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
 }
 
 :root {

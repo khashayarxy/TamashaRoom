@@ -60,8 +60,8 @@ export function SubtitleSettingsDialog({
             ref={dialogRef}
             open={open}
             onClose={onClose}
-            disableBackdropBlur
-            className="max-w-[310px] my-auto"
+            variant="side-right"
+            className="max-w-[310px]"
         >
             <DialogContent className="w-full p-4 font-sans max-h-[85vh] flex flex-col overflow-hidden">
                 <DialogHeader className="pb-2 mb-2 border-b border-border shrink-0">

@@ -1,15 +1,33 @@
 import { cn } from "@/lib/utils";
 import { DialogHTMLAttributes, useEffect, useRef, forwardRef } from "react";
 
+export type DialogVariant = "center" | "side-right";
+
 export interface DialogProps extends DialogHTMLAttributes<HTMLDialogElement> {
     open?: boolean;
     onClose?: () => void;
     disableBackdropBlur?: boolean;
+    /**
+     * "center" (default): centered modal with blurred backdrop.
+     * "side-right": docks to the PHYSICAL right edge, vertically centered,
+     * with a transparent backdrop (keeps video visible — subtitle
+     * settings). Physical (not logical) positioning is deliberate: the dock
+     * side must stay invariant, like the LTR-pinned player it serves.
+     */
+    variant?: DialogVariant;
 }
 
 const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
     (
-        { open, onClose, disableBackdropBlur, children, className, ...props },
+        {
+            open,
+            onClose,
+            disableBackdropBlur,
+            variant = "center",
+            children,
+            className,
+            ...props
+        },
         ref,
     ) => {
         const innerRef = useRef<HTMLDialogElement | null>(null);
@@ -47,15 +65,26 @@ const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
             return () => el.removeEventListener("click", handler);
         }, [onClose, resolvedRef]);
 
+        const isSide = variant === "side-right";
+
         return (
             <dialog
                 ref={ref || innerRef}
                 className={cn(
-                    "backdrop:bg-black/50",
-                    !disableBackdropBlur && "backdrop:backdrop-blur-sm",
-                    "rounded-2xl border border-border bg-card text-foreground p-0 shadow-xl",
-                    "open:animate-in open:fade-in-0 open:zoom-in-95",
-                    "max-w-lg w-full",
+                    "rounded-2xl border border-border/50 bg-card text-foreground p-0 shadow-2xl",
+                    "max-h-[85vh] overflow-y-auto",
+                    isSide
+                        ? // Transparent backdrop: clicks still close (see
+                          // handler above) but the video stays fully visible.
+                          "backdrop:bg-transparent ml-auto mr-4 my-auto open:animate-dialog-side-in"
+                        : [
+                              "backdrop:bg-black/50",
+                              !disableBackdropBlur &&
+                                  "backdrop:backdrop-blur-sm",
+                              // Gutters included in the width so small screens
+                              // never overflow: min(32rem, viewport - 2rem).
+                              "m-auto max-w-lg w-[calc(100%-2rem)] open:animate-dialog-in",
+                          ],
                     className,
                 )}
                 {...props}
