@@ -30,7 +30,8 @@ cp .env.example .env
 | `QUEUE_CONNECTION` | `database` | Queue drained by the scheduler; no persistent worker |
 | `CACHE_STORE` | `database` | DB cache store — required (Laravel 13 uses `CACHE_STORE`, not `CACHE_DRIVER`) |
 | `BROADCAST_CONNECTION` | `pusher` | Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when `null` (CI) or unconfigured. Future: Laravel Reverb self-hosted when scaling beyond 500 concurrent |
-| `LOG_CHANNEL` | `daily` | Rotated logs with 14-day retention — recommended for production instead of `stack`/`single` so long-running uploads/proxy streams don't bloat one file |
+| `LOG_CHANNEL` | `daily` | Rotated logs — recommended for production instead of `stack`/`single` so long-running uploads/proxy streams don't bloat one file |
+| `LOG_DAILY_DAYS` | `3` | Retention for the `daily` channel — keep low on shared hosting so rotated logs cannot exhaust the disk quota (`config/logging.php` default is 14) |
 | `DB_*` | Your production DB credentials | — |
 | `SENTRY_DSN` | (optional) | For error monitoring |
 
@@ -213,7 +214,7 @@ rollback has a restore point.
 
 ```bash
 # 1. Set up
-composer install --no-dev --optimize-autoloader
+composer install --no-dev --optimize-autoloader --classmap-authoritative
 # php artisan key:generate --force   # ONLY on a new install (no existing production APP_KEY)
 
 # 2. Database
@@ -227,7 +228,11 @@ php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 
-# 5. Build frontend (may be run off-server; upload only public/build/ to cPanel)
+# 5. Build frontend (no Node.js on the server: build OFF-server, upload only public/build/ to cPanel)
 npm ci
 npm run build
+# Shortcut (Windows dev machine): .\scripts\deploy-package.ps1 rebuilds and
+# zips public/build/ into deploy-assets.zip — upload + extract it into
+# public_html/tamasharoom/public/. IMPORTANT: VITE_* values are baked at build
+# time, so the local .env VITE_* keys must match production's before packaging.
 ```

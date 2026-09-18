@@ -16,6 +16,10 @@ class HealthCheckController extends Controller
             'database' => $this->checkDatabase(),
             'cache' => $this->checkCache(),
             'storage' => $this->checkStorage(),
+            // OPcache is the main performance lever on shared hosting (no
+            // Redis, single core). A `false` here degrades the endpoint so
+            // monitoring notices a host without bytecode caching.
+            'opcache' => $this->checkOpcache(),
         ];
 
         $healthy = ! in_array(false, $checks, true);
@@ -56,6 +60,20 @@ class HealthCheckController extends Controller
     {
         try {
             return is_writable(storage_path());
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function checkOpcache(): bool
+    {
+        try {
+            if (! function_exists('opcache_get_status')) {
+                return false;
+            }
+            $status = opcache_get_status(false);
+
+            return is_array($status) && ($status['opcache_enabled'] ?? false) === true;
         } catch (\Throwable) {
             return false;
         }

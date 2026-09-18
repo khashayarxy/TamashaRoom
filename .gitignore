@@ -85,6 +85,10 @@ coverage/
 Homestead.json
 Homestead.yaml
 
+# Locally-packaged frontend assets for cPanel upload (see scripts/deploy-package.ps1).
+# Never commit build zips — they are large, regenerable, and env-specific.
+deploy-assets.zip
+
 # Machine-local Playwright configs (system-Chrome/MS-Edge workaround where the
 # bundled Chromium CDN download is blocked). Never committed; see
 # docs/ai/ISSUE_REGISTER.md.
