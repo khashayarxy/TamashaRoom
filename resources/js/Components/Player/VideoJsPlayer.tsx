@@ -881,6 +881,15 @@ function TamashaVideoSkin({
                                     className="media-time media-slider__value"
                                 />
                             </Slider.Preview>
+                            {/* Hover position dot. The skin renders it as
+                                Preview::before (centered in the CLAMPED
+                                preview box, so it sticks near both bar ends);
+                                this sibling tracks the raw pointer var
+                                across 0-100% instead. See app.css. */}
+                            <div
+                                className="media-slider__pointer"
+                                aria-hidden="true"
+                            />
                         </TimeSlider.Root>
                         <Time.Value
                             toggle

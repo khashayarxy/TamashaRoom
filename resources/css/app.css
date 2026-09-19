@@ -97,6 +97,46 @@
     }
 }
 
+/* Seek hover dot: the Video.js skin renders it as
+   `.media-slider__preview::before`, centered in the preview box — but that
+   box is position-clamped to keep the time label inside the player
+   (`min(max(0px, pointer - halfWidth), 100% - width)`), so the dot sticks
+   at the clamp bounds near both bar ends instead of following the pointer.
+   Hide the skin dot and render an equivalent dot positioned by the slider
+   root's raw `--media-slider-pointer` var (0-100% unclamped). The time
+   label keeps the skin's clamped box and correct pointer-derived value. */
+.media-default-skin .media-slider__preview::before {
+    display: none;
+}
+
+.media-default-skin .media-slider__pointer {
+    position: absolute;
+    top: 50%;
+    left: var(--media-slider-pointer);
+    z-index: 1;
+    width: calc(var(--spacing) * 1);
+    height: calc(var(--spacing) * 1);
+    pointer-events: none;
+    background-color: currentColor;
+    border-radius: 100%;
+    box-shadow:
+        0 0 0 1px var(--shadow-current-color, oklch(0 0 0 / 0.15)),
+        0 1px 2px 0 oklch(0 0 0 / 0.35);
+    opacity: 0;
+    scale: 0.5;
+    translate: -50% -50%;
+    transition-property: opacity, scale;
+    transition-timing-function: ease-out;
+    transition-duration: 200ms;
+}
+
+.media-default-skin
+    .media-slider[data-pointing]:not([data-dragging])
+    .media-slider__pointer {
+    opacity: 1;
+    scale: 1;
+}
+
 :root {
     color-scheme: light;
     --background: 240, 25%, 98%;
