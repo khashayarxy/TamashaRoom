@@ -58,6 +58,11 @@
     --animate-dialog-in: dialog-in 150ms ease-out;
     --animate-dialog-side-in: dialog-side-in 200ms ease-out;
 
+    /* Indeterminate loader bar (set-video validation status): a 50%-wide
+       fill slides across the track. Decorative motion only — direction
+       carries no meaning, so physical keyframes are fine. */
+    --animate-indeterminate: indeterminate 1.5s ease-in-out infinite;
+
     @keyframes dialog-in {
         from {
             opacity: 0;
@@ -77,6 +82,17 @@
         to {
             opacity: 1;
             transform: translateX(0);
+        }
+    }
+
+    @keyframes indeterminate {
+        from {
+            left: -50%;
+            width: 50%;
+        }
+        to {
+            left: 100%;
+            width: 50%;
         }
     }
 }

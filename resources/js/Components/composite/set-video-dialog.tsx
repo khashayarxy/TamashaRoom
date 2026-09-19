@@ -8,7 +8,7 @@ import {
     DialogTitle,
 } from "@/Components/ui/dialog";
 import { Input } from "@/Components/ui/input";
-import { Tv } from "lucide-react";
+import { Loader2, Tv } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface SetVideoDialogProps {
@@ -19,6 +19,21 @@ interface SetVideoDialogProps {
     initialUrl?: string | null;
 }
 
+/**
+ * Staged status lines shown while the set-video POST is in flight.
+ * Purely presentational (local timers only): the request itself gives no
+ * progress events, so the stages cycle until it resolves. No backend,
+ * no polling, no extra requests.
+ */
+const STATUS_MESSAGES = [
+    "در حال بررسی لینک...",
+    "در حال اتصال به سرور...",
+    "در حال تحلیل فرمت ویدیو...",
+    "در حال بررسی کدک...",
+];
+
+const STATUS_INTERVAL_MS = 800;
+
 export function SetVideoDialog({
     open,
     onClose,
@@ -28,15 +43,25 @@ export function SetVideoDialog({
 }: SetVideoDialogProps) {
     const [videoUrl, setVideoUrl] = useState(initialUrl ?? "");
     const [error, setError] = useState<string | null>(null);
+    const [statusStage, setStatusStage] = useState(0);
     const prevOpenRef = useRef(false);
 
     useEffect(() => {
         if (open && !prevOpenRef.current) {
             setVideoUrl(initialUrl ?? "");
             setError(null);
+            setStatusStage(0);
         }
         prevOpenRef.current = open;
     }, [open, initialUrl]);
+
+    useEffect(() => {
+        if (!loading) return;
+        const interval = setInterval(() => {
+            setStatusStage((prev) => (prev + 1) % STATUS_MESSAGES.length);
+        }, STATUS_INTERVAL_MS);
+        return () => clearInterval(interval);
+    }, [loading]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,6 +92,23 @@ export function SetVideoDialog({
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+                    {loading && (
+                        <div className="space-y-3 p-4 bg-muted/50 rounded-xl border border-border">
+                            <div className="flex items-center gap-3">
+                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                <span className="text-sm font-medium">
+                                    {STATUS_MESSAGES[statusStage]}
+                                </span>
+                            </div>
+                            <div
+                                role="progressbar"
+                                aria-label="در حال بررسی ویدیو"
+                                className="relative h-2 bg-muted rounded-full overflow-hidden"
+                            >
+                                <div className="absolute top-0 h-full bg-primary animate-indeterminate" />
+                            </div>
+                        </div>
+                    )}
                     {error && (
                         <div
                             className="rounded-md bg-destructive/10 p-3 text-sm text-destructive"
