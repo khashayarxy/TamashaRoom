@@ -109,6 +109,18 @@
     display: none;
 }
 
+/* Seek hover label: the skin reserves a 192px-wide preview box
+   (`min-width: var(--max-size)`, the thumbnail slot) even though no
+   thumbnail is shown, so the clamp above freezes the label across the
+   outer ~17% at each bar end. Let the box shrink to the label itself —
+   the JS clamp then uses the label's real half-width (~10px), keeping it
+   centered on the dot almost to the edges without ever overflowing. If
+   thumbnails are ever enabled, the measured width (and clamp) adapt
+   automatically since the sizing stays content-driven. */
+.media-default-skin .media-slider .media-slider__preview {
+    min-width: 0;
+}
+
 .media-default-skin .media-slider__pointer {
     position: absolute;
     top: 50%;

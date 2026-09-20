@@ -8,9 +8,16 @@ import { test, expect, type Page } from "@playwright/test";
  * time label inside the player, so the dot stuck at the clamp bounds near
  * both bar ends (±12-17% off). The app hides the skin dot and renders
  * `.media-slider__pointer` instead, positioned by the raw pointer var across
- * the full 0-100% range, while the label keeps its clamped box.
+ * the full 0-100% range.
  *
- * See: resources/css/app.css ("Seek hover dot"), VideoJsPlayer.tsx.
+ * The label had the same disease one layer up: the preview box reserved a
+ * 192px thumbnail slot (`min-width: var(--max-size)`) with no thumbnail
+ * shown, freezing the label across the outer ~17% at each end. The app
+ * drops that floor (`min-width: 0`), so the JS clamp uses the label's own
+ * half-width (~10px) and the label stays centered on the dot almost to the
+ * edges without ever leaving the player.
+ *
+ * See: resources/css/app.css ("Seek hover dot/label"), VideoJsPlayer.tsx.
  */
 async function installProxyFallbackMock(page: Page): Promise<void> {
     await page.route(/\/proxy\/video\/\d+/, async (route) => {
@@ -60,7 +67,7 @@ test.describe("Seek hover marker", () => {
         });
         expect(skinDotDisplay).toBe("none");
 
-        for (const frac of [0.05, 0.5, 0.95]) {
+        for (const frac of [0.02, 0.05, 0.5, 0.95, 0.98]) {
             await page.mouse.move(
                 bar!.x + frac * bar!.width,
                 bar!.y + bar!.height / 2,
@@ -79,6 +86,7 @@ test.describe("Seek hover marker", () => {
                 return {
                     dotCenterX: d.x + d.width / 2,
                     dotOpacity: getComputedStyle(dot).opacity,
+                    labelCX: l.x + l.width / 2,
                     labelX: l.x,
                     labelW: l.width,
                     labelText: label.textContent?.trim() ?? "",
@@ -91,11 +99,18 @@ test.describe("Seek hover marker", () => {
                 bar!.width * 0.02,
             );
             expect(m!.dotOpacity).toBe("1");
-            // The time label keeps its clamped box inside the bar...
-            expect(m!.labelX).toBeGreaterThanOrEqual(bar!.x - 3);
-            expect(m!.labelX + m!.labelW).toBeLessThanOrEqual(
-                bar!.x + bar!.width + 3,
+            // The label stays centered on the dot, clamped only by its own
+            // half-width: expected position is the pointer, pulled inside
+            // the bar by half the label width at the edges.
+            const halfW = m!.labelW / 2;
+            const relX = expectedX - bar!.x;
+            const clampedRelX = Math.min(
+                Math.max(halfW, relX),
+                bar!.width - halfW,
             );
+            expect(
+                Math.abs(m!.labelCX - (bar!.x + clampedRelX)),
+            ).toBeLessThanOrEqual(bar!.width * 0.02);
             // ...while still showing the pointer-derived value.
             expect(m!.labelText.length).toBeGreaterThan(0);
         }
