@@ -244,7 +244,15 @@ export default function ShowRoom({ room }: ShowRoomProps) {
     // vh alone overflows on mobile browsers.
     return (
         <ErrorBoundary fallback={<PageErrorFallback />}>
-            <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8.5rem)] supports-[height:100dvh]:h-[calc(100dvh-8.5rem)]">
+            {/* Height math: viewport minus AppLayout chrome (h-16 header +
+            32px main top pad + 32px main bottom pad = 8rem), plus a 2px
+            anti-scroll guard. The old 8.5rem over-subtracted and left a
+            ~39px dead zone under the chat card; any smaller risks page
+            scroll (the BUG 5 regression). */}
+            <div
+                data-testid="room-layout"
+                className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem-2px)] supports-[height:100dvh]:h-[calc(100dvh-8rem-2px)]"
+            >
                 <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-0">
                     <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/40 px-4 py-3 backdrop-blur">
                         <div className="min-w-0">
