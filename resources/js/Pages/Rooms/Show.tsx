@@ -68,6 +68,13 @@ interface ChatMessage {
     body: string;
     user: { id: number; name: string };
     created_at: string;
+    reply_to_id: number | null;
+    reply_to: {
+        id: number;
+        body: string;
+        user: { id: number; name: string };
+    } | null;
+    likes: Array<{ user_id: number; user: { id: number; name: string } }>;
 }
 
 interface Member {

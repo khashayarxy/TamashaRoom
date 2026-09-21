@@ -33,6 +33,10 @@ class NewChatMessage implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
+        $replyTo = $this->message->relationLoaded('replyTo')
+            ? $this->message->replyTo
+            : $this->message->replyTo()->with('user:id,name')->first();
+
         return [
             'id' => $this->message->id,
             'user_id' => $this->message->user_id,
@@ -42,6 +46,18 @@ class NewChatMessage implements ShouldBroadcastNow
                 'name' => $this->message->user->name,
             ],
             'created_at' => $this->message->created_at,
+            'reply_to_id' => $this->message->reply_to_id,
+            'reply_to' => $replyTo === null ? null : [
+                'id' => $replyTo->id,
+                'body' => $replyTo->body,
+                'user' => [
+                    'id' => $replyTo->user->id,
+                    'name' => $replyTo->user->name,
+                ],
+            ],
+            // A just-sent message has no likes yet; receivers reconcile
+            // counts from polls and chat.message.liked broadcasts.
+            'likes' => [],
         ];
     }
 

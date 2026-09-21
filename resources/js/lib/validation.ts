@@ -7,6 +7,23 @@ import { z } from "zod";
  * from the server or from the browser's own storage.
  */
 
+const chatLikeSchema = z.object({
+    user_id: z.number().int().nonnegative(),
+    user: z.object({
+        id: z.number().int().nonnegative(),
+        name: z.string(),
+    }),
+});
+
+const chatReplySchema = z.object({
+    id: z.number().int().nonnegative(),
+    body: z.string(),
+    user: z.object({
+        id: z.number().int().nonnegative(),
+        name: z.string(),
+    }),
+});
+
 export const chatMessageSchema = z.object({
     id: z.number().int().nonnegative(),
     user_id: z.number().int().nonnegative(),
@@ -16,6 +33,14 @@ export const chatMessageSchema = z.object({
         name: z.string(),
     }),
     created_at: z.string(),
+    reply_to_id: z.number().int().nonnegative().nullable(),
+    reply_to: chatReplySchema.nullable(),
+    likes: z.array(chatLikeSchema),
+});
+
+export const chatLikedSchema = z.object({
+    message_id: z.number().int().nonnegative(),
+    likes: z.array(chatLikeSchema),
 });
 
 export const chatMessagesSchema = z.array(chatMessageSchema);

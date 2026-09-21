@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Actions\ReportMessageAction;
+use App\Events\MessageLiked;
 use App\Events\NewChatMessage;
 use App\Models\AuditLog;
 use App\Models\ChatMessage;
+use App\Models\ChatMessageLike;
 use App\Models\Room;
 use App\Services\ContentModerator;
 use App\Traits\HasFeatureFlags;
@@ -23,7 +25,7 @@ class ChatController extends Controller
         $this->authorize('viewAny', [ChatMessage::class, $room]);
 
         $messages = ChatMessage::where('room_id', $room->id)
-            ->with('user:id,name')
+            ->with(['user:id,name', 'replyTo.user:id,name', 'likes.user:id,name'])
             ->latest()
             ->limit(50)
             ->get()
@@ -39,6 +41,7 @@ class ChatController extends Controller
 
         $validated = $request->validate([
             'body' => 'required|string|max:500',
+            'reply_to_id' => ['nullable', 'integer'],
         ]);
 
         if ($this->featureEnabled('chat_moderation') && $moderator->containsBlockedContent($validated['body'])) {
@@ -48,15 +51,33 @@ class ChatController extends Controller
             ], 422);
         }
 
+        // A reply target must exist in THIS room. Mirror destroy's scoping:
+        // cross-room references 404 (no existence leak), fully-gone ids 422.
+        $replyToId = $validated['reply_to_id'] ?? null;
+        if ($replyToId !== null) {
+            $inRoom = $room->chatMessages()->whereKey($replyToId)->exists();
+            if (! $inRoom) {
+                if (ChatMessage::whereKey($replyToId)->exists()) {
+                    abort(404);
+                }
+
+                return response()->json([
+                    'message' => 'پیام مورد نظر یافت نشد.',
+                    'errors' => ['reply_to_id' => ['پیام مورد نظر یافت نشد.']],
+                ], 422);
+            }
+        }
+
         $message = ChatMessage::create([
             'room_id' => $room->id,
             'user_id' => $request->user()->id,
             'body' => $validated['body'],
+            'reply_to_id' => $replyToId,
         ]);
 
         $room->touchActivityIfStale();
 
-        $message->load('user:id,name');
+        $message->load(['user:id,name', 'replyTo.user:id,name', 'likes.user:id,name']);
 
         broadcast(new NewChatMessage($message))->toOthers();
 
@@ -93,6 +114,52 @@ class ChatController extends Controller
         ]);
 
         return response()->json(['status' => 'ok']);
+    }
+
+    public function toggleLike(Request $request, Room $room, ChatMessage $message): JsonResponse
+    {
+        $this->authorize('toggleLike', [ChatMessage::class, $room]);
+
+        // Scope the message to this room (same pattern as destroy/report):
+        // cross-room references 404 to avoid leaking existence.
+        $existing = $room->chatMessages()->whereKey($message->id)->first();
+
+        if ($existing === null) {
+            abort(404);
+        }
+
+        $like = ChatMessageLike::where('message_id', $existing->id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if ($like !== null) {
+            $like->delete();
+            $liked = false;
+        } else {
+            ChatMessageLike::create([
+                'message_id' => $existing->id,
+                'user_id' => $request->user()->id,
+            ]);
+            $liked = true;
+        }
+
+        $likes = ChatMessageLike::where('message_id', $existing->id)
+            ->with('user:id,name')
+            ->get()
+            ->map(fn (ChatMessageLike $l) => [
+                'user_id' => $l->user_id,
+                'user' => ['id' => $l->user->id, 'name' => $l->user->name],
+            ])
+            ->values()
+            ->all();
+
+        broadcast(new MessageLiked($room, $existing->id, $likes))->toOthers();
+
+        return response()->json([
+            'status' => 'ok',
+            'liked' => $liked,
+            'likes' => $likes,
+        ]);
     }
 
     public function report(

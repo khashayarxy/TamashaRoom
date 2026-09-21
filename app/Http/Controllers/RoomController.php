@@ -64,7 +64,7 @@ class RoomController extends Controller
         $room->load([
             'owner:id,name',
             'members.user:id,name',
-            'chatMessages' => fn ($q) => $q->with('user:id,name')->latest()->limit(50),
+            'chatMessages' => fn ($q) => $q->with(['user:id,name', 'replyTo.user:id,name', 'likes.user:id,name'])->latest()->limit(50),
         ]);
 
         // Keep chronological (oldest-first) order, matching ChatController::index.

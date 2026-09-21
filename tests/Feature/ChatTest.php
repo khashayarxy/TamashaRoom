@@ -399,4 +399,157 @@ class ChatTest extends TestCase
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['details']);
     }
+
+    #[Test]
+    public function reply_to_message_in_same_room_is_stored_with_snapshot(): void
+    {
+        $original = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Original message',
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.store', $this->room), [
+                'body' => 'Reply here',
+                'reply_to_id' => $original->id,
+            ]);
+
+        $response->assertCreated()
+            ->assertJson([
+                'body' => 'Reply here',
+                'reply_to_id' => $original->id,
+            ])
+            ->assertJsonPath('reply_to.body', 'Original message')
+            ->assertJsonPath('reply_to.user.name', $this->owner->name);
+    }
+
+    #[Test]
+    public function cannot_reply_to_message_from_another_room(): void
+    {
+        $otherRoom = Room::factory()->create(['user_id' => $this->owner->id]);
+        $otherMessage = ChatMessage::create([
+            'room_id' => $otherRoom->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Other room message',
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.store', $this->room), [
+                'body' => 'Cross-room reply',
+                'reply_to_id' => $otherMessage->id,
+            ]);
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseMissing('chat_messages', [
+            'body' => 'Cross-room reply',
+        ]);
+    }
+
+    #[Test]
+    public function cannot_reply_to_nonexistent_message(): void
+    {
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.store', $this->room), [
+                'body' => 'Reply to nothing',
+                'reply_to_id' => 999999,
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['reply_to_id']);
+    }
+
+    #[Test]
+    public function like_toggle_likes_then_unlikes_with_counts(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Likeable message',
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.like', ['room' => $this->room, 'message' => $message]));
+
+        $response->assertOk()
+            ->assertJson(['status' => 'ok', 'liked' => true])
+            ->assertJsonCount(1, 'likes')
+            ->assertJsonPath('likes.0.user.name', $this->member->name);
+
+        $this->assertDatabaseHas('chat_message_likes', [
+            'message_id' => $message->id,
+            'user_id' => $this->member->id,
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.like', ['room' => $this->room, 'message' => $message]));
+
+        $response->assertOk()
+            ->assertJson(['status' => 'ok', 'liked' => false])
+            ->assertJsonCount(0, 'likes');
+
+        $this->assertDatabaseMissing('chat_message_likes', [
+            'message_id' => $message->id,
+            'user_id' => $this->member->id,
+        ]);
+    }
+
+    #[Test]
+    public function stranger_cannot_like_message(): void
+    {
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Owner message',
+        ]);
+
+        $response = $this->actingAs($this->stranger)
+            ->postJson(route('chat.like', ['room' => $this->room, 'message' => $message]));
+
+        $response->assertNotFound();
+    }
+
+    #[Test]
+    public function cannot_like_message_from_another_room(): void
+    {
+        $otherRoom = Room::factory()->create(['user_id' => $this->owner->id]);
+        $otherMessage = ChatMessage::create([
+            'room_id' => $otherRoom->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Other room message',
+        ]);
+
+        $response = $this->actingAs($this->member)
+            ->postJson(route('chat.like', ['room' => $this->room, 'message' => $otherMessage]));
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseMissing('chat_message_likes', [
+            'message_id' => $otherMessage->id,
+        ]);
+    }
+
+    /**
+     * Like broadcasts must be synchronous for the same reason as chat
+     * message broadcasts (see chat_broadcast_is_not_queued... above).
+     */
+    #[Test]
+    public function like_broadcast_is_not_queued_on_the_database_queue(): void
+    {
+        config(['queue.default' => 'database']);
+        Queue::fake();
+
+        $message = ChatMessage::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->owner->id,
+            'body' => 'Likeable message',
+        ]);
+
+        $this->actingAs($this->member)
+            ->postJson(route('chat.like', ['room' => $this->room, 'message' => $message]))
+            ->assertOk();
+
+        Queue::assertNotPushed(BroadcastEvent::class);
+    }
 }

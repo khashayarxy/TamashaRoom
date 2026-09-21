@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import {
+    render,
+    screen,
+    waitFor,
+    act,
+    fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RoomChat } from "@/Components/composite/room-chat";
 import { createFakeEcho, type FakeEcho } from "./helpers/fake-echo";
@@ -48,6 +54,13 @@ function makeMessage(
         body: string;
         created_at: string;
         user: { id: number; name: string };
+        reply_to_id: number | null;
+        reply_to: {
+            id: number;
+            body: string;
+            user: { id: number; name: string };
+        } | null;
+        likes: Array<{ user_id: number; user: { id: number; name: string } }>;
     }> = {},
 ) {
     return {
@@ -56,6 +69,9 @@ function makeMessage(
         body: "Test message",
         created_at: new Date().toISOString(),
         user: { id: 1, name: "TestUser" },
+        reply_to_id: null,
+        reply_to: null,
+        likes: [],
         ...overrides,
     };
 }
@@ -884,5 +900,378 @@ describe("RoomChat (push transport)", () => {
             await vi.advanceTimersByTimeAsync(3000);
         });
         expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("RoomChat smart auto-scroll", () => {
+    let fakeEcho: FakeEcho;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+        mockGet.mockResolvedValue({ data: [] });
+        mockPost.mockReset();
+    });
+
+    afterEach(() => {
+        echoHolder.instance = null;
+        vi.useRealTimers();
+    });
+
+    function listEl(container: HTMLElement): HTMLElement {
+        const el = container.querySelector('[data-testid="chat-list"]');
+        expect(el).not.toBeNull();
+        return el as HTMLElement;
+    }
+
+    function setListMetrics(
+        el: HTMLElement,
+        metrics: {
+            scrollHeight: number;
+            scrollTop: number;
+            clientHeight: number;
+        },
+    ) {
+        Object.defineProperty(el, "scrollHeight", {
+            configurable: true,
+            value: metrics.scrollHeight,
+        });
+        Object.defineProperty(el, "scrollTop", {
+            configurable: true,
+            value: metrics.scrollTop,
+            writable: true,
+        });
+        Object.defineProperty(el, "clientHeight", {
+            configurable: true,
+            value: metrics.clientHeight,
+        });
+    }
+
+    it("does not yank scroll when scrolled up; shows a counted pill instead", async () => {
+        const { container } = render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 1, body: "اول" })]}
+            />,
+        );
+        // Let the mount-time scroll timer fire before mocking metrics.
+        await new Promise((r) => setTimeout(r, 100));
+        const list = listEl(container);
+        setListMetrics(list, {
+            scrollHeight: 1000,
+            scrollTop: 100,
+            clientHeight: 200,
+        });
+        fireEvent.scroll(list);
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".chat.message.new",
+                makeMessage({ id: 2, user_id: 2, body: "دوم" }),
+            );
+        });
+        await new Promise((r) => setTimeout(r, 150));
+
+        expect(list.scrollTop).toBe(100);
+        expect(screen.getByText("۱ پیام جدید")).toBeInTheDocument();
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".chat.message.new",
+                makeMessage({ id: 3, user_id: 2, body: "سوم" }),
+            );
+        });
+        await waitFor(() => {
+            expect(screen.getByText("۲ پیام جدید")).toBeInTheDocument();
+        });
+    });
+
+    it("auto-scrolls when near the bottom and shows no pill", async () => {
+        const { container } = render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 1, body: "اول" })]}
+            />,
+        );
+        await new Promise((r) => setTimeout(r, 100));
+        const list = listEl(container);
+        setListMetrics(list, {
+            scrollHeight: 1000,
+            scrollTop: 850,
+            clientHeight: 200,
+        });
+        fireEvent.scroll(list);
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".chat.message.new",
+                makeMessage({ id: 2, user_id: 2, body: "دوم" }),
+            );
+        });
+        await waitFor(() => {
+            expect(list.scrollTop).toBe(1000);
+        });
+        expect(screen.queryByText(/پیام جدید/)).not.toBeInTheDocument();
+    });
+
+    it("tapping the pill jumps to bottom and clears it", async () => {
+        const user = userEvent.setup();
+        const { container } = render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[makeMessage({ id: 1, body: "اول" })]}
+            />,
+        );
+        await new Promise((r) => setTimeout(r, 100));
+        const list = listEl(container);
+        setListMetrics(list, {
+            scrollHeight: 1000,
+            scrollTop: 100,
+            clientHeight: 200,
+        });
+        fireEvent.scroll(list);
+
+        await act(async () => {
+            fakeEcho.emit(
+                ".chat.message.new",
+                makeMessage({ id: 2, user_id: 2, body: "دوم" }),
+            );
+        });
+        await waitFor(() => {
+            expect(screen.getByText("۱ پیام جدید")).toBeInTheDocument();
+        });
+
+        await user.click(screen.getByText("۱ پیام جدید"));
+        await waitFor(() => {
+            expect(list.scrollTop).toBe(1000);
+        });
+        expect(screen.queryByText(/پیام جدید/)).not.toBeInTheDocument();
+    });
+});
+
+describe("RoomChat replies", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        echoHolder.instance = null;
+        mockGet.mockResolvedValue({ data: [] });
+        mockPost.mockReset();
+    });
+
+    it("reply button shows a compose preview that can be cancelled", async () => {
+        const user = userEvent.setup();
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({ id: 2, user_id: 2, body: "سلام" }),
+                ]}
+                isOwner={false}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "پاسخ به پیام" }));
+        // Quoted in the compose preview AND rendered in the feed.
+        expect(screen.getAllByText("سلام")).toHaveLength(2);
+        expect(
+            screen.getByRole("button", { name: "لغو پاسخ" }),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "لغو پاسخ" }));
+        expect(screen.getAllByText("سلام")).toHaveLength(1);
+        expect(
+            screen.queryByRole("button", { name: "لغو پاسخ" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("send includes reply_to_id and clears the preview on success", async () => {
+        const user = userEvent.setup();
+        mockPost.mockResolvedValue({
+            data: makeMessage({ id: 20, body: "باشه" }),
+        });
+
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({ id: 2, user_id: 2, body: "میای؟" }),
+                ]}
+                isOwner={false}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "پاسخ به پیام" }));
+        const input = screen.getByPlaceholderText("پیام خود را بنویسید...");
+        await user.type(input, "باشه");
+        await user.click(screen.getByRole("button", { name: "ارسال پیام" }));
+
+        await waitFor(() => {
+            expect(mockPost).toHaveBeenCalledWith(
+                "/chat/1/messages",
+                expect.objectContaining({ reply_to_id: 2 }),
+            );
+        });
+        expect(
+            screen.queryByRole("button", { name: "لغو پاسخ" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("renders the quote and a deleted-message placeholder", async () => {
+        window.HTMLElement.prototype.scrollIntoView = vi.fn();
+        const user = userEvent.setup();
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({ id: 1, body: "سوال" }),
+                    makeMessage({
+                        id: 3,
+                        user_id: 2,
+                        body: "جواب",
+                        reply_to_id: 1,
+                        reply_to: {
+                            id: 1,
+                            body: "سوال",
+                            user: { id: 1, name: "TestUser" },
+                        },
+                    }),
+                    makeMessage({
+                        id: 4,
+                        user_id: 2,
+                        body: "یتیم",
+                        reply_to_id: 99,
+                        reply_to: null,
+                    }),
+                ]}
+                isOwner={false}
+            />,
+        );
+
+        // Quoted in the reply and rendered as its own message.
+        expect(screen.getAllByText("سوال")).toHaveLength(2);
+        expect(screen.getByText("پیام حذف شده")).toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole("button", { name: "مشاهده پیام TestUser" }),
+        );
+        expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+});
+
+describe("RoomChat likes", () => {
+    let fakeEcho: FakeEcho;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fakeEcho = createFakeEcho();
+        echoHolder.instance = fakeEcho;
+        mockGet.mockResolvedValue({ data: [] });
+        mockPost.mockReset();
+    });
+
+    afterEach(() => {
+        echoHolder.instance = null;
+        vi.useRealTimers();
+    });
+
+    it("heart toggles a like and shows the count from the response", async () => {
+        const user = userEvent.setup();
+        mockPost.mockResolvedValue({
+            data: {
+                status: "ok",
+                liked: true,
+                likes: [{ user_id: 1, user: { id: 1, name: "TestUser" } }],
+            },
+        });
+
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({ id: 2, user_id: 2, body: "لایک کن" }),
+                ]}
+                isOwner={false}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "پسندیدن پیام" }));
+        await waitFor(() => {
+            expect(mockPost).toHaveBeenCalledWith("/chat/1/messages/2/like");
+        });
+        await waitFor(() => {
+            expect(
+                screen.getByRole("button", { name: "برداشتن پسند" }),
+            ).toBeInTheDocument();
+        });
+        expect(screen.getByText("۱")).toBeInTheDocument();
+    });
+
+    it("tapping the count reveals liker names", async () => {
+        const user = userEvent.setup();
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({
+                        id: 2,
+                        user_id: 2,
+                        body: "محبوب",
+                        likes: [
+                            {
+                                user_id: 3,
+                                user: { id: 3, name: "سارا" },
+                            },
+                        ],
+                    }),
+                ]}
+                isOwner={false}
+            />,
+        );
+
+        expect(screen.queryByText("سارا")).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "۱ پسند" }));
+        expect(screen.getByText("سارا")).toBeInTheDocument();
+    });
+
+    it("applies liked broadcasts to the matching message", async () => {
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({ id: 2, user_id: 2, body: "زنده" }),
+                ]}
+                isOwner={false}
+            />,
+        );
+
+        await act(async () => {
+            fakeEcho.emit(".chat.message.liked", {
+                message_id: 2,
+                likes: [{ user_id: 3, user: { id: 3, name: "سارا" } }],
+            });
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("۱")).toBeInTheDocument();
+        });
+    });
+
+    it("ignores malformed liked broadcasts without crashing", async () => {
+        render(
+            <RoomChat
+                roomId={1}
+                initialMessages={[
+                    makeMessage({ id: 2, user_id: 2, body: "زنده" }),
+                ]}
+                isOwner={false}
+            />,
+        );
+
+        await act(async () => {
+            fakeEcho.emit(".chat.message.liked", { bogus: true });
+        });
+
+        expect(screen.getByText("زنده")).toBeInTheDocument();
+        expect(screen.queryByText("۱")).not.toBeInTheDocument();
     });
 });

@@ -21,6 +21,11 @@ class ChatMessagePolicy
         return $this->memberOrNotFound($user, $room);
     }
 
+    public function toggleLike(User $user, Room $room): Response
+    {
+        return $this->memberOrNotFound($user, $room);
+    }
+
     public function delete(User $user, ChatMessage $message, Room $room): Response
     {
         if ($user->id === $message->user_id) {

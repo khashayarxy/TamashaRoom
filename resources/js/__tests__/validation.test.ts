@@ -15,6 +15,27 @@ describe("lib/validation schemas", () => {
             body: "سلام",
             user: { id: 2, name: "علی" },
             created_at: "2026-08-04T00:00:00.000000Z",
+            reply_to_id: null,
+            reply_to: null,
+            likes: [],
+        };
+        expect(chatMessageSchema.parse(message)).toEqual(message);
+    });
+
+    it("chatMessageSchema accepts a message with reply and likes", () => {
+        const message = {
+            id: 3,
+            user_id: 4,
+            body: "موافقم",
+            user: { id: 4, name: "سارا" },
+            created_at: "2026-08-04T00:00:00.000000Z",
+            reply_to_id: 1,
+            reply_to: {
+                id: 1,
+                body: "سلام",
+                user: { id: 2, name: "علی" },
+            },
+            likes: [{ user_id: 2, user: { id: 2, name: "علی" } }],
         };
         expect(chatMessageSchema.parse(message)).toEqual(message);
     });

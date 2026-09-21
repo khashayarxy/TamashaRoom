@@ -72,6 +72,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/messages', [ChatController::class, 'store'])->middleware('throttle:chat')->name('store');
         Route::delete('/messages/{message}', [ChatController::class, 'destroy'])->name('destroy');
         Route::post('/messages/{message}/report', [ChatController::class, 'report'])->name('report');
+        Route::post('/messages/{message}/like', [ChatController::class, 'toggleLike'])->middleware('throttle:chat')->name('like');
     });
 
     Route::get('/proxy/video/{room}', VideoStreamController::class)->middleware([DiagnoseRoomRequest::class.':proxy', 'throttle:proxy'])->name('proxy.video');

@@ -7,11 +7,14 @@ import {
 } from "@/Components/ui/popover";
 import api from "@/lib/api";
 import { getEcho, watchPushHealth } from "@/lib/echo";
-import { timeAgo } from "@/lib/utils";
+import { timeAgo, toPersianDigits } from "@/lib/utils";
 import { isPollingSuspended } from "@/lib/polling-controller";
-import { chatMessagesSchema } from "@/lib/validation";
+import { chatLikedSchema, chatMessagesSchema } from "@/lib/validation";
 import { usePage } from "@inertiajs/react";
 import {
+    ArrowDown,
+    Heart,
+    Reply,
     Smile,
     Send,
     Trash2,
@@ -20,6 +23,7 @@ import {
     UserMinus,
     UserPlus,
     WifiOff,
+    X,
 } from "lucide-react";
 import {
     FormEvent,
@@ -32,12 +36,26 @@ import {
 import { toast } from "sonner";
 import type { PresenceMoment } from "@/lib/presence-moments";
 
+interface ChatLike {
+    user_id: number;
+    user: { id: number; name: string };
+}
+
+interface ChatReply {
+    id: number;
+    body: string;
+    user: { id: number; name: string };
+}
+
 interface Message {
     id: number;
     user_id: number;
     body: string;
     user: { id: number; name: string };
     created_at: string;
+    reply_to_id: number | null;
+    reply_to: ChatReply | null;
+    likes: ChatLike[];
 }
 
 /**
@@ -53,6 +71,12 @@ type ChatMessageView = Message & { pending?: boolean };
  * unhealthy) the poll IS the transport and ticks at `pollInterval` (3s).
  */
 const HEALTHY_POLL_INTERVAL = 20000;
+
+/**
+ * Pixels of slack before the bottom still counts as "at bottom" — a user
+ * a paragraph above the fold should still follow new messages.
+ */
+const NEAR_BOTTOM_PX = 80;
 
 interface RoomChatProps {
     roomId: number;
@@ -93,6 +117,20 @@ export function RoomChat({
     const [reportReason, setReportReason] = useState("");
     const [reportDetails, setReportDetails] = useState("");
     const [reporting, setReporting] = useState(false);
+    const [replyTo, setReplyTo] = useState<ChatReply | null>(null);
+    const [likingId, setLikingId] = useState<number | null>(null);
+    const [showLikersFor, setShowLikersFor] = useState<number | null>(null);
+    // True while the message list sits at (or near) the bottom. New arrivals
+    // only auto-scroll then; otherwise a "new messages" pill appears instead
+    // so reading history is never yanked away.
+    const [atBottom, setAtBottom] = useState(true);
+    const [bottomSeenId, setBottomSeenId] = useState<number | null>(
+        initialMessages.reduce((max, m) => Math.max(max, m.id), 0) || null,
+    );
+    const messagesRef = useRef<ChatMessageView[]>(initialMessages);
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
 
     const insertEmoji = (emoji: string) => {
         setBody((prev) => {
@@ -118,6 +156,49 @@ export function RoomChat({
         }
     }, []);
 
+    const isNearBottom = useCallback((): boolean => {
+        const el = listRef.current;
+        if (!el) return true;
+        return (
+            el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+        );
+    }, []);
+
+    /** Scroll to bottom and record everything as seen-there. */
+    const scrollToBottomAndMark = useCallback(() => {
+        if (listRef.current) {
+            listRef.current.scrollTop = listRef.current.scrollHeight;
+        }
+        const max = messagesRef.current.reduce(
+            (m, msg) => Math.max(m, msg.id),
+            0,
+        );
+        setBottomSeenId(max === 0 ? null : max);
+        setAtBottom(true);
+    }, []);
+
+    /**
+     * Follow new messages only when the user is already at (or near) the
+     * bottom; otherwise leave the scroll position alone so reading history
+     * is never yanked away (the pill offers a jump instead).
+     */
+    const maybeScrollToBottom = useCallback(() => {
+        if (isNearBottom()) scrollToBottomAndMark();
+        else setAtBottom(false);
+    }, [isNearBottom, scrollToBottomAndMark]);
+
+    const handleListScroll = () => {
+        const near = isNearBottom();
+        setAtBottom(near);
+        if (near) {
+            const max = messagesRef.current.reduce(
+                (m, msg) => Math.max(m, msg.id),
+                0,
+            );
+            setBottomSeenId(max === 0 ? null : max);
+        }
+    };
+
     /**
      * Append one live-delivered message (Echo broadcast), deduplicated by id
      * — the poll and the sender's POST response can race this delivery.
@@ -137,9 +218,9 @@ export function RoomChat({
             ) {
                 setUnreadCount((c) => c + 1);
             }
-            setTimeout(scrollToBottom, 50);
+            setTimeout(maybeScrollToBottom, 50);
         },
-        [scrollToBottom],
+        [maybeScrollToBottom],
     );
 
     const fetchMessages = useCallback(async () => {
@@ -173,10 +254,12 @@ export function RoomChat({
                     ? [...incoming, ...pendingOptimistic]
                     : incoming;
             });
+            // Polls deliver messages too — follow them only at the bottom.
+            setTimeout(maybeScrollToBottom, 50);
         } catch {
             setPollError(true);
         }
-    }, [roomId]);
+    }, [roomId, maybeScrollToBottom]);
 
     useEffect(() => {
         const echo = getEcho();
@@ -189,6 +272,22 @@ export function RoomChat({
         const channel = echo.join(`room.${roomId}`);
         channel.listen(".chat.message.new", (payload) => {
             appendLiveMessage(payload as Message);
+        });
+        // Like toggles ride the same channel (validated — a forged payload
+        // that fails the shape is ignored, never rendered).
+        channel.listen(".chat.message.liked", (payload) => {
+            try {
+                const parsed = chatLikedSchema.parse(payload);
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === parsed.message_id
+                            ? { ...m, likes: parsed.likes }
+                            : m,
+                    ),
+                );
+            } catch {
+                // Ignore malformed like payloads; the next poll reconciles.
+            }
         });
 
         // Push health drives the poll cadence: healthy push turns the poll
@@ -227,6 +326,7 @@ export function RoomChat({
         return () => {
             stopHealthWatch();
             channel.stopListening(".chat.message.new");
+            channel.stopListening(".chat.message.liked");
             echo.leave(`room.${roomId}`);
         };
     }, [roomId, appendLiveMessage, fetchMessages]);
@@ -301,16 +401,22 @@ export function RoomChat({
             body: body.trim(),
             user: { id: auth.user.id, name: auth.user.name },
             created_at: new Date().toISOString(),
+            reply_to_id: replyTo?.id ?? null,
+            reply_to: replyTo,
+            likes: [],
             pending: true,
         };
+        const replyToId = replyTo?.id ?? null;
         setMessages((prev) => [...prev, optimistic]);
         setBody("");
-        scrollToBottom();
+        maybeScrollToBottom();
 
         try {
             const { data } = await api.post(`/chat/${roomId}/messages`, {
                 body: optimistic.body,
+                ...(replyToId !== null ? { reply_to_id: replyToId } : {}),
             });
+            setReplyTo(null);
             setMessages((prev) => {
                 const withoutTemp = prev.filter((m) => m.id !== optimisticId);
                 // The sender's other tab may have received the live echo
@@ -325,7 +431,7 @@ export function RoomChat({
             ) {
                 lastSeenIdRef.current = data.id;
             }
-            setTimeout(scrollToBottom, 50);
+            setTimeout(maybeScrollToBottom, 50);
         } catch {
             setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
             setBody((b) => (b ? b : optimistic.body));
@@ -344,6 +450,33 @@ export function RoomChat({
             setDeleting(null);
             setConfirmDelete(null);
         }
+    };
+
+    const likedByMe = (msg: ChatMessageView): boolean =>
+        msg.likes.some((like) => like.user_id === auth.user.id);
+
+    const toggleLike = async (messageId: number) => {
+        if (likingId !== null) return;
+        setLikingId(messageId);
+        try {
+            const { data } = await api.post(
+                `/chat/${roomId}/messages/${messageId}/like`,
+            );
+            const likes = Array.isArray(data.likes) ? data.likes : [];
+            setMessages((prev) =>
+                prev.map((m) => (m.id === messageId ? { ...m, likes } : m)),
+            );
+        } catch {
+            toast.error("خطا در ثبت پسند");
+        } finally {
+            setLikingId(null);
+        }
+    };
+
+    const scrollToMessage = (messageId: number) => {
+        document
+            .getElementById(`chat-msg-${messageId}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
     };
 
     const reportMessage = async () => {
@@ -400,9 +533,19 @@ export function RoomChat({
         [messages, presenceMoments],
     );
 
+    const newBelowCount =
+        atBottom || bottomSeenId === null
+            ? 0
+            : messages.filter((m) => m.id > 0 && m.id > bottomSeenId).length;
+
     return (
-        <div data-testid="chat-panel" className="flex flex-col h-full">
-            <div ref={listRef} className="flex-1 overflow-y-auto space-y-3 p-4">
+        <div data-testid="chat-panel" className="relative flex flex-col h-full">
+            <div
+                ref={listRef}
+                data-testid="chat-list"
+                onScroll={handleListScroll}
+                className="flex-1 overflow-y-auto space-y-3 p-4"
+            >
                 {pollError && (
                     <div role="status" className="flex justify-center py-1">
                         <span className="inline-flex items-center gap-1.5 text-xs text-destructive-text">
@@ -428,6 +571,7 @@ export function RoomChat({
                     ) : (
                         <div
                             key={item.key}
+                            id={`chat-msg-${item.msg.id}`}
                             className={`flex gap-2 group ${isOwn(item.msg.user_id) ? "flex-row-reverse" : ""}`}
                             onTouchStart={() =>
                                 setTappedMsgId(
@@ -450,6 +594,33 @@ export function RoomChat({
                                 <div className="font-medium text-xs mb-0.5">
                                     {item.msg.user.name}
                                 </div>
+                                {item.msg.reply_to !== null ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const targetId =
+                                                item.msg.reply_to_id;
+                                            if (targetId !== null) {
+                                                scrollToMessage(targetId);
+                                            }
+                                        }}
+                                        className="mb-1.5 block w-full border-s-2 border-primary/60 ps-2 text-start opacity-90 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                                        aria-label={`مشاهده پیام ${item.msg.reply_to.user.name}`}
+                                    >
+                                        <div className="text-[11px] font-medium">
+                                            {item.msg.reply_to.user.name}
+                                        </div>
+                                        <div className="truncate text-xs opacity-80">
+                                            {item.msg.reply_to.body}
+                                        </div>
+                                    </button>
+                                ) : (
+                                    item.msg.reply_to_id !== null && (
+                                        <div className="mb-1.5 border-s-2 border-muted-foreground/40 ps-2 text-xs italic opacity-70">
+                                            پیام حذف شده
+                                        </div>
+                                    )
+                                )}
                                 {/* break-words: long unbroken runs (URLs,
                                     token pastes) have no natural break
                                     opportunities and would overflow the
@@ -468,7 +639,58 @@ export function RoomChat({
                                             aria-label="در حال ارسال"
                                         />
                                     )}
+                                    {!item.msg.pending && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                toggleLike(item.msg.id)
+                                            }
+                                            disabled={likingId === item.msg.id}
+                                            className={`rounded p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
+                                                likedByMe(item.msg)
+                                                    ? "text-destructive"
+                                                    : "opacity-70 hover:opacity-100"
+                                            }`}
+                                            aria-label={
+                                                likedByMe(item.msg)
+                                                    ? "برداشتن پسند"
+                                                    : "پسندیدن پیام"
+                                            }
+                                            aria-pressed={likedByMe(item.msg)}
+                                        >
+                                            <Heart
+                                                className={`h-3.5 w-3.5 ${likedByMe(item.msg) ? "fill-current" : ""}`}
+                                            />
+                                        </button>
+                                    )}
+                                    {item.msg.likes.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowLikersFor(
+                                                    showLikersFor ===
+                                                        item.msg.id
+                                                        ? null
+                                                        : item.msg.id,
+                                                )
+                                            }
+                                            className="rounded underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            aria-label={`${toPersianDigits(item.msg.likes.length)} پسند`}
+                                        >
+                                            {toPersianDigits(
+                                                item.msg.likes.length,
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
+                                {showLikersFor === item.msg.id &&
+                                    item.msg.likes.length > 0 && (
+                                        <div className="mt-1 text-[10px] opacity-80">
+                                            {item.msg.likes
+                                                .map((like) => like.user.name)
+                                                .join("، ")}
+                                        </div>
+                                    )}
                                 {canDelete(item.msg) && (
                                     <button
                                         tabIndex={0}
@@ -502,11 +724,69 @@ export function RoomChat({
                                         <Flag className="h-3.5 w-3.5" />
                                     </button>
                                 )}
+                                {!item.msg.pending && (
+                                    <button
+                                        tabIndex={0}
+                                        onClick={() =>
+                                            setReplyTo({
+                                                id: item.msg.id,
+                                                body: item.msg.body,
+                                                user: {
+                                                    id: item.msg.user.id,
+                                                    name: item.msg.user.name,
+                                                },
+                                            })
+                                        }
+                                        className={`absolute -top-1.5 -start-1.5 h-6 w-6 rounded-full bg-secondary text-secondary-foreground border border-border flex items-center justify-center transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                                            tappedMsgId === item.msg.id
+                                                ? "opacity-100"
+                                                : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto"
+                                        }`}
+                                        aria-label="پاسخ به پیام"
+                                    >
+                                        <Reply className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ),
                 )}
             </div>
+
+            {newBelowCount > 0 && (
+                <button
+                    type="button"
+                    onClick={() => scrollToBottomAndMark()}
+                    className="absolute bottom-20 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-lg hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`${toPersianDigits(newBelowCount)} پیام جدید`}
+                >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                    {toPersianDigits(newBelowCount)} پیام جدید
+                </button>
+            )}
+
+            {replyTo !== null && (
+                <div className="border-t border-border px-3 pt-2">
+                    <div className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs">
+                        <div className="min-w-0 flex-1 border-s-2 border-primary/60 ps-2">
+                            <div className="font-medium text-foreground">
+                                {replyTo.user.name}
+                            </div>
+                            <div className="truncate text-muted-foreground">
+                                {replyTo.body}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setReplyTo(null)}
+                            className="rounded-lg p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label="لغو پاسخ"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <form
                 onSubmit={sendMessage}
