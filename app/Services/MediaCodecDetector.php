@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class MediaCodecDetector
 {
     public function __construct(
-        private readonly UrlSecurityService $urlSecurity = new UrlSecurityService,
+        private readonly UrlSecurityService $urlSecurity,
     ) {}
 
     /**

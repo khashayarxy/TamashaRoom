@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Enums\CodecDetectionResult;
 use App\Services\MediaCodecDetector;
+use App\Services\UrlSecurityService;
 use Tests\TestCase;
 
 class MediaCodecDetectorTest extends TestCase
@@ -15,7 +16,7 @@ class MediaCodecDetectorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->detector = new MediaCodecDetector;
+        $this->detector = new MediaCodecDetector(new UrlSecurityService);
     }
 
     public function test_detects_mp4_h264(): void

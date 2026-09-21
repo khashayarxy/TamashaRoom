@@ -9,10 +9,19 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
+use Tests\Traits\StubsPublicDns;
 
 class CodecDetectionFlowTest extends TestCase
 {
     use RefreshDatabase;
+    use StubsPublicDns;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->bindPublicDnsStub();
+    }
 
     public function test_rejects_hevc_video_with_persian_message(): void
     {

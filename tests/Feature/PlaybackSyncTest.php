@@ -13,10 +13,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
+use Tests\Traits\StubsPublicDns;
 
 class PlaybackSyncTest extends TestCase
 {
     use RefreshDatabase;
+    use StubsPublicDns;
 
     private User $owner;
 
@@ -27,6 +29,8 @@ class PlaybackSyncTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->bindPublicDnsStub();
 
         $this->owner = User::factory()->create(['email_verified_at' => now()]);
         $this->member = User::factory()->create(['email_verified_at' => now()]);

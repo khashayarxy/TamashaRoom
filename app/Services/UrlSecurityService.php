@@ -4,11 +4,23 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Closure;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class UrlSecurityService
 {
+    /**
+     * Optional DNS override for tests: `callable(string $host): list<string>`.
+     * Production always resolves via real DNS (null). The test suite stubs
+     * public hosts (e.g. example.com) because developer machines cannot
+     * rely on public DNS (VPN DNS64/NAT64 hijacks return ULA addresses
+     * that the guard correctly rejects).
+     */
+    public function __construct(
+        private readonly ?Closure $dnsResolver = null,
+    ) {}
+
     private const BLOCKED_HOSTS = [
         'localhost',
         '127.0.0.1',
@@ -133,6 +145,10 @@ class UrlSecurityService
     private function resolveToIps(string $host): array
     {
         $host = explode(':', $host)[0];
+
+        if ($this->dnsResolver !== null) {
+            return array_values(array_unique(($this->dnsResolver)($host)));
+        }
 
         $records = @dns_get_record($host, DNS_A | DNS_AAAA);
 

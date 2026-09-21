@@ -7,15 +7,20 @@ namespace Tests\Unit;
 use App\Services\UrlSecurityService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\StubsPublicDns;
 
 class UrlSecurityServiceTest extends TestCase
 {
+    use StubsPublicDns;
+
     private UrlSecurityService $service;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new UrlSecurityService;
+        $this->service = new UrlSecurityService(
+            dnsResolver: $this->exampleComResolver(),
+        );
     }
 
     #[Test]
