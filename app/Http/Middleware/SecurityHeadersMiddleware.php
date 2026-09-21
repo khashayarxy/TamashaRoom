@@ -110,7 +110,7 @@ class SecurityHeadersMiddleware
                 ."form-action 'self'";
         } else {
             $csp = "default-src 'self'; "
-                ."script-src 'self' 'nonce-{$nonce}' 'unsafe-eval'; "
+                ."script-src 'self' 'nonce-{$nonce}'; "
                 ."style-src 'self' 'unsafe-inline'; "
                 ."img-src 'self' data: blob: https:; "
                 ."font-src 'self' data:; "
