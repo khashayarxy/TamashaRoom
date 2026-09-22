@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "@/lib/api";
+import { getEcho } from "@/lib/echo";
+import type { EmbeddedSubtitleSelection } from "@/lib/embedded-subtitles";
 import {
     clearActiveTrackChoice,
     loadActiveTrackId,
@@ -27,22 +29,58 @@ export function useSubtitles(
     const [trackToDelete, setTrackToDelete] = useState<number | null>(null);
     const [deletingTrack, setDeletingTrack] = useState(false);
 
-    useEffect(() => {
-        let cancelled = false;
-        setTracksError(false);
-        api.get(`/subtitles/${roomId}`)
-            .then((res) => {
-                if (cancelled) return;
-                setTracks(subtitleTracksSchema.parse(res.data));
-            })
-            .catch(() => {
-                if (cancelled) return;
-                setTracksError(true);
-            });
-        return () => {
-            cancelled = true;
-        };
+    const fetchTracks = useCallback(async () => {
+        try {
+            const res = await api.get(`/subtitles/${roomId}`);
+            setTracks(subtitleTracksSchema.parse(res.data));
+            setTracksError(false);
+        } catch {
+            setTracksError(true);
+        }
     }, [roomId]);
+
+    useEffect(() => {
+        setTracksError(false);
+        void fetchTracks();
+    }, [roomId, fetchTracks]);
+
+    // Room-default changes (manual or auto-applied on set-video) arrive on
+    // the same presence channel as chat. Members following the default
+    // adopt it; members with a local override keep theirs. The track list
+    // is refetched because auto-detection may have added embedded rows.
+    useEffect(() => {
+        const echo = getEcho();
+        if (!echo) return undefined;
+
+        const channel = echo.join(`room.${roomId}`);
+        channel.listen(".subtitle.default.changed", (payload: unknown) => {
+            if (
+                typeof payload !== "object" ||
+                payload === null ||
+                !("default_track_id" in payload)
+            ) {
+                return;
+            }
+            const next =
+                payload.default_track_id === null
+                    ? null
+                    : Number(payload.default_track_id);
+            const defaultId =
+                Number.isInteger(next) && (next as number) >= 0
+                    ? (next as number)
+                    : null;
+            setRoomDefaultId(defaultId);
+            void fetchTracks();
+            if (loadActiveTrackId(roomId) === undefined) {
+                setActiveTrackId(defaultId);
+            }
+        });
+
+        return () => {
+            channel.stopListening(".subtitle.default.changed");
+            echo.leave(`room.${roomId}`);
+        };
+    }, [roomId, fetchTracks]);
 
     const selectTrack = (trackId: number | null) => {
         setActiveTrackId(trackId);
@@ -65,9 +103,30 @@ export function useSubtitles(
         }
     };
 
+    const activeTrack = tracks.find((t) => t.id === activeTrackId) ?? null;
+    // Primitive on purpose: feeds effect deps without identity churn.
+    const activeIsEmbedded = activeTrack?.kind === "embedded";
+    const embeddedSelection: EmbeddedSubtitleSelection | null =
+        activeIsEmbedded && activeTrack !== null
+            ? {
+                  language: activeTrack.language,
+                  index: activeTrack.track_index ?? 0,
+              }
+            : null;
+
     useEffect(() => {
         if (!activeTrackId) {
             setCues([]);
+            setSubError(null);
+            return;
+        }
+
+        // Embedded tracks have no server-side cues file — the browser
+        // renders them natively (see applyEmbeddedSubtitle). Never hit the
+        // cues endpoint for them; a 404 there would surface a bogus error.
+        if (activeIsEmbedded) {
+            setCues([]);
+            setSubLoading(false);
             setSubError(null);
             return;
         }
@@ -92,7 +151,7 @@ export function useSubtitles(
         return () => {
             cancelled = true;
         };
-    }, [roomId, activeTrackId]);
+    }, [roomId, activeTrackId, activeIsEmbedded]);
 
     const uploadTrack = async (file: File) => {
         const formData = new FormData();
@@ -134,6 +193,7 @@ export function useSubtitles(
         tracksError,
         activeTrackId,
         roomDefaultId,
+        embeddedSelection,
         cues,
         subLoading,
         subError,

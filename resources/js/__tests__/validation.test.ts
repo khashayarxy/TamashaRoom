@@ -101,9 +101,20 @@ describe("lib/validation schemas", () => {
         const tracks = [
             {
                 id: 1,
+                kind: "upload",
+                track_index: null,
                 label: "فارسی",
                 language: "fa",
                 original_extension: "vtt",
+                created_at: "2026-08-04T00:00:00.000000Z",
+            },
+            {
+                id: 2,
+                kind: "embedded",
+                track_index: 0,
+                label: "Embedded (PER)",
+                language: "per",
+                original_extension: "mkv",
                 created_at: "2026-08-04T00:00:00.000000Z",
             },
         ];

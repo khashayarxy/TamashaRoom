@@ -1,5 +1,9 @@
 import { useFullscreenTarget } from "@/Hooks/use-fullscreen-target";
 import { cn } from "@/lib/utils";
+import {
+    applyEmbeddedSubtitle,
+    type EmbeddedSubtitleSelection,
+} from "@/lib/embedded-subtitles";
 import { useSubtitleStore } from "@/stores/subtitle";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -130,6 +134,13 @@ interface SubtitleOverlayProps {
     loading?: boolean;
     error?: string | null;
     className?: string;
+    /**
+     * Active embedded (in-container) selection, if any. Rendered natively
+     * by the browser instead of the custom cue overlay (see
+     * applyEmbeddedSubtitle). Overlay-only settings (time offset, screen
+     * position) do not apply to embedded tracks.
+     */
+    embedded?: EmbeddedSubtitleSelection | null;
 }
 
 export function SubtitleOverlay({
@@ -139,6 +150,7 @@ export function SubtitleOverlay({
     loading,
     error,
     className,
+    embedded = null,
 }: SubtitleOverlayProps) {
     const [currentText, setCurrentText] = useState<string | null>(null);
     const fullscreenElement = useFullscreenTarget();
@@ -157,6 +169,26 @@ export function SubtitleOverlay({
         rafRef.current = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(rafRef.current);
     }, [cues, videoRef, settings.offset]);
+
+    // Embedded selection drives the browser's native TextTracks (the custom
+    // overlay stays hidden — see the early return below). TextTracks only
+    // populate once metadata loads, so re-apply then too. Idempotent: safe
+    // to re-run on parent re-renders.
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return undefined;
+        applyEmbeddedSubtitle(video, embedded);
+        if (embedded === null) return undefined;
+        const onLoaded = () => {
+            const current = videoRef.current;
+            if (current) applyEmbeddedSubtitle(current, embedded);
+        };
+        video.addEventListener("loadedmetadata", onLoaded);
+        return () => {
+            video.removeEventListener("loadedmetadata", onLoaded);
+            applyEmbeddedSubtitle(video, null);
+        };
+    }, [embedded, videoRef]);
 
     if (error) {
         const errorContent = (
@@ -193,6 +225,10 @@ export function SubtitleOverlay({
             ? createPortal(loadingContent, fullscreenElement)
             : loadingContent;
     }
+
+    // Embedded tracks render natively (effect above); never stack the
+    // custom overlay on top — including stale text from a previous upload.
+    if (embedded !== null) return null;
 
     if (!settings.enabled || !currentText) return null;
 

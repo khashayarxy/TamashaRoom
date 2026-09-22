@@ -11,14 +11,17 @@ use App\Models\User;
 use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\StubsPublicDns;
 
 class SubtitleTest extends TestCase
 {
     use RefreshDatabase;
+    use StubsPublicDns;
 
     private User $owner;
 
@@ -31,6 +34,8 @@ class SubtitleTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->bindPublicDnsStub();
 
         $this->owner = User::factory()->create(['email_verified_at' => now()]);
         $this->member = User::factory()->create(['email_verified_at' => now()]);
@@ -573,5 +578,196 @@ class SubtitleTest extends TestCase
             ->assertOk();
 
         Queue::assertNotPushed(BroadcastEvent::class);
+    }
+
+    /**
+     * Minimal in-test EBML builders (mirrors EmbeddedTrackDetectorTest):
+     * a Segment with a Tracks element holding the given entries.
+     */
+    private static function ebmlVint(int $value): string
+    {
+        return chr(0x80 | $value);
+    }
+
+    private static function ebmlElement(string $id, string $content): string
+    {
+        return $id.self::ebmlVint(strlen($content)).$content;
+    }
+
+    /**
+     * @param  list<array{int, int, string, string}>  $entries  [number, type, language, codec]
+     */
+    private static function mkvHeaderWithTracks(array $entries): string
+    {
+        $tracks = '';
+        foreach ($entries as [$number, $type, $language, $codec]) {
+            $tracks .= self::ebmlElement(
+                "\xAE",
+                self::ebmlElement("\xD7", chr($number))
+                .self::ebmlElement("\x83", chr($type))
+                .self::ebmlElement("\x22\xB5\x9C", $language)
+                .self::ebmlElement("\x86", $codec),
+            );
+        }
+
+        return self::ebmlElement("\x1A\x45\xDF\xA3", "\x42\x86\x81\x01")
+            ."\x18\x53\x80\x67\xFF"
+            .self::ebmlElement("\x16\x54\xAE\x6B", $tracks)
+            .str_repeat("\x00", 1024);
+    }
+
+    /**
+     * Fake video bytes per URL path. Registered ONCE per test with distinct
+     * paths: Http stubs merge in registration order (first match wins), so
+     * re-faking the same pattern mid-test would keep serving stale bytes.
+     *
+     * @param  array<string, string>  $pathToBytes  URL path => response bytes
+     */
+    private function fakeVideoBytes(array $pathToBytes): void
+    {
+        $stubs = [];
+        foreach ($pathToBytes as $path => $bytes) {
+            $stubs["example.com/{$path}"] = Http::response($bytes, 206, [
+                'Content-Range' => 'bytes 0-1023/2048',
+                'Content-Type' => 'video/x-matroska',
+            ]);
+        }
+        Http::fake($stubs);
+    }
+
+    #[Test]
+    public function set_video_detects_embedded_subtitles_and_applies_persian_default(): void
+    {
+        $this->fakeVideoBytes(['video.mkv' => self::mkvHeaderWithTracks([
+            [1, 0x02, 'eng', 'A_AAC'],
+            [2, 0x11, 'eng', 'S_TEXT/UTF8'],
+            [3, 0x11, 'per', 'S_TEXT/UTF8'],
+        ])]);
+
+        $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'https://example.com/video.mkv',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseCount('subtitle_tracks', 2);
+        $rows = SubtitleTrack::where('room_id', $this->room->id)
+            ->orderBy('track_index')
+            ->get();
+        $this->assertTrue($rows->every(
+            static fn (SubtitleTrack $r): bool => $r->kind === SubtitleTrack::KIND_EMBEDDED
+                && $r->file_path === '',
+        ));
+        $this->assertSame(['eng', 'per'], $rows->pluck('language')->all());
+
+        $this->assertSame(
+            $rows->firstWhere('language', 'per')->id,
+            $this->room->refresh()->active_subtitle_track_id,
+        );
+    }
+
+    #[Test]
+    public function set_video_falls_back_to_first_subtitle_without_persian(): void
+    {
+        $this->fakeVideoBytes(['video.mkv' => self::mkvHeaderWithTracks([
+            [1, 0x11, 'eng', 'S_TEXT/UTF8'],
+            [2, 0x11, 'deu', 'S_TEXT/UTF8'],
+        ])]);
+
+        $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'https://example.com/video.mkv',
+            ])
+            ->assertOk();
+
+        $this->assertSame(
+            SubtitleTrack::where('room_id', $this->room->id)->orderBy('track_index')->first()->id,
+            $this->room->refresh()->active_subtitle_track_id,
+        );
+    }
+
+    #[Test]
+    public function set_video_clears_stale_embedded_rows_and_default(): void
+    {
+        $this->fakeVideoBytes([
+            'first.mkv' => self::mkvHeaderWithTracks([
+                [1, 0x11, 'per', 'S_TEXT/UTF8'],
+            ]),
+            // Same room, video without detectable tracks (plain bytes).
+            'second.mkv' => str_repeat("\x00", 2048),
+        ]);
+        $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'https://example.com/first.mkv',
+            ])
+            ->assertOk();
+        $this->assertNotNull($this->room->refresh()->active_subtitle_track_id);
+
+        $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'https://example.com/second.mkv',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseMissing('subtitle_tracks', [
+            'room_id' => $this->room->id,
+            'kind' => SubtitleTrack::KIND_EMBEDDED,
+        ]);
+        $this->assertNull($this->room->refresh()->active_subtitle_track_id);
+    }
+
+    #[Test]
+    public function set_video_preserves_upload_default_without_embedded_tracks(): void
+    {
+        $file = UploadedFile::fake()->createWithContent(
+            'manual.srt',
+            "1\n00:00:01,000 --> 00:00:04,000\nHello",
+        );
+        $upload = $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}", ['file' => $file]);
+        $uploadId = $upload->json('id');
+        $this->actingAs($this->owner)
+            ->post("/subtitles/{$this->room->id}/default", ['track_id' => $uploadId])
+            ->assertOk();
+
+        $this->fakeVideoBytes(['plain.mkv' => str_repeat("\x00", 2048)]);
+        $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'https://example.com/plain.mkv',
+            ])
+            ->assertOk();
+
+        $this->assertSame(
+            $uploadId,
+            $this->room->refresh()->active_subtitle_track_id,
+        );
+    }
+
+    #[Test]
+    public function embedded_tracks_appear_in_list_and_delete_cleanly(): void
+    {
+        $this->fakeVideoBytes(['video.mkv' => self::mkvHeaderWithTracks([
+            [1, 0x11, 'eng', 'S_TEXT/UTF8'],
+        ])]);
+        $this->actingAs($this->owner)
+            ->postJson("/playback/{$this->room->id}/set-video", [
+                'video_url' => 'https://example.com/video.mkv',
+            ])
+            ->assertOk();
+
+        $list = $this->actingAs($this->member)
+            ->get("/subtitles/{$this->room->id}")
+            ->assertOk()
+            ->json();
+        $this->assertCount(1, $list);
+        $this->assertSame('embedded', $list[0]['kind']);
+        $this->assertSame(0, $list[0]['track_index']);
+
+        $this->actingAs($this->owner)
+            ->delete("/subtitles/{$this->room->id}/{$list[0]['id']}")
+            ->assertOk();
+        $this->assertDatabaseMissing('subtitle_tracks', [
+            'room_id' => $this->room->id,
+        ]);
     }
 }

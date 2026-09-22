@@ -33,7 +33,7 @@ class SubtitleController extends Controller
 
         $tracks = $room->subtitleTracks()
             ->orderBy('created_at', 'desc')
-            ->get(['id', 'label', 'language', 'original_extension', 'created_at']);
+            ->get(['id', 'kind', 'track_index', 'label', 'language', 'original_extension', 'created_at']);
 
         return response()->json($tracks);
     }
@@ -160,7 +160,10 @@ class SubtitleController extends Controller
         }
 
         $track->delete();
-        Storage::disk(self::SUBTITLE_DISK)->delete($track->file_path);
+        // Embedded rows reference in-container tracks and store no file.
+        if ($track->file_path !== '') {
+            Storage::disk(self::SUBTITLE_DISK)->delete($track->file_path);
+        }
 
         return response()->json(['status' => 'deleted']);
     }

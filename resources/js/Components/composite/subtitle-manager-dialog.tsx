@@ -143,6 +143,11 @@ export function SubtitleManagerDialog({
                                         <span className="text-xs text-muted-foreground me-2">
                                             .{track.original_extension}
                                         </span>
+                                        {track.kind === "embedded" && (
+                                            <span className="text-xs text-muted-foreground ms-1">
+                                                {track.language} · داخلی
+                                            </span>
+                                        )}
                                         {roomDefaultId === track.id && (
                                             <span className="text-xs text-accent-foreground ms-1">
                                                 (پیش‌فرض)

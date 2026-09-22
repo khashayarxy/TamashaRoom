@@ -77,6 +77,8 @@ export const subtitleSettingsSchema = z.object({
 
 export const subtitleTrackSchema = z.object({
     id: z.number().int().nonnegative(),
+    kind: z.enum(["upload", "embedded"]),
+    track_index: z.number().int().nonnegative().nullable(),
     label: z.string(),
     language: z.string(),
     original_extension: z.string(),

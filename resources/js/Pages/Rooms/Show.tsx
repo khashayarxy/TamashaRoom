@@ -125,6 +125,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
         tracksError,
         activeTrackId,
         roomDefaultId,
+        embeddedSelection,
         cues,
         subLoading,
         subError,
@@ -338,6 +339,7 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                         settings,
                                         loading: subLoading,
                                         error: subError,
+                                        embeddedSelection,
                                     }}
                                 />
                             </Suspense>

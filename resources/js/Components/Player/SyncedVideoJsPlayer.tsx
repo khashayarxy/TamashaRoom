@@ -7,6 +7,7 @@ import { Button } from "@/Components/ui/button";
 import { usePlaybackSync } from "@/Hooks/use-playback-sync";
 import type { PlaybackAction } from "@/lib/playback-actions";
 import { computeExpectedPosition } from "@/lib/types/playback";
+import type { EmbeddedSubtitleSelection } from "@/lib/embedded-subtitles";
 import type { SubtitleCue, SubtitleSettings } from "@/lib/types/subtitle";
 import { cn } from "@/lib/utils";
 import { Play, RotateCcw, Send } from "lucide-react";
@@ -28,6 +29,7 @@ export interface SyncedVideoJsPlayerSubtitles {
     settings: SubtitleSettings;
     loading?: boolean;
     error?: string | null;
+    embeddedSelection?: EmbeddedSubtitleSelection | null;
 }
 
 interface SyncedVideoJsPlayerProps {
@@ -407,6 +409,7 @@ export function SyncedVideoJsPlayer({
                     settings={subtitles.settings}
                     loading={subtitles.loading}
                     error={subtitles.error}
+                    embedded={subtitles.embeddedSelection ?? null}
                 />
             )}
         </div>

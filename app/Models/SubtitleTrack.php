@@ -9,9 +9,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SubtitleTrack extends Model
 {
+    public const KIND_UPLOAD = 'upload';
+
+    public const KIND_EMBEDDED = 'embedded';
+
     protected $fillable = [
         'room_id',
         'user_id',
+        'kind',
+        'track_index',
         'label',
         'language',
         'file_path',
@@ -23,7 +29,13 @@ class SubtitleTrack extends Model
         return [
             'room_id' => 'integer',
             'user_id' => 'integer',
+            'track_index' => 'integer',
         ];
+    }
+
+    public function isEmbedded(): bool
+    {
+        return $this->kind === self::KIND_EMBEDDED;
     }
 
     public function room(): BelongsTo
