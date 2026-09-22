@@ -419,11 +419,9 @@ function TamashaSettingsMenu({
 }) {
     const t = useTranslator();
     const quality = useQualityOptions();
-    const audioTrack = useAudioTrackOptions();
     const captions = useCaptionsOptions();
 
     const hasQuality = quality?.state.availability === "available";
-    const hasAudioTrack = audioTrack?.state.availability === "available";
     const hasCaptions = captions?.state.availability === "available";
 
     return (
@@ -522,63 +520,8 @@ function TamashaSettingsMenu({
                             </Menu.Root>
                         ) : null}
 
-                        {/* 3. Audio tracks (if present) */}
-                        {hasAudioTrack && audioTrack ? (
-                            <Menu.Root>
-                                <Menu.Trigger
-                                    className="media-menu__item media-menu__item--submenu"
-                                    render={(props) => (
-                                        <div {...props}>
-                                            <SpeechIcon className="media-icon" />
-                                            <span>{t(audioText)}</span>
-                                            <span className="media-menu__hint">
-                                                <span className="media-menu__hint-label">
-                                                    {audioTrack.options.find(
-                                                        (o) =>
-                                                            o.value ===
-                                                            audioTrack.value,
-                                                    )?.label ?? ""}
-                                                </span>
-                                                <MenuChevron />
-                                            </span>
-                                        </div>
-                                    )}
-                                />
-                                <Menu.Content className="media-menu__panel">
-                                    <MenuBackButton className="media-menu__back">
-                                        {t(audioText)}
-                                    </MenuBackButton>
-                                    <Menu.Separator className="media-menu__separator" />
-                                    <Menu.RadioGroup
-                                        className="media-menu__group"
-                                        value={audioTrack.value}
-                                        onValueChange={audioTrack.setValue}
-                                        aria-label={t(audioText)}
-                                    >
-                                        {audioTrack.options.map((option) => (
-                                            <Menu.RadioItem
-                                                key={option.value}
-                                                className="media-menu__item"
-                                                value={option.value}
-                                                disabled={option.disabled}
-                                            >
-                                                <span>{option.label}</span>
-                                                <Menu.ItemIndicator
-                                                    checked={
-                                                        option.value ===
-                                                        audioTrack.value
-                                                    }
-                                                    forceMount
-                                                    className="media-menu__indicator"
-                                                >
-                                                    <CheckIcon className="media-icon" />
-                                                </Menu.ItemIndicator>
-                                            </Menu.RadioItem>
-                                        ))}
-                                    </Menu.RadioGroup>
-                                </Menu.Content>
-                            </Menu.Root>
-                        ) : null}
+                        {/* 3. Audio tracks (progressive enhancement; see MediaAudioMenu) */}
+                        <MediaAudioMenu />
 
                         {/* 4. Captions tracks (if present) */}
                         {hasCaptions && captions ? (
@@ -688,6 +631,80 @@ function MediaFullscreenControl() {
             <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
             <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
         </FullscreenButton>
+    );
+}
+
+/**
+ * Multi-audio-track menu (dubbed vs. original).
+ *
+ * The menu appears only when the browser exposes audio tracks (Safari
+ * native, or any browser with a JS HLS engine projecting renditions into
+ * the list). Our player currently hands .m3u8 URLs directly to the
+ * browser's native pipeline, so EXT-X-MEDIA renditions never surface in
+ * Chromium/Firefox; progressive dual-audio files remain Safari-only due
+ * to the demuxer wall. Do not present this as a universal capability.
+ *
+ * Strictly per-user local state: `setValue` touches only the local media
+ * element. Playback sync never carries audio state (see use-playback-sync),
+ * so switching tracks cannot affect other members or their sync.
+ */
+export function MediaAudioMenu() {
+    const t = useTranslator();
+    const audioTrack = useAudioTrackOptions();
+    const hasAudioTrack = audioTrack?.state.availability === "available";
+
+    if (!hasAudioTrack || !audioTrack) return null;
+
+    return (
+        <Menu.Root>
+            <Menu.Trigger
+                className="media-menu__item media-menu__item--submenu"
+                render={(props) => (
+                    <div {...props}>
+                        <SpeechIcon className="media-icon" />
+                        <span>{t(audioText)}</span>
+                        <span className="media-menu__hint">
+                            <span className="media-menu__hint-label">
+                                {audioTrack.options.find(
+                                    (o) => o.value === audioTrack.value,
+                                )?.label ?? ""}
+                            </span>
+                            <MenuChevron />
+                        </span>
+                    </div>
+                )}
+            />
+            <Menu.Content className="media-menu__panel">
+                <MenuBackButton className="media-menu__back">
+                    {t(audioText)}
+                </MenuBackButton>
+                <Menu.Separator className="media-menu__separator" />
+                <Menu.RadioGroup
+                    className="media-menu__group"
+                    value={audioTrack.value}
+                    onValueChange={audioTrack.setValue}
+                    aria-label={t(audioText)}
+                >
+                    {audioTrack.options.map((option) => (
+                        <Menu.RadioItem
+                            key={option.value}
+                            className="media-menu__item"
+                            value={option.value}
+                            disabled={option.disabled}
+                        >
+                            <span>{option.label}</span>
+                            <Menu.ItemIndicator
+                                checked={option.value === audioTrack.value}
+                                forceMount
+                                className="media-menu__indicator"
+                            >
+                                <CheckIcon className="media-icon" />
+                            </Menu.ItemIndicator>
+                        </Menu.RadioItem>
+                    ))}
+                </Menu.RadioGroup>
+            </Menu.Content>
+        </Menu.Root>
     );
 }
 
