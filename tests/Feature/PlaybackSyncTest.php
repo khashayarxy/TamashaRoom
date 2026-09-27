@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\PlaybackMode;
+use App\Events\PlaybackStateChanged;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\User;
 use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -74,8 +76,13 @@ class PlaybackSyncTest extends TestCase
         $this->assertNotNull($this->room->last_activity_at);
     }
 
-    public function test_member_cannot_update_playback_state(): void
+    public function test_member_can_update_playback_state(): void
     {
+        // PlaybackStateChanged is ShouldBroadcastNow (synchronous, never
+        // queued): broadcast() routes through the event dispatcher, so the
+        // Event fake observes it.
+        Event::fake([PlaybackStateChanged::class]);
+
         $response = $this->actingAs($this->member)
             ->patchJson("/playback/{$this->room->id}", [
                 'is_playing' => true,
@@ -84,7 +91,32 @@ class PlaybackSyncTest extends TestCase
                 'playback_rate' => 1.0,
             ]);
 
-        $response->assertForbidden();
+        $response->assertOk()
+            ->assertJson(['status' => 'ok']);
+
+        $this->room->refresh();
+
+        $this->assertTrue($this->room->is_playing);
+        $this->assertEquals(30, $this->room->position_seconds);
+        $this->assertEquals(1, $this->room->state_version);
+
+        Event::assertDispatched(PlaybackStateChanged::class, fn (PlaybackStateChanged $event): bool => $event->room->is($this->room)
+            && $event->userId === $this->member->id);
+    }
+
+    public function test_stranger_cannot_update_playback_state(): void
+    {
+        $stranger = User::factory()->create(['email_verified_at' => now()]);
+
+        $response = $this->actingAs($stranger)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 30,
+                'duration_seconds' => 120,
+                'playback_rate' => 1.0,
+            ]);
+
+        $response->assertNotFound();
     }
 
     public function test_state_version_increments_atomically(): void

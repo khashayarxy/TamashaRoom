@@ -324,7 +324,10 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                             >
                                 <SyncedVideoJsPlayer
                                     roomId={room.id}
-                                    canControl={isOwner}
+                                    // Every room-page viewer is a member, and
+                                    // members may control playback
+                                    // (server enforces membership).
+                                    canControl
                                     currentUserId={auth.user.id}
                                     onPlaybackAction={handlePlaybackAction}
                                     initialVideoUrl={room.video_url}

@@ -20,7 +20,7 @@ class PlaybackController extends Controller
 
     public function update(UpdatePlaybackRequest $request, Room $room): JsonResponse
     {
-        $this->authorize('update', $room);
+        $this->authorize('controlPlayback', $room);
 
         $result = $this->updatePlaybackAction->execute(
             $room,

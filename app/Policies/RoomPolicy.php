@@ -68,6 +68,18 @@ class RoomPolicy
         return $this->ownerOrDenyForMember($user, $room);
     }
 
+    /**
+     * Playback transport control (play/pause/seek/rate) is open to every
+     * room member, not just the owner. This is deliberately a separate
+     * ability from `update`: room settings, invite-code regeneration, the
+     * lock toggle (RoomController) and subtitle management
+     * (SubtitleController) share `update` and must stay owner-only.
+     */
+    public function controlPlayback(User $user, Room $room): Response
+    {
+        return $this->memberOrNotFound($user, $room);
+    }
+
     public function memberAccess(User $user, Room $room): Response
     {
         return $this->memberOrNotFound($user, $room);

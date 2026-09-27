@@ -310,7 +310,19 @@ class SecurityTest extends TestCase
                 'duration_seconds' => 120,
             ]);
 
-        $response->assertForbidden();
+        // Members may control playback (controlPlayback ability); a manual
+        // owner check would 403 here instead.
+        $response->assertOk();
+
+        $stranger = User::factory()->create(['email_verified_at' => now()]);
+
+        $this->actingAs($stranger)
+            ->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 10,
+                'duration_seconds' => 120,
+            ])
+            ->assertNotFound();
     }
 
     #[Test]

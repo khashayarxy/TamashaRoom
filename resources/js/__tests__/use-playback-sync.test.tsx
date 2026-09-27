@@ -23,6 +23,14 @@ vi.mock("@/lib/echo", async (importOriginal) => {
     };
 });
 
+vi.mock("sonner", () => ({
+    toast: {
+        success: vi.fn(),
+        error: vi.fn(),
+        info: vi.fn(),
+    },
+}));
+
 function makeResponse(overrides: Record<string, unknown> = {}) {
     return {
         is_playing: false,
@@ -69,18 +77,48 @@ describe("usePlaybackSync", () => {
         expect(result.current.state.stateVersion).toBe(1);
     });
 
-    it("does not allow non-host to sync", async () => {
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: false }),
-        );
+    it("allows any member to sync (no host-only fence)", async () => {
+        mockPatch.mockResolvedValue({
+            data: { status: "ok", state_version: 2, server_timestamp: 2000 },
+        });
+
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
-            result.current.sync({ isPlaying: true });
+            result.current.syncImmediate({ isPlaying: true });
         });
 
-        expect(mockPatch).not.toHaveBeenCalled();
+        await waitFor(() => expect(mockPatch).toHaveBeenCalled(), {
+            timeout: 4000,
+        });
+
+        expect(mockPatch).toHaveBeenCalledWith(
+            "/playback/1",
+            expect.objectContaining({ is_playing: true }),
+        );
+    });
+
+    it("toasts a permission message when the server rejects control with 403", async () => {
+        mockPatch.mockRejectedValue({ response: { status: 403 } });
+
+        const { toast } = await import("sonner");
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        act(() => {
+            result.current.syncImmediate({ isPlaying: true });
+        });
+
+        await waitFor(
+            () =>
+                expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+                    "شما مجوز کنترل پخش را ندارید",
+                ),
+            { timeout: 4000 },
+        );
     });
 
     it("debounces host sync then sends patch", async () => {
@@ -88,9 +126,7 @@ describe("usePlaybackSync", () => {
             data: { status: "ok", state_version: 2, server_timestamp: 2000 },
         });
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -118,9 +154,7 @@ describe("usePlaybackSync", () => {
             data: { status: "ok", state_version: 2, server_timestamp: 2000 },
         });
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -188,9 +222,7 @@ describe("usePlaybackSync", () => {
             data: { status: "ok", state_version: 3, server_timestamp: 3000 },
         });
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -427,9 +459,7 @@ describe("usePlaybackSync", () => {
             },
         });
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -479,9 +509,7 @@ describe("usePlaybackSync", () => {
             data: { status: "ok", state_version: 2, server_timestamp: 2000 },
         });
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         expect(result.current.loading).toBe(true);
         await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
@@ -520,9 +548,7 @@ describe("usePlaybackSync", () => {
             data: { status: "ok", state_version: 2, server_timestamp: 2000 },
         });
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
 
@@ -581,7 +607,7 @@ describe("usePlaybackSync", () => {
         );
 
         const { result, unmount } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
+            usePlaybackSync({ roomId: 1 }),
         );
 
         await waitFor(() => expect(result.current.loading).toBe(false));
@@ -616,9 +642,7 @@ describe("usePlaybackSync", () => {
             },
         });
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -970,7 +994,6 @@ describe("usePlaybackSync (playback action toasts)", () => {
         const { result } = renderHook(() =>
             usePlaybackSync({
                 roomId: 1,
-                isHost: true,
                 currentUserId: 1,
                 onPlaybackAction,
             }),
@@ -1168,9 +1191,7 @@ describe("usePlaybackSync host optimistic control (pause-delay regression)", () 
         }>();
         mockPatch.mockReturnValue(patch.promise);
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -1233,7 +1254,7 @@ describe("usePlaybackSync host optimistic control (pause-delay regression)", () 
         echoHolder.instance = fakeEcho;
 
         const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true, currentUserId: 7 }),
+            usePlaybackSync({ roomId: 1, currentUserId: 7 }),
         );
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -1334,7 +1355,6 @@ describe("usePlaybackSync host optimistic control (pause-delay regression)", () 
         const { result } = renderHook(() =>
             usePlaybackSync({
                 roomId: 1,
-                isHost: true,
                 currentUserId: 7,
                 onPlaybackAction,
             }),
@@ -1403,9 +1423,7 @@ describe("usePlaybackSync host optimistic control (pause-delay regression)", () 
         const fakeEcho = createFakeEcho();
         echoHolder.instance = fakeEcho;
 
-        const { result } = renderHook(() =>
-            usePlaybackSync({ roomId: 1, isHost: true }),
-        );
+        const { result } = renderHook(() => usePlaybackSync({ roomId: 1 }));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {

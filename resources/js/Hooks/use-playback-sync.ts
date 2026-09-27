@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { toast } from "sonner";
 import { isPollingSuspended } from "@/lib/polling-controller";
 import { getEcho, watchPushHealth, type EchoPresenceChannel } from "@/lib/echo";
 import {
@@ -25,17 +26,16 @@ const POLL_IDLE = 10000;
 // per host leaves headroom while halving how stale the guests' authoritative
 // position can get between corrections (paired with the 1s drift threshold).
 const DEBOUNCE_MS = 1500;
-// Safety valve for the host's in-flight control fence: a PATCH whose response
+// Safety valve for the in-flight control fence: a PATCH whose response
 // never arrives (dropped connection) must not defer snapshots forever.
 const FENCE_TTL_S = 5;
 
 interface SyncOptions {
     roomId: number;
-    isHost?: boolean;
     onRemoteChange?: (state: PlaybackState) => void;
     /**
      * Bump to force an authoritative GET refetch (applied when the value
-     * changes). Lets the host reconcile its local state immediately after
+     * changes). Lets the client reconcile its local state immediately after
      * setting or removing a video instead of waiting on a broadcast.
      */
     refreshKey?: number;
@@ -68,12 +68,13 @@ interface SyncOptions {
  * same GET on the old tiered cadence — 3s while playing, 10s while idle.
  * "Configured" alone never disables polling; live connection health does.
  *
- * The write path is unchanged and identical in both modes: host-only PATCH
- * (debounced) or immediate, guarded by the server's state_version.
+ * The write path is unchanged and identical in both modes: member PATCH
+ * (debounced) or immediate, guarded by the server's state_version. Any room
+ * member may control playback (server enforces membership); there is no
+ * host-only fence on the client.
  */
 export function usePlaybackSync({
     roomId,
-    isHost = false,
     onRemoteChange,
     refreshKey,
     currentUserId,
@@ -130,9 +131,8 @@ export function usePlaybackSync({
         timer: ReturnType<typeof setTimeout>;
     } | null>(null);
     /**
-     * In-flight host PATCH fence. The host is authoritative for its own
-     * playback, so a control PATCH applies optimistically to local state the
-     * moment it is issued; while the PATCH is on the wire, incoming snapshots
+     * In-flight control PATCH fence. A control PATCH applies optimistically
+     * to local state the moment it is issued; while the PATCH is on the wire, incoming snapshots
      * (chiefly the broadcast echo of the immediately-preceding position PATCH,
      * which still says is_playing=true) are stashed instead of applied — they
      * would otherwise flip isPlaying back and re-play the video for the
@@ -213,7 +213,7 @@ export function usePlaybackSync({
         (raw: PlaybackStateResponse) => {
             if (cancelledRef.current) return;
 
-            // Host control fence: while the host's own PATCH is in flight,
+            // Control fence: while the client's own PATCH is in flight,
             // hold snapshots (keeping only the newest) so a pre-pause echo
             // cannot revert the just-applied optimistic control state. The
             // stash flushes through this same function once the response
@@ -426,7 +426,7 @@ export function usePlaybackSync({
 
     const sync = useCallback(
         async (partial: Partial<PlaybackState>) => {
-            if (!isHost || cancelledRef.current) return;
+            if (cancelledRef.current) return;
 
             const prev = stateRef.current;
             const payload = {
@@ -447,8 +447,7 @@ export function usePlaybackSync({
                     : {}),
             } as const;
 
-            // Optimistic local application + in-flight fence (host-only path;
-            // the host is the authority for these fields). Without this, the
+            // Optimistic local application + in-flight fence. Without this, the
             // broadcast echo of the position PATCH that was on the wire when
             // the user hit pause still says is_playing=true and carries a
             // newer state_version — applying it flips state back to playing
@@ -504,7 +503,7 @@ export function usePlaybackSync({
                     }
                 }
                 setError(null);
-            } catch {
+            } catch (error) {
                 if (cancelledRef.current) return;
                 // Reconcile behind the fence BEFORE surfacing the failure:
                 // the stashed authoritative snapshot wins over the failed
@@ -512,6 +511,13 @@ export function usePlaybackSync({
                 // so the setError must come after the flush to survive.
                 // flushFence is idempotent; the finally's call no-ops here.
                 flushFence();
+                // Defensive: the server enforces membership, so a 403 means
+                // this client lost access (kicked / room locked down) between
+                // mount and control. Say so plainly instead of a generic sync
+                // failure.
+                if (isForbiddenError(error)) {
+                    toast.error("شما مجوز کنترل پخش را ندارید");
+                }
                 setError("Failed to sync playback");
             } finally {
                 // Success or failure, the PATCH round-trip is over: release the
@@ -523,7 +529,7 @@ export function usePlaybackSync({
                 }
             }
         },
-        [roomId, isHost],
+        [roomId],
     );
 
     const debouncedSync = useCallback(
@@ -574,4 +580,20 @@ export function usePlaybackSync({
         sync: debouncedSync,
         syncImmediate,
     };
+}
+
+/** Structural 403 check mirroring use-presence's isRemovalError. */
+function isForbiddenError(error: unknown): boolean {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { status?: unknown } }).response
+            ?.status === "number"
+    ) {
+        return (
+            (error as { response: { status: number } }).response.status === 403
+        );
+    }
+    return false;
 }

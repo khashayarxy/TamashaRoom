@@ -72,7 +72,6 @@ export function SyncedVideoJsPlayer({
 }: SyncedVideoJsPlayerProps) {
     const { state, sync, syncImmediate, loading, error } = usePlaybackSync({
         roomId,
-        isHost: canControl,
         refreshKey,
         currentUserId,
         onPlaybackAction,
