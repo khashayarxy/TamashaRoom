@@ -156,6 +156,11 @@ export function MemberList({
                         <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate flex items-center gap-1">
                                 {member.name}
+                                {member.is_guest && (
+                                    <span className="shrink-0 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+                                        مهمان
+                                    </span>
+                                )}
                                 {member.is_owner && (
                                     <Crown className="h-3.5 w-3.5 text-warning shrink-0" />
                                 )}

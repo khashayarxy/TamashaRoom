@@ -51,8 +51,15 @@ class JoinRoomAction
         $user = $authenticatedUser;
 
         if ($isGuest) {
-            $user = $this->createGuestUser($request->input('guest_name'));
-            $createdGuest = $user;
+            $user = $this->resolveSessionGuest($request);
+
+            if ($user === null) {
+                $user = $this->createGuestUser($request->input('guest_name'));
+                $createdGuest = $user;
+                $request->session()->put('guest_user_id', $user->id);
+            } else {
+                $this->syncGuestDisplayName($user, $request->input('guest_name'));
+            }
         }
 
         try {
@@ -90,13 +97,51 @@ class JoinRoomAction
 
     private function createGuestUser(?string $name): User
     {
-        $displayName = trim((string) $name) !== '' ? trim($name) : 'مهمان';
-
         return User::create([
-            'name' => $displayName,
+            'name' => $this->normalizeGuestName($name),
             'email' => 'guest-'.Str::uuid().'@tamasharoom.local',
             'password' => Str::random(32),
             'is_guest' => true,
         ]);
+    }
+
+    /**
+     * One guest identity per browser session: if this session already minted
+     * a guest (e.g. auth was lost but the session survived, or a second room
+     * is joined logged-out), reuse it instead of minting a duplicate row.
+     * Only genuine guest accounts are ever adopted — a tampered session key
+     * pointing at a registered user is ignored.
+     */
+    private function resolveSessionGuest(JoinRoomRequest $request): ?User
+    {
+        $guestUserId = $request->session()->get('guest_user_id');
+
+        if (! is_numeric($guestUserId)) {
+            return null;
+        }
+
+        $user = User::whereKey($guestUserId)->first();
+
+        return $user !== null && $user->isGuest() ? $user : null;
+    }
+
+    /**
+     * Same person, new display name: keep the single session identity and
+     * rename it rather than forking a second guest row.
+     */
+    private function syncGuestDisplayName(User $user, ?string $name): void
+    {
+        $displayName = $this->normalizeGuestName($name);
+
+        if ($user->name !== $displayName) {
+            $user->update(['name' => $displayName]);
+        }
+    }
+
+    private function normalizeGuestName(?string $name): string
+    {
+        $trimmed = trim((string) $name);
+
+        return $trimmed !== '' ? $trimmed : 'مهمان';
     }
 }

@@ -47,5 +47,6 @@ Broadcast::channel('room.{roomId}', function (mixed $user, int $roomId): ?array 
         'disconnected_at' => $member->disconnected_at?->toISOString(),
         'joined_at' => $member->created_at->toISOString(),
         'is_owner' => $member->user_id === $room->user_id,
+        'is_guest' => $user->isGuest(),
     ];
 });

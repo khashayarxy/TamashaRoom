@@ -18,6 +18,8 @@ export interface PresenceMember {
     disconnected_at: string | null;
     joined_at: string;
     is_owner: boolean;
+    /** True for logged-out joins (JoinRoomAction guest accounts). */
+    is_guest: boolean;
 }
 
 const HEARTBEAT_INTERVAL = 30000;

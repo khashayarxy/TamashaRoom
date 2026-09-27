@@ -12,7 +12,7 @@ class MarkStaleMembersOffline extends Command
 {
     protected $signature = 'presence:timeout';
 
-    protected $description = 'Mark members whose heartbeat has timed out as offline';
+    protected $description = 'Mark members whose heartbeat has timed out as offline and prune stale guest accounts';
 
     public function handle(PresenceService $presence): int
     {
@@ -27,6 +27,20 @@ class MarkStaleMembersOffline extends Command
 
         if ($count > 0) {
             $this->info("Marked {$count} stale member(s) as offline.");
+        }
+
+        try {
+            $pruned = $presence->pruneStaleGuests();
+        } catch (\Throwable $e) {
+            report($e);
+            Log::error('Stale guest prune failed', ['error' => $e->getMessage()]);
+
+            return self::FAILURE;
+        }
+
+        if ($pruned > 0) {
+            $this->info("Pruned {$pruned} stale guest(s).");
+            Log::info('Stale guest prune completed', ['deleted' => $pruned]);
         }
 
         return self::SUCCESS;

@@ -37,6 +37,7 @@ function member(
         disconnected_at: null,
         joined_at: new Date().toISOString(),
         is_owner: userId === 1,
+        is_guest: false,
     };
 }
 

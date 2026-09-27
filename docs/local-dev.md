@@ -18,6 +18,19 @@ the previous manifest in memory and will render now-deleted asset URLs,
 producing 404s on the site's own JS/CSS until workers recycle. Symptom:
 HTML 200 but `app-*.js` / `app-*.css` 404. Fix: `herd restart`.
 
+## Never cache config/routes/views locally
+
+Do NOT run `php artisan config:cache`, `route:cache`, or `view:cache` in
+local dev. A stale `bootstrap/cache/config.php` pins `APP_ENV=local` inside
+the test process (phpunit.xml `<env>` cannot override it), so CSRF stays
+enforced and **every state-changing feature test fails with 419** (GETs
+still pass — the signature of this exact problem). A stale route cache
+additionally masks route changes. Symptom check: a probe test printing
+`app()->environment()` shows `local` under `php artisan test`. Fix:
+`php artisan config:clear && php artisan route:clear && php artisan view:clear`
+(2026-09-22: this exact failure cost a full PlaybackSyncTest file before the
+cause was found).
+
 ## Quick health checklist
 
 - `curl -sk -sSI https://tamasharoom.test/` returns HTTP 200.

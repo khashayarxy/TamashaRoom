@@ -27,6 +27,7 @@ function makeMember(overrides: Partial<PresenceMember> = {}): PresenceMember {
         name: overrides.name ?? "User",
         presence_status: overrides.presence_status ?? "online",
         is_owner: overrides.is_owner ?? false,
+        is_guest: overrides.is_guest ?? false,
         last_seen_at: overrides.last_seen_at ?? new Date().toISOString(),
         disconnected_at: overrides.disconnected_at ?? null,
         joined_at: overrides.joined_at ?? new Date().toISOString(),
@@ -278,6 +279,30 @@ describe("MemberList", () => {
             <MemberList members={members} roomId={1} ownerId={1} connected />,
         );
         expect(screen.getByText(/آخرین بازدید/)).toBeInTheDocument();
+    });
+
+    it("shows a guest badge for guest members only", () => {
+        // Same display name twice (the Issue 2 collision): only the guest
+        // row carries the badge, so the two rows are distinguishable.
+        const members = [
+            makeMember({ id: 1, user_id: 1, name: "Dr p" }),
+            makeMember({ id: 2, user_id: 2, name: "Dr p", is_guest: true }),
+        ];
+        render(
+            <MemberList members={members} roomId={1} ownerId={1} connected />,
+        );
+
+        expect(screen.getAllByText("Dr p")).toHaveLength(2);
+        expect(screen.getAllByText("مهمان")).toHaveLength(1);
+    });
+
+    it("does not show a guest badge for registered members", () => {
+        const members = [makeMember({ id: 1, user_id: 1, name: "Registered" })];
+        render(
+            <MemberList members={members} roomId={1} ownerId={1} connected />,
+        );
+
+        expect(screen.queryByText("مهمان")).not.toBeInTheDocument();
     });
 
     it("renders status indicator colors", () => {

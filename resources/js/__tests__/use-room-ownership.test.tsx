@@ -10,6 +10,7 @@ function makeMember(overrides: Partial<PresenceMember> = {}): PresenceMember {
         name: overrides.name ?? "User",
         presence_status: overrides.presence_status ?? "online",
         is_owner: overrides.is_owner ?? false,
+        is_guest: overrides.is_guest ?? false,
         last_seen_at: overrides.last_seen_at ?? new Date().toISOString(),
         disconnected_at: overrides.disconnected_at ?? null,
         joined_at: overrides.joined_at ?? new Date().toISOString(),

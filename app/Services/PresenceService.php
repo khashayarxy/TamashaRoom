@@ -64,6 +64,7 @@ class PresenceService
                 'disconnected_at' => $member->disconnected_at?->toISOString(),
                 'joined_at' => $member->created_at->toISOString(),
                 'is_owner' => $member->user_id === $room->user_id,
+                'is_guest' => $member->user->isGuest(),
             ];
         });
     }
@@ -96,6 +97,42 @@ class PresenceService
         }
 
         return $updated;
+    }
+
+    /**
+     * Delete guest accounts that can never come back: no online membership,
+     * nothing seen within $inactiveHours, and no owned rooms (a guest that
+     * received an ownership transfer must never be pruned — rooms.user_id
+     * would dangle). Deleting the user cascades memberships, likes and
+     * reports; chat messages are nullOnDelete and survive.
+     *
+     * Runs inside the same presence:timeout cadence as markStaleAsOffline.
+     */
+    public function pruneStaleGuests(int $inactiveHours = 24): int
+    {
+        $cutoff = now()->subHours($inactiveHours);
+
+        $staleGuestIds = User::query()
+            ->where('is_guest', true)
+            ->whereDoesntHave('ownedRooms')
+            ->whereDoesntHave('memberships', function ($query): void {
+                $query->where('presence_status', 'online');
+            })
+            ->whereDoesntHave('memberships', function ($query) use ($cutoff): void {
+                $query->where('last_seen_at', '>=', $cutoff);
+            })
+            // Guests that never joined anything have no memberships to judge
+            // by — fall back to the account's own freshness.
+            ->where('updated_at', '<', $cutoff)
+            ->pluck('id');
+
+        $deleted = 0;
+
+        foreach ($staleGuestIds->chunk(500) as $chunk) {
+            $deleted += User::whereIn('id', $chunk)->delete();
+        }
+
+        return $deleted;
     }
 
     /**
