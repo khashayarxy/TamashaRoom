@@ -21,8 +21,9 @@ HTML 200 but `app-*.js` / `app-*.css` 404. Fix: `herd restart`.
 ## Never cache config/routes/views locally
 
 Do NOT run `php artisan config:cache`, `route:cache`, or `view:cache` in
-local dev. A stale `bootstrap/cache/config.php` pins `APP_ENV=local` inside
-the test process (phpunit.xml `<env>` cannot override it), so CSRF stays
+local dev. A stale built config in `bootstrap/cache/` (written by
+`config:cache`) pins `APP_ENV=local` inside the test process (phpunit.xml
+`<env>` cannot override it), so CSRF stays
 enforced and **every state-changing feature test fails with 419** (GETs
 still pass — the signature of this exact problem). A stale route cache
 additionally masks route changes. Symptom check: a probe test printing
