@@ -34,7 +34,20 @@ export interface SyncedVideoJsPlayerSubtitles {
 
 interface SyncedVideoJsPlayerProps {
     roomId: number;
+    /**
+     * May this viewer emit control writes (play/pause/seek) and see the
+     * control UI? True for every room member — the server enforces
+     * membership on the PATCH endpoint.
+     */
     canControl?: boolean;
+    /**
+     * Is this viewer the room's position authority (the owner)? The leader
+     * never gets yanked backwards by a snapshot; followers drift-correct
+     * toward the leader's expected position, surface the autoplay-blocked
+     * tap-to-play overlay, and never heartbeat the shared position (their
+     * timeupdate would feed their own corrections back into the server).
+     */
+    isLeader?: boolean;
     initialVideoUrl?: string | null;
     className?: string;
     onSuggestNext?: () => void;
@@ -61,6 +74,7 @@ function proxyUrl(roomId: number, version?: number): string {
 export function SyncedVideoJsPlayer({
     roomId,
     canControl = false,
+    isLeader = false,
     initialVideoUrl,
     className,
     onSuggestNext,
@@ -141,11 +155,11 @@ export function SyncedVideoJsPlayer({
         return () => window.clearTimeout(timer);
     }, [proxyFailed]);
 
-    // Apply the authoritative room state to this client. The host is
-    // authoritative for its own playback — it never gets yanked backwards on
-    // a poll response. Guests receive drift corrections toward the expected
-    // position and an autoplay-blocked overlay when the browser rejects the
-    // programmatic play.
+    // Apply the authoritative room state to this client. The leader (the
+    // owner) is authoritative for its own playback — it never gets yanked
+    // backwards on a poll response. Followers receive drift corrections
+    // toward the expected position and an autoplay-blocked overlay when the
+    // browser rejects the programmatic play.
     useEffect(() => {
         const player = playerRef.current;
         if (!player || !ready || !sourceUrl) return;
@@ -158,13 +172,17 @@ export function SyncedVideoJsPlayer({
                 return;
             }
 
-            if (!canControl) {
+            if (!isLeader) {
                 const expected = computeExpectedPosition(
                     state,
                     Date.now() / 1000,
                 );
                 const diff = Math.abs(player.getCurrentTime() - expected);
                 if (diff > DRIFT_THRESHOLD) {
+                    // Guard the apply-driven seek so the echo `seeked` event
+                    // doesn't bounce the corrected position back to the
+                    // server; the play() guard below clears the flag.
+                    applyingRef.current = true;
                     player.seekTo(expected);
                 }
             }
@@ -181,12 +199,13 @@ export function SyncedVideoJsPlayer({
                     }, 100);
                 }
             })();
-            if (!canControl && playResult && "catch" in playResult) {
+            if (!isLeader && playResult && "catch" in playResult) {
                 playResult.catch((err: unknown) => {
                     // Only a genuine autoplay-policy rejection (NotAllowedError)
-                    // means the guest must tap to start. Media-load errors must
-                    // NOT re-surface the tap-to-play overlay — the proxy→direct
-                    // fallback keeps the guest on a working stream instead.
+                    // means the follower must tap to start. Media-load errors
+                    // must NOT re-surface the tap-to-play overlay — the
+                    // proxy→direct fallback keeps the viewer on a working
+                    // stream instead.
                     if ((err as DOMException)?.name === "NotAllowedError") {
                         setAutoplayBlocked(true);
                     }
@@ -196,11 +215,12 @@ export function SyncedVideoJsPlayer({
                 setEnded(false);
             }
         } else {
-            if (!canControl) {
+            if (!isLeader) {
                 const diff = Math.abs(
                     player.getCurrentTime() - state.positionSeconds,
                 );
                 if (diff > DRIFT_THRESHOLD) {
+                    applyingRef.current = true;
                     player.seekTo(state.positionSeconds);
                 }
             }
@@ -213,7 +233,7 @@ export function SyncedVideoJsPlayer({
                 }, 100);
             }
         }
-    }, [canControl, ended, ready, sourceUrl, state]);
+    }, [isLeader, ended, ready, sourceUrl, state]);
 
     const handleReady = useCallback(() => {
         setReady(true);
@@ -224,23 +244,31 @@ export function SyncedVideoJsPlayer({
         setEnded(false);
         if (!canControl) return;
         if (applyingRef.current) return;
+        // A play that resumes an already-playing room (tap-to-play after an
+        // autoplay block, or catching up to live) is local-only; only a room
+        // that is paused needs the command.
+        if (state.isPlaying) return;
         syncImmediate({
             isPlaying: true,
             positionSeconds: playerRef.current?.getCurrentTime() ?? 0,
         });
-    }, [canControl, syncImmediate]);
+    }, [canControl, state.isPlaying, syncImmediate]);
 
     const handlePause = useCallback(() => {
         if (!canControl) return;
         if (applyingRef.current) return;
+        // Pause events also fire when an apply-driven pause lands; only a
+        // user pause of a still-playing room is a command.
+        if (!state.isPlaying) return;
         syncImmediate({
             isPlaying: false,
             positionSeconds: playerRef.current?.getCurrentTime() ?? 0,
         });
-    }, [canControl, syncImmediate]);
+    }, [canControl, state.isPlaying, syncImmediate]);
 
     const handleSeeked = useCallback(() => {
         if (!canControl) return;
+        if (applyingRef.current) return;
         syncImmediate({
             positionSeconds: playerRef.current?.getCurrentTime() ?? 0,
         });
@@ -248,7 +276,10 @@ export function SyncedVideoJsPlayer({
 
     const handleTimeUpdate = useCallback(
         (currentTime: number) => {
-            if (!canControl) return;
+            // Only the leader heartbeats the shared position: a follower's
+            // timeupdate would feed its own drift-correction back into the
+            // server (and shows up as write traffic in the tap-to-play test).
+            if (!canControl || !isLeader) return;
             const now = Date.now();
             if (now - lastTimeupdateSyncRef.current < 1000) return;
             lastTimeupdateSyncRef.current = now;
@@ -257,7 +288,7 @@ export function SyncedVideoJsPlayer({
                 durationSeconds: playerRef.current?.getDuration() ?? 0,
             });
         },
-        [canControl, sync],
+        [canControl, isLeader, sync],
     );
 
     const handleEnded = useCallback(() => {
@@ -392,7 +423,7 @@ export function SyncedVideoJsPlayer({
                 </div>
             )}
 
-            {!canControl && !ended && autoplayBlocked && (
+            {!isLeader && !ended && autoplayBlocked && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
                     <Button size="lg" onClick={handleResumeBlockedPlay}>
                         <Play className="h-5 w-5" />

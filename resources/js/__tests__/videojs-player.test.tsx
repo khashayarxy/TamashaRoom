@@ -330,6 +330,7 @@ describe("SyncedVideoJsPlayer", () => {
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
                 canControl
+                isLeader
             />,
         );
 
@@ -357,6 +358,7 @@ describe("SyncedVideoJsPlayer", () => {
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
                 canControl
+                isLeader
             />,
         );
 
@@ -384,6 +386,7 @@ describe("SyncedVideoJsPlayer", () => {
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
                 canControl
+                isLeader
             />,
         );
 
@@ -407,6 +410,7 @@ describe("SyncedVideoJsPlayer", () => {
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
                 canControl
+                isLeader
             />,
         );
 
@@ -424,7 +428,7 @@ describe("SyncedVideoJsPlayer", () => {
         });
     });
 
-    it("guests do not emit sync events", () => {
+    it("viewers without control do not emit sync events", () => {
         vi.mocked(usePlaybackSync).mockReturnValue({
             state: makeState(),
             sync: mockSync,
@@ -451,35 +455,7 @@ describe("SyncedVideoJsPlayer", () => {
         expect(mockSyncImmediate).not.toHaveBeenCalled();
     });
 
-    it("corrects guest drift toward the expected position when playing", () => {
-        testState.currentTime = 100;
-        vi.mocked(usePlaybackSync).mockReturnValue({
-            state: makeState({ isPlaying: true, positionSeconds: 10 }),
-            sync: mockSync,
-            syncImmediate: mockSyncImmediate,
-            loading: false,
-            error: null,
-        });
-        render(
-            <SyncedVideoJsPlayer
-                roomId={1}
-                initialVideoUrl="https://example.com/video.mp4"
-                canControl={false}
-            />,
-        );
-
-        act(() => {
-            testState.props?.onReady?.();
-        });
-
-        // computeExpectedPosition is faked to currentTime + 5 → 105, and the
-        // guest sits at 100: within threshold? No — diff is 5 > 2, so it must
-        // snap to 105.
-        expect(testState.seekToMock).toHaveBeenCalledWith(105);
-        expect(testState.playMock).toHaveBeenCalled();
-    });
-
-    it("does not correct the host's position", () => {
+    it("corrects a follower's drift toward the expected position when playing", () => {
         testState.currentTime = 100;
         vi.mocked(usePlaybackSync).mockReturnValue({
             state: makeState({ isPlaying: true, positionSeconds: 10 }),
@@ -500,10 +476,71 @@ describe("SyncedVideoJsPlayer", () => {
             testState.props?.onReady?.();
         });
 
+        // computeExpectedPosition is faked to currentTime + 5 → 105, and the
+        // follower sits at 100: within threshold? No — diff is 5 > 2, so it
+        // must snap to 105.
+        expect(testState.seekToMock).toHaveBeenCalledWith(105);
+        expect(testState.playMock).toHaveBeenCalled();
+    });
+
+    it("does not echo a follower's apply-driven seek back to the server", () => {
+        testState.currentTime = 100;
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: true, positionSeconds: 10 }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        act(() => {
+            testState.props?.onReady?.();
+        });
+        expect(testState.seekToMock).toHaveBeenCalledWith(105);
+
+        // The native `seeked` event fires after the correction lands; it must
+        // not bounce the corrected position straight back as a write.
+        act(() => {
+            testState.props?.onSeeked?.();
+        });
+
+        expect(mockSyncImmediate).not.toHaveBeenCalled();
+        expect(mockSync).not.toHaveBeenCalled();
+    });
+
+    it("does not correct the leader's position", () => {
+        testState.currentTime = 100;
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: true, positionSeconds: 10 }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+                isLeader
+            />,
+        );
+
+        act(() => {
+            testState.props?.onReady?.();
+        });
+
         expect(testState.seekToMock).not.toHaveBeenCalled();
     });
 
-    it("pauses the guest when the room is paused", () => {
+    it("pauses a follower when the room is paused", () => {
         testState.currentTime = 40;
         vi.mocked(usePlaybackSync).mockReturnValue({
             state: makeState({ positionSeconds: 10 }),
@@ -516,7 +553,7 @@ describe("SyncedVideoJsPlayer", () => {
             <SyncedVideoJsPlayer
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
-                canControl={false}
+                canControl
             />,
         );
 
@@ -527,33 +564,7 @@ describe("SyncedVideoJsPlayer", () => {
         expect(testState.pauseMock).toHaveBeenCalled();
     });
 
-    it("shows the tap-to-play overlay when a guest's autoplay is blocked", async () => {
-        testState.playMock.mockRejectedValue(
-            new DOMException("NotAllowedError", "NotAllowedError"),
-        );
-        vi.mocked(usePlaybackSync).mockReturnValue({
-            state: makeState({ isPlaying: true, positionSeconds: 5 }),
-            sync: mockSync,
-            syncImmediate: mockSyncImmediate,
-            loading: false,
-            error: null,
-        });
-        render(
-            <SyncedVideoJsPlayer
-                roomId={1}
-                initialVideoUrl="https://example.com/video.mp4"
-                canControl={false}
-            />,
-        );
-
-        act(() => {
-            testState.props?.onReady?.();
-        });
-
-        expect(await screen.findByText("شروع پخش")).toBeInTheDocument();
-    });
-
-    it("does not show the tap-to-play overlay for the host", () => {
+    it("shows the tap-to-play overlay when a follower's autoplay is blocked", async () => {
         testState.playMock.mockRejectedValue(
             new DOMException("NotAllowedError", "NotAllowedError"),
         );
@@ -569,6 +580,33 @@ describe("SyncedVideoJsPlayer", () => {
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
                 canControl
+            />,
+        );
+
+        act(() => {
+            testState.props?.onReady?.();
+        });
+
+        expect(await screen.findByText("شروع پخش")).toBeInTheDocument();
+    });
+
+    it("does not show the tap-to-play overlay for the leader", () => {
+        testState.playMock.mockRejectedValue(
+            new DOMException("NotAllowedError", "NotAllowedError"),
+        );
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: true, positionSeconds: 5 }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+                isLeader
             />,
         );
 
@@ -594,7 +632,7 @@ describe("SyncedVideoJsPlayer", () => {
             <SyncedVideoJsPlayer
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
-                canControl={false}
+                canControl
             />,
         );
 
@@ -605,10 +643,139 @@ describe("SyncedVideoJsPlayer", () => {
 
         testState.playMock.mockImplementation(() => Promise.resolve());
         fireEvent.click(screen.getByText("شروع پخش"));
+        // The native play event fires after the tap; resuming an
+        // already-playing room is local catch-up, not a room command.
+        act(() => {
+            testState.props?.onPlay?.();
+        });
 
         expect(mockSync).not.toHaveBeenCalled();
         expect(mockSyncImmediate).not.toHaveBeenCalled();
         expect(screen.queryByText("شروع پخش")).not.toBeInTheDocument();
+    });
+
+    it("a member's play emits when the room is paused", () => {
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: false }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        act(() => {
+            testState.props?.onPlay?.();
+        });
+
+        expect(mockSyncImmediate).toHaveBeenCalledTimes(1);
+        expect(mockSyncImmediate).toHaveBeenCalledWith({
+            isPlaying: true,
+            positionSeconds: 0,
+        });
+    });
+
+    it("a member's play does not emit when the room is already playing", () => {
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: true }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        act(() => {
+            testState.props?.onPlay?.();
+        });
+
+        expect(mockSyncImmediate).not.toHaveBeenCalled();
+    });
+
+    it("a member's pause does not emit when the room is already paused", () => {
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: false }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        act(() => {
+            testState.props?.onPause?.();
+        });
+
+        expect(mockSyncImmediate).not.toHaveBeenCalled();
+    });
+
+    it("a member's user seek emits exactly one sync", () => {
+        testState.currentTime = 77;
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: true }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        act(() => {
+            testState.props?.onSeeked?.();
+        });
+
+        expect(mockSyncImmediate).toHaveBeenCalledTimes(1);
+        expect(mockSyncImmediate).toHaveBeenCalledWith({ positionSeconds: 77 });
+    });
+
+    it("followers do not heartbeat time-updates", () => {
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: true }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(
+            <SyncedVideoJsPlayer
+                roomId={1}
+                initialVideoUrl="https://example.com/video.mp4"
+                canControl
+            />,
+        );
+
+        act(() => {
+            testState.props?.onReady?.();
+        });
+        act(() => {
+            testState.props?.onTimeUpdate?.(10);
+        });
+
+        expect(mockSync).not.toHaveBeenCalled();
     });
 
     it("shows the end card and lets a host replay", () => {
@@ -624,6 +791,7 @@ describe("SyncedVideoJsPlayer", () => {
                 roomId={1}
                 initialVideoUrl="https://example.com/video.mp4"
                 canControl
+                isLeader
             />,
         );
 
@@ -644,7 +812,7 @@ describe("SyncedVideoJsPlayer", () => {
         ).not.toBeInTheDocument();
     });
 
-    it("hides the replay button for guests", () => {
+    it("hides the replay button for viewers without control", () => {
         vi.mocked(usePlaybackSync).mockReturnValue({
             state: makeState(),
             sync: mockSync,

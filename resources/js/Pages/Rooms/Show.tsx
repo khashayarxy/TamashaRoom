@@ -326,8 +326,12 @@ export default function ShowRoom({ room }: ShowRoomProps) {
                                     roomId={room.id}
                                     // Every room-page viewer is a member, and
                                     // members may control playback
-                                    // (server enforces membership).
+                                    // (server enforces membership). Only the
+                                    // owner is the position authority: it
+                                    // drift-corrects followers and heartbeats
+                                    // the shared position.
                                     canControl
+                                    isLeader={isOwner}
                                     currentUserId={auth.user.id}
                                     onPlaybackAction={handlePlaybackAction}
                                     initialVideoUrl={room.video_url}
