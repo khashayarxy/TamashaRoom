@@ -31,7 +31,9 @@
 - [x] بازبینی مرز مجوز منبع، pin اتصال و سقف پروب، رقابت session/XSRF، زیرنویس، backoff و patchهای وابستگی انجام شد؛ کنترل‌های محلی fast موفق‌اند. تغییر قبلی TASK کاربر و .freebuff در commit امنیتی وارد نمی‌شوند.
 - [x] تنظیم CI برای push شاخه remediation و نگهداری artifact شکست E2E تکمیل شد؛ ترتیب بررسی‌ها/دروازه‌های امنیت و coverage حفظ شدند. اسکریپت بسته‌ساز فقط محلی است و هیچ اتصال یا فرمان تولیدی اجرا نمی‌کند.
 - [x] بازبینی انتشار و UI، کنترل‌های fast نهایی (388 PHPUnit / 2610 assertions، 342 Vitest، contrast 8/8، lint/type/format/docs)، بررسی نبود migration جدید و برنامه staging انجام شد. health checker محلیِ ignored برای proxy خاموش اصلاح و چهار حالت آن آزموده شد؛ Registry تغییر نکرد.
-- [ ] push همین شاخه و تأیید همه بررسی‌های GitHub برای SHA نهایی؛ merge و تولید خارج از مجوز هستند.
+- [x] دو commit اولیه 4313116 و 576d37f روی شاخه remediation push شدند. CI اول (run 40076871670) با 388 PHPUnit و coverage 86.6%، 342 Vitest و audit/build موفق، فقط در snapshot صفحه نخست متوقف شد؛ E2E/full-a11y آن اجرا نشدند.
+- [x] تصویر واقعی و diff Linux بررسی شد: جابه‌جایی صحیح کنترل پوسته به nav، رفع overlap ثبت‌نام و افزایش عمدی ارتفاع header از 64 به 72px؛ بقیه صفحه 8px پایین آمده است. فقط baseline landing از تصویر واقعی همان CI به‌روزرسانی شد؛ threshold و تصاویر room/chat تغییر نکردند. artifactهای failure به step مربوط محدود شدند.
+- [ ] push اصلاح تصویری و تأیید همه بررسی‌های GitHub برای SHA نهایی؛ merge و تولید خارج از مجوز هستند.
 
 ### Phase 3 — اصلاح امنیت و پایداری؛ فقط محلی و commit‌نشده (2026-10-24)
 

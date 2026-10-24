@@ -118,10 +118,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Visual Regression Tests
+        id: visual
         run: npx playwright test visual-regression --config=tests/e2e/playwright.config.ts --project=chromium
 
       - name: Upload visual test results
-        if: failure()
+        if: failure() && steps.visual.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: visual-test-results
@@ -144,12 +145,13 @@ jobs:
         run: npm run check:docs
 
       - name: Run Playwright a11y tests
+        id: a11y
         run: npm run test:a11y
         env:
           APP_ENV: local
 
       - name: Upload a11y test results
-        if: failure()
+        if: failure() && steps.a11y.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: a11y-test-results
@@ -157,12 +159,13 @@ jobs:
           if-no-files-found: warn
 
       - name: Run Playwright E2E tests
+        id: e2e
         run: npm run test:e2e -- --project=chromium
         env:
           APP_ENV: local
 
       - name: Upload E2E failure evidence
-        if: failure()
+        if: failure() && steps.e2e.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: e2e-test-results
