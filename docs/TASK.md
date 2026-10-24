@@ -26,6 +26,11 @@
 
 ## Completed
 
+### Phase 4 — بازبینی، commit و تأیید GitHub (2026-10-24)
+
+- [x] بازبینی مرز مجوز منبع، pin اتصال و سقف پروب، رقابت session/XSRF، زیرنویس، backoff و patchهای وابستگی انجام شد؛ کنترل‌های محلی fast موفق‌اند. تغییر قبلی TASK کاربر و .freebuff در commit امنیتی وارد نمی‌شوند.
+- [ ] تکمیل commit انتشار/CI، push همین شاخه و تأیید همه بررسی‌های GitHub برای SHA نهایی؛ merge و تولید خارج از مجوز هستند.
+
 ### Chat/Room Moderation MVP (2026-08-30)
 
 **Context:** Added report-message and owner-delete-any-message moderation capabilities to the chat system.

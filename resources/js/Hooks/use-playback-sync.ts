@@ -30,6 +30,13 @@ const DEBOUNCE_MS = 1500;
 // never arrives (dropped connection) must not defer snapshots forever.
 const FENCE_TTL_S = 5;
 
+type PlaybackControl = Partial<
+    Pick<
+        PlaybackState,
+        "isPlaying" | "positionSeconds" | "durationSeconds" | "playbackRate"
+    >
+>;
+
 interface SyncOptions {
     roomId: number;
     onRemoteChange?: (state: PlaybackState) => void;
@@ -425,7 +432,7 @@ export function usePlaybackSync({
     }, [roomId, schedulePoll]);
 
     const sync = useCallback(
-        async (partial: Partial<PlaybackState>) => {
+        async (partial: PlaybackControl) => {
             if (cancelledRef.current) return;
 
             const prev = stateRef.current;
@@ -437,14 +444,6 @@ export function usePlaybackSync({
                     partial.durationSeconds ?? prev.durationSeconds,
                 playback_rate: partial.playbackRate ?? prev.playbackRate,
                 client_timestamp: Date.now() / 1000,
-                // Position syncs must never carry a video_url: the host's local
-                // copy can be stale (a video was just set or removed), and the
-                // server treats a PATCHed URL as an authoritative change that
-                // would revert the room's current video. Only an explicit
-                // video change from the caller sends video_url.
-                ...(partial.videoUrl !== undefined
-                    ? { video_url: partial.videoUrl }
-                    : {}),
             } as const;
 
             // Optimistic local application + in-flight fence. Without this, the

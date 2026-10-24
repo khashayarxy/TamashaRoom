@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Actions\UpdatePlaybackStateAction;
 use App\Enums\PlaybackMode;
 use App\Events\PlaybackStateChanged;
 use App\Models\Room;
@@ -14,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 use Tests\Traits\StubsPublicDns;
 
@@ -411,7 +413,7 @@ class PlaybackSyncTest extends TestCase
             ->assertJson(['playback_mode' => 'direct']);
     }
 
-    public function test_host_can_update_video_url_via_sync(): void
+    public function test_source_changes_use_the_owner_only_endpoint_instead_of_sync(): void
     {
         Http::fake([
             '*' => Http::response(null, 200, [
@@ -428,13 +430,69 @@ class PlaybackSyncTest extends TestCase
                 'video_url' => 'https://example.com/new-video.mp4',
             ]);
 
-        $response->assertOk()
-            ->assertJson(['playback_mode' => 'direct']);
+        $response->assertUnprocessable()->assertJsonValidationErrors('video_url');
 
         $this->room->refresh();
 
-        $this->assertEquals('https://example.com/new-video.mp4', $this->room->video_url);
-        $this->assertTrue($this->room->playback_mode === PlaybackMode::Direct);
+        $this->assertEquals('https://example.com/video.mp4', $this->room->video_url);
+        $this->assertEquals(0, $this->room->state_version);
+    }
+
+    public function test_members_and_guests_cannot_smuggle_a_source_into_playback(): void
+    {
+        $guest = User::factory()->create(['is_guest' => true]);
+        RoomMember::create([
+            'room_id' => $this->room->id,
+            'user_id' => $guest->id,
+            'last_seen_at' => now(),
+        ]);
+
+        foreach ([$this->member, $guest] as $user) {
+            foreach (['https://example.com/other.mp4', null, '', [], ['url' => 'https://example.com/other.mp4']] as $source) {
+                $this->actingAs($user)->patchJson("/playback/{$this->room->id}", [
+                    'is_playing' => true,
+                    'position_seconds' => 5,
+                    'duration_seconds' => 120,
+                    'video_url' => $source,
+                ])->assertUnprocessable()->assertJsonValidationErrors('video_url');
+            }
+
+            $this->actingAs($user)->patchJson("/playback/{$this->room->id}", [
+                'is_playing' => true,
+                'position_seconds' => 5,
+                'duration_seconds' => 120,
+            ])->assertOk();
+        }
+
+        $this->assertSame('https://example.com/video.mp4', $this->room->fresh()->video_url);
+        $this->assertSame(2, $this->room->fresh()->state_version);
+    }
+
+    public function test_transport_updates_do_not_overwrite_a_concurrent_source_change(): void
+    {
+        Event::fake([PlaybackStateChanged::class]);
+        $staleRoom = $this->room;
+        Room::whereKey($this->room->id)->update(['video_url' => 'https://example.com/new.mp4']);
+
+        app(UpdatePlaybackStateAction::class)->execute($staleRoom, [
+            'is_playing' => false,
+            'position_seconds' => 0,
+            'duration_seconds' => 120,
+        ], $this->member->id);
+
+        $this->assertSame('https://example.com/new.mp4', $this->room->fresh()->video_url);
+    }
+
+    public function test_transport_action_rejects_source_changes_from_internal_callers(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        app(UpdatePlaybackStateAction::class)->execute($this->room, [
+            'is_playing' => false,
+            'position_seconds' => 0,
+            'duration_seconds' => 120,
+            'video_url' => null,
+        ], $this->owner->id);
     }
 
     public function test_sync_rejects_ssrf_video_url(): void
@@ -498,7 +556,7 @@ class PlaybackSyncTest extends TestCase
         $this->assertEquals(0, $this->room->state_version);
     }
 
-    public function test_sync_recomputes_proxy_mode_for_new_video(): void
+    public function test_setting_video_recomputes_proxy_mode(): void
     {
         Http::fake([
             '*' => Http::response(null, 500),
@@ -507,10 +565,7 @@ class PlaybackSyncTest extends TestCase
         $this->room->update(['playback_mode' => 'direct']);
 
         $response = $this->actingAs($this->owner)
-            ->patchJson("/playback/{$this->room->id}", [
-                'is_playing' => false,
-                'position_seconds' => 0,
-                'duration_seconds' => 120,
+            ->postJson("/playback/{$this->room->id}/set-video", [
                 'video_url' => 'https://example.com/proxy-video.mp4',
             ]);
 
@@ -521,7 +576,7 @@ class PlaybackSyncTest extends TestCase
         $this->assertTrue($this->room->playback_mode === PlaybackMode::Proxy);
     }
 
-    public function test_sync_does_not_recompute_mode_for_unchanged_url(): void
+    public function test_transport_sync_does_not_recompute_source_mode(): void
     {
         Http::fake([
             '*' => Http::response(null, 500),
@@ -534,7 +589,6 @@ class PlaybackSyncTest extends TestCase
                 'is_playing' => true,
                 'position_seconds' => 30,
                 'duration_seconds' => 120,
-                'video_url' => 'https://example.com/video.mp4',
             ]);
 
         $response->assertOk()

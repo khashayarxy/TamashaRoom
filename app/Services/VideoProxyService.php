@@ -540,7 +540,9 @@ class VideoProxyService
      */
     protected function httpGetHeaders(string $url, mixed $context): array|false
     {
-        return @get_headers($url, true, $context);
+        $destination = $this->urlSecurity->pinStreamDestination($url, $context);
+
+        return $destination === null ? false : @get_headers($destination['url'], true, $destination['context']);
     }
 
     /**
@@ -551,7 +553,11 @@ class VideoProxyService
      */
     protected function openRemoteStream(string $url, mixed $context)
     {
-        $stream = @fopen($url, 'r', false, $context);
+        $destination = $this->urlSecurity->pinStreamDestination($url, $context);
+        if ($destination === null) {
+            return false;
+        }
+        $stream = @fopen($destination['url'], 'r', false, $destination['context']);
 
         $headers = $http_response_header ?? [];
 

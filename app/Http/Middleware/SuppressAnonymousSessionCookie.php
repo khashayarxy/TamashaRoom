@@ -12,16 +12,11 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Cross-tab & background polling session cookie protection.
  *
- * Primary protection against cross-tab session cookie overwrite races:
- * When Tab 2 logs in / regenerates session ID, Tab 1's trailing background polls
- * carrying the old (now destroyed) session ID fail authentication. Without this
- * middleware, StartSession initializes a new empty guest session and returns a
- * `Set-Cookie: laravel_session=ID_EMPTY` header that overwrites the browser's shared
- * cookie jar.
- *
- * This middleware strips/clears the unauthenticated `Set-Cookie` header on XHR/JSON
- * and polling endpoints, ensuring an unauthenticated background poll 401 response
- * NEVER overwrites the browser's cookie jar holding another tab's active session.
+ * Live-room endpoints never change session identity. A delayed poll or leave
+ * beacon can finish after a new login, even if it authenticated before that
+ * login. Neither its old session cookie nor a replacement guest cookie should
+ * overwrite the browser's new identity. Login/logout and room joins keep their
+ * normal session-cookie lifecycle.
  */
 class SuppressAnonymousSessionCookie
 {
@@ -29,11 +24,18 @@ class SuppressAnonymousSessionCookie
     {
         $response = $next($request);
 
-        if (Auth::guest() && ($request->expectsJson() || $request->is('playback/*', 'presence/*', 'chat/*', 'proxy/*'))) {
+        $isRoomBackgroundRequest = $request->is('playback/*', 'presence/*', 'chat/*', 'proxy/*');
+        $isAnonymousJsonRead = Auth::guest() && $request->expectsJson() && $request->isMethod('GET');
+
+        if ($isRoomBackgroundRequest || $isAnonymousJsonRead) {
             $cookieName = (string) config('session.cookie', 'laravel_session');
 
-            // Clear/suppress the session cookie on unauthenticated API/polling responses
-            $response->headers->clearCookie($cookieName, '/');
+            // An expired cookie would also overwrite another tab's authenticated cookie.
+            foreach ($response->headers->getCookies() as $cookie) {
+                if ($cookie->getName() === $cookieName || ($isRoomBackgroundRequest && $cookie->getName() === 'XSRF-TOKEN')) {
+                    $response->headers->removeCookie($cookie->getName(), $cookie->getPath(), $cookie->getDomain());
+                }
+            }
         }
 
         return $response;

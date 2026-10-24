@@ -50,7 +50,6 @@ vi.mock("@/Components/Player/VideoJsPlayer", async (importOriginal) => {
                 },
                 ref,
             ) => {
-                // eslint-disable-next-line react-compiler/react-compiler
                 testState.props = props;
                 useImperativeHandle(ref, () => ({
                     getCurrentTime: () => testState.currentTime,

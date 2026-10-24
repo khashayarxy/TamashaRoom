@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\StoreSubtitleAction;
 use App\Events\SubtitleDefaultChanged;
 use App\Http\Requests\UploadSubtitleRequest;
 use App\Models\Room;
@@ -76,7 +77,7 @@ class SubtitleController extends Controller
         ]);
     }
 
-    public function store(UploadSubtitleRequest $request, Room $room): JsonResponse
+    public function store(UploadSubtitleRequest $request, Room $room, StoreSubtitleAction $store): JsonResponse
     {
         $this->authorize('update', $room);
 
@@ -89,19 +90,7 @@ class SubtitleController extends Controller
         $label = mb_substr((string) $request->input('label', $file->getClientOriginalName()), 0, 255);
         $language = $request->input('language', 'fa');
 
-        $filename = sprintf('%d_%s.vtt', time(), substr(md5($label), 0, 8));
-        $path = sprintf('subtitles/%d/%s', $room->id, $filename);
-
-        Storage::disk(self::SUBTITLE_DISK)->put($path, $vttContent);
-
-        $track = SubtitleTrack::create([
-            'room_id' => $room->id,
-            'user_id' => $request->user()->id,
-            'label' => $label,
-            'language' => $language,
-            'file_path' => $path,
-            'original_extension' => $extension,
-        ]);
+        $track = $store->execute($room, $request->user()->id, $label, $language, $extension, $vttContent);
 
         return response()->json($track->only([
             'id',

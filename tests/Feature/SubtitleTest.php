@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Actions\StoreSubtitleAction;
 use App\Models\Room;
 use App\Models\RoomMember;
 use App\Models\SubtitleTrack;
 use App\Models\User;
 use Illuminate\Broadcasting\BroadcastEvent;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Traits\StubsPublicDns;
@@ -30,6 +33,66 @@ class SubtitleTest extends TestCase
     private User $stranger;
 
     private Room $room;
+
+    public function test_repeated_labels_create_distinct_files_without_overwriting_content(): void
+    {
+        Storage::fake('local');
+        foreach (['First', 'Second'] as $text) {
+            $this->actingAs($this->owner)->postJson("/subtitles/{$this->room->id}", [
+                'label' => 'Same label',
+                'file' => UploadedFile::fake()->createWithContent('same.srt', "1\n00:00:01,000 --> 00:00:04,000\n{$text}"),
+            ])->assertCreated();
+        }
+
+        $tracks = SubtitleTrack::orderBy('id')->get();
+        $this->assertCount(2, $tracks);
+        $this->assertNotSame($tracks[0]->file_path, $tracks[1]->file_path);
+        $this->assertStringContainsString('First', Storage::disk('local')->get($tracks[0]->file_path));
+        $this->assertStringContainsString('Second', Storage::disk('local')->get($tracks[1]->file_path));
+    }
+
+    #[DataProvider('storageFailures')]
+    public function test_failed_storage_writes_do_not_create_tracks(bool $throws): void
+    {
+        $disk = \Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('put')->once()->andReturnUsing(function () use ($throws) {
+            if ($throws) {
+                throw new \RuntimeException('Simulated partial storage failure');
+            }
+
+            return false;
+        });
+        $disk->shouldReceive('delete')->once()->andReturnTrue();
+        Storage::shouldReceive('disk')->with('local')->andReturn($disk);
+
+        $this->actingAs($this->owner)->postJson("/subtitles/{$this->room->id}", [
+            'file' => UploadedFile::fake()->createWithContent('test.srt', "1\n00:00:01,000 --> 00:00:04,000\nTest"),
+        ])->assertUnprocessable()->assertJsonValidationErrors('file');
+
+        $this->assertDatabaseCount('subtitle_tracks', 0);
+    }
+
+    public static function storageFailures(): array
+    {
+        return [[false], [true]];
+    }
+
+    public function test_database_failure_removes_only_the_new_upload(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('subtitles/existing.vtt', 'keep');
+        SubtitleTrack::creating(fn () => throw new \RuntimeException('Simulated database failure'));
+
+        try {
+            app(StoreSubtitleAction::class)->execute($this->room, $this->owner->id, 'test', 'fa', 'srt', 'WEBVTT');
+            $this->fail('Expected the database failure to propagate.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Simulated database failure', $exception->getMessage());
+        }
+
+        $this->assertSame(['subtitles/existing.vtt'], Storage::disk('local')->allFiles('subtitles'));
+        $this->assertDatabaseCount('subtitle_tracks', 0);
+    }
 
     protected function setUp(): void
     {

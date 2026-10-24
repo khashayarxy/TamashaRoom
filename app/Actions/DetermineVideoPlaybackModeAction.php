@@ -6,7 +6,6 @@ namespace App\Actions;
 
 use App\Enums\PlaybackMode;
 use App\Exceptions\VideoUrlValidationException;
-use App\Services\HttpRetryService;
 use App\Services\UrlSecurityService;
 use Illuminate\Support\Facades\Log;
 
@@ -14,7 +13,6 @@ class DetermineVideoPlaybackModeAction
 {
     public function __construct(
         private readonly UrlSecurityService $urlSecurity,
-        private readonly HttpRetryService $httpRetry = new HttpRetryService,
     ) {}
 
     public function execute(string $url): PlaybackMode
@@ -26,9 +24,9 @@ class DetermineVideoPlaybackModeAction
         }
 
         try {
-            $response = $this->httpRetry->head($url, 3, 500);
+            $response = $this->urlSecurity->probeHeaders($url);
 
-            if (! $response->successful()) {
+            if ($response === null || ! $response->successful()) {
                 return PlaybackMode::Proxy;
             }
 
@@ -46,8 +44,7 @@ class DetermineVideoPlaybackModeAction
             // otherwise every direct-mode regression looks like a deliberate
             // proxy choice.
             Log::warning('[playback-mode] HEAD probe failed; falling back to proxy', [
-                'url' => $url,
-                'error' => $e->getMessage(),
+                'exception' => $e::class,
             ]);
 
             return PlaybackMode::Proxy;

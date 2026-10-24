@@ -7,39 +7,22 @@ namespace App\Actions;
 use App\Enums\PlaybackMode;
 use App\Events\PlaybackStateChanged;
 use App\Models\Room;
-use App\Services\UrlSecurityService;
 use Illuminate\Validation\ValidationException;
 
 class UpdatePlaybackStateAction
 {
-    public function __construct(
-        private readonly UrlSecurityService $urlSecurity,
-        private readonly DetermineVideoPlaybackModeAction $determineMode,
-    ) {}
-
     /**
-     * @param  array{is_playing: bool, position_seconds: float, duration_seconds: float, playback_rate?: float, video_url?: string|null}  $data
+     * @param  array{is_playing: bool, position_seconds: float, duration_seconds: float, playback_rate?: float}  $data
      * @return array{state_version: int, server_timestamp: float, playback_mode: string}
      */
     public function execute(Room $room, array $data, int $userId): array
     {
-        $videoUrl = $data['video_url'] ?? $room->video_url;
-        $playbackMode = $room->playback_mode;
-
-        if (array_key_exists('video_url', $data) && $videoUrl !== $room->video_url) {
-            if ($videoUrl !== null) {
-                $error = $this->urlSecurity->validateVideoUrl($videoUrl);
-
-                if ($error !== null) {
-                    throw ValidationException::withMessages([
-                        'video_url' => [$error],
-                    ]);
-                }
-
-                $playbackMode = $this->determineMode->execute($videoUrl);
-            } else {
-                $playbackMode = PlaybackMode::Proxy;
-            }
+        // Source changes have a separate owner-authorized action, including
+        // codec/subtitle handling. Reject the key even for internal callers.
+        if (array_key_exists('video_url', $data)) {
+            throw ValidationException::withMessages([
+                'video_url' => 'برای تغییر ویدیو از تنظیم منبع اتاق استفاده کنید.',
+            ]);
         }
 
         $room->updatePlaybackState([
@@ -47,8 +30,6 @@ class UpdatePlaybackStateAction
             'position_seconds' => $data['position_seconds'],
             'duration_seconds' => $data['duration_seconds'],
             'playback_rate' => $data['playback_rate'] ?? 1.0,
-            'video_url' => $videoUrl,
-            'playback_mode' => $playbackMode,
         ]);
 
         $room->refresh();

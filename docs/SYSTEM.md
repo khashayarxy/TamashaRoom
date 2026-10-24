@@ -9886,7 +9886,6 @@ Use ESLint with strict rules. Treat lint errors as build failures.
 import js from '@eslint/js';  
 import tseslint from 'typescript-eslint';  
 import reactHooks from 'eslint-plugin-react-hooks';  
-import reactCompiler from 'eslint-plugin-react-compiler';  
 <br/>export default tseslint.config(  
 js.configs.recommended,  
 ...tseslint.configs.strictTypeChecked,  
@@ -9896,7 +9895,6 @@ parserOptions: { projectService: true },
 },  
 plugins: {  
 'react-hooks': reactHooks,  
-'react-compiler': reactCompiler,  
 },  
 rules: {  
 '@typescript-eslint/no-explicit-any': 'error',  
@@ -9908,12 +9906,12 @@ rules: {
 '@typescript-eslint/prefer-optional-chain': 'error',  
 'no-console': \['warn', { allow: \['error'\] }\],  
 'react-hooks/exhaustive-deps': 'error',  
-'react-compiler/react-compiler': 'error',  
+...reactHooks.configs.recommended.rules,
 },  
 }  
 );  
 
-ESLint 9 uses flat config (eslint.config.ts) by default; the legacy .eslintrc.json format needs a compatibility shim to keep working, so new projects should not start there. There is no framework-specific ESLint preset to bridge in this stack --- js.configs.recommended and typescript-eslint’s strict preset cover the JavaScript and TypeScript baseline directly. The react-compiler/react-compiler rule catches patterns the Compiler cannot safely optimize --- see Chapter 21.06, Rendering Performance.
+ESLint uses flat config (`eslint.config.js` in this project). React Compiler diagnostics now ship in the `recommended` preset of the installed `eslint-plugin-react-hooks` 7; the retired standalone compiler lint plugin is unnecessary and was removed during the Phase 3 dependency remediation. Existing explicit rule overrides in `eslint.config.js` remain authoritative. See Chapter 21.06, Rendering Performance, and the [official React lint reference](https://react.dev/reference/eslint-plugin-react-hooks).
 
 ## 28.04 File Naming
 

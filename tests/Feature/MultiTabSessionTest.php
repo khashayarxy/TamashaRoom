@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\SuppressAnonymousSessionCookie;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Cookie;
 use Tests\TestCase;
 
 class MultiTabSessionTest extends TestCase
@@ -53,12 +56,95 @@ class MultiTabSessionTest extends TestCase
         $cookies = $response->headers->getCookies();
         $sessionCookie = collect($cookies)->first(fn ($c) => $c->getName() === $cookieName);
 
-        $this->assertTrue(
-            $sessionCookie === null ||
-            $sessionCookie->getValue() === null ||
-            $sessionCookie->getExpiresTime() < time(),
-            'Unauthenticated polling route issued an active session cookie.'
+        $this->assertNull($sessionCookie, 'Even an expired cookie would invalidate the other tab.');
+    }
+
+    public function test_delayed_anonymous_response_cannot_replace_a_new_login_cookie(): void
+    {
+        $delayed = $this->getJson('/playback/9999/state')->assertUnauthorized();
+        $user = User::factory()->create();
+        $login = $this->post('/login', ['email' => $user->email, 'password' => 'password']);
+        $login->assertRedirect();
+        $name = (string) config('session.cookie');
+        $jar = [];
+
+        foreach ([$login, $delayed] as $response) {
+            foreach ($response->headers->getCookies() as $cookie) {
+                $jar[$cookie->getName()] = $cookie->getValue();
+            }
+        }
+
+        $this->assertNotEmpty($jar[$name]);
+        $this->assertSame($login->getCookie($name, false)->getValue(), $jar[$name]);
+    }
+
+    public function test_suppression_removes_all_session_paths_and_preserves_other_cookies(): void
+    {
+        $name = (string) config('session.cookie');
+        $response = response()->json([]);
+        $response->headers->setCookie(Cookie::create($name, 'guest', path: '/room', domain: 'example.com'));
+        $response->headers->setCookie(Cookie::create($name, 'guest', path: '/'));
+        $response->headers->setCookie(Cookie::create('XSRF-TOKEN', 'csrf'));
+
+        $result = app(SuppressAnonymousSessionCookie::class)->handle(
+            Request::create('/account/status', server: ['HTTP_ACCEPT' => 'application/json']), fn () => $response,
         );
+
+        $this->assertSame(['XSRF-TOKEN'], array_map(fn ($cookie) => $cookie->getName(), $result->headers->getCookies()));
+    }
+
+    public function test_authenticated_json_response_keeps_its_session_cookie(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $name = (string) config('session.cookie');
+        $response = response()->json([])->withCookie(cookie($name, 'authenticated'));
+        $result = app(SuppressAnonymousSessionCookie::class)->handle(
+            Request::create('/account/status'), fn () => $response,
+        );
+
+        $this->assertCount(1, $result->headers->getCookies());
+        $this->assertSame('authenticated', $result->headers->getCookies()[0]->getValue());
+    }
+
+    public function test_authenticated_leave_response_cannot_overwrite_the_next_login(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $name = (string) config('session.cookie');
+        $oldResponse = response()->json([])->withCookie(cookie($name, 'old-session'));
+        $delayed = app(SuppressAnonymousSessionCookie::class)->handle(
+            Request::create('/presence/1/leave', 'POST'), fn () => $oldResponse,
+        );
+        $browserSession = 'new-login-session';
+
+        foreach ($delayed->headers->getCookies() as $cookie) {
+            if ($cookie->getName() === $name) {
+                $browserSession = $cookie->getValue();
+            }
+        }
+
+        $this->assertSame('new-login-session', $browserSession);
+    }
+
+    public function test_anonymous_json_mutations_can_establish_or_invalidate_a_session(): void
+    {
+        $name = (string) config('session.cookie');
+        $request = Request::create('/rooms/join/invite', 'POST', server: ['HTTP_ACCEPT' => 'application/json']);
+        $response = response()->json([])->withCookie(cookie($name, 'guest-room-session'));
+        $result = app(SuppressAnonymousSessionCookie::class)->handle($request, fn () => $response);
+        $this->assertSame('guest-room-session', $result->headers->getCookies()[0]->getValue());
+    }
+
+    public function test_background_response_cannot_replace_the_new_login_csrf_cookie(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $response = response()->json([])
+            ->withCookie(cookie((string) config('session.cookie'), 'old-session'))
+            ->withCookie(cookie('XSRF-TOKEN', 'old-token'))
+            ->withCookie(cookie('preference', 'keep'));
+        $result = app(SuppressAnonymousSessionCookie::class)->handle(
+            Request::create('/presence/1/leave', 'POST'), fn () => $response,
+        );
+        $this->assertSame(['preference'], array_map(fn ($cookie) => $cookie->getName(), $result->headers->getCookies()));
     }
 
     public function test_closing_and_reopening_tab_reconnects_to_room_without_reinvitation(): void
