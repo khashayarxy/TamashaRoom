@@ -8,6 +8,17 @@
 
         <title inertia>{{ config('app.name', 'تماشاروم') }}</title>
 
+        @if (($page['component'] ?? null) === 'Welcome')
+            {{-- Social crawlers need these before JavaScript; Head replaces the same keyed tags. --}}
+            <meta data-inertia="description" name="description" content="با تماشاروم در اتاق خصوصی، ویدیو را همزمان با دوستانتان ببینید؛ همراه با چت و زیرنویس فارسی.">
+            <link data-inertia="canonical" rel="canonical" href="{{ $page['props']['canonicalUrl'] }}">
+            <meta data-inertia="og:title" property="og:title" content="تماشاروم – با هم ببینید">
+            <meta data-inertia="og:description" property="og:description" content="تماشای همزمان ویدیو با دوستان، در اتاق خصوصی همراه با چت و زیرنویس.">
+            <meta data-inertia="og:url" property="og:url" content="{{ $page['props']['canonicalUrl'] }}">
+            <meta data-inertia="og:type" property="og:type" content="website">
+            <meta data-inertia="og:locale" property="og:locale" content="fa_IR">
+        @endif
+
         <script @if(isset($cspNonce)) nonce="{{ $cspNonce }}" @endif>
             (function() {
                 var fallbackReason = null;

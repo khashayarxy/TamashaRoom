@@ -1,68 +1,13 @@
-# Zero-Downtime Deployment Strategy
+# وضعیت استقرار و مسیر آینده بدون قطعی
 
-## Current State (Shared cPanel)
-- Method: `git pull` + `npm run build` in place
-- Downtime: 5-15 seconds during build
-- Risk: Users see broken assets during build window
+## هاست مشترک فعلی
 
-## Future State (VPS/Symlink)
-- Method: Atomic symlink swap
-- Downtime: 0 seconds
+روند عملیاتی مرجع در [deployment-checklist.md](deployment-checklist.md) است: ساخت دارایی بیرون از سرور، SHA ثابت، بکاپ اختصاصی تماشاروم، پنجره نگهداری کوتاه، حفظ `.env` و storage و فایل‌های cPanel، نصب PHP از lockfile، migration بازبینی‌شده، بازتولید کش، smoke و rollback هماهنگ کد/دارایی.
 
-## Directory Structure
-```
-/var/www/tamasharoom/
-├── releases/
-│   ├── 20260901_120000/  (current)
-│   ├── 20260901_110000/  (previous)
-│   └── ...
-├── shared/
-│   ├── .env
-│   ├── storage/
-│   └── node_modules/
-└── current -> releases/20260901_120000  (symlink)
-```
+این محیط Node، دسترسی root، reload عمومی PHP-FPM یا جابه‌جایی symlink ریشه وب را فرض نمی‌کند. روند قبلی این سند که build را روی سرور انجام می‌داد و نمونه حذف بازگشتی release داشت، با محدودیت هاست مشترک سازگار نبود و کنار گذاشته شد. تضمین بدون قطعی برای استقرار فعلی وجود ندارد.
 
-## Deployment Script (deploy.sh)
-```bash
-#!/bin/bash
-set -e
+## طرح آینده؛ خارج از دامنه Phase 3
 
-RELEASE_DIR="releases/$(date +%Y%m%d_%H%M%S)"
-SHARED_DIR="shared"
+در مهاجرت مستقل به VPS می‌توان releaseهای immutable و symlink مخصوص همان برنامه داشت: مسیر مشترک خصوصی برای `.env` و storage، build و vendor هر انتشار، migration سازگار با نسخه قبل و بعد، health check خصوصی، تعویض اتمی current و rollback به release سالم. باید مالکیت PHP pool، صف، cron، فضای دیسک، مجوزها، نگهداری hashهای قدیمی و بازیابی دیتابیس جداگانه طراحی و آزمایش شوند.
 
-# 1. Clone new release
-git clone --depth 1 https://github.com/user/tamasharoom.git $RELEASE_DIR
-
-# 2. Link shared files
-ln -s ../../$SHARED_DIR/.env $RELEASE_DIR/.env
-ln -s ../../$SHARED_DIR/storage $RELEASE_DIR/storage
-ln -s ../../$SHARED_DIR/node_modules $RELEASE_DIR/node_modules
-
-# 3. Install dependencies
-cd $RELEASE_DIR
-composer install --no-dev --optimize-autoloader
-npm ci
-npm run build
-
-# 4. Run migrations
-php artisan migrate --force
-
-# 5. Atomic symlink swap
-ln -sfn $RELEASE_DIR current.tmp
-mv -Tf current.tmp current
-
-# 6. Reload PHP-FPM (if applicable)
-# sudo systemctl reload php-fpm
-
-# 7. Cleanup old releases (keep last 5)
-ls -dt releases/* | tail -n +6 | xargs rm -rf
-
-echo "✅ Deployed $RELEASE_DIR"
-```
-
-## Rollback
-```bash
-# Point symlink to previous release
-ln -sfn releases/PREVIOUS_RELEASE current
-```
+تا تأیید این زیرساخت، هیچ deploy.sh، دستور sudo/reload یا cleanup عمومی release از این طرح روی حساب مشترک اجرا نمی‌شود. پاک‌سازی OPcache نیز endpoint عمومی نمی‌خواهد؛ دستورالعمل روش خصوصی و محدود به سایت در راهنمای مرجع آمده است.

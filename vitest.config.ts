@@ -13,6 +13,12 @@ export default defineConfig({
             provider: 'v8',
             reporter: ['text', 'html', 'json'],
             reportsDirectory: 'storage/app/coverage/vitest',
+            thresholds: {
+                statements: 70,
+                branches: 65,
+                functions: 65,
+                lines: 70,
+            },
         },
     },
     resolve: {

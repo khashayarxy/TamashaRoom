@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master, frontend_rebuild]
+    branches: [main, master, frontend_rebuild, codex/security-reliability-phase3]
   pull_request:
     branches: [main, master]
 
@@ -26,6 +26,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.4
+          coverage: pcov
           extensions: mbstring, pdo, pdo_mysql, sqlite, gd, zip, intl
           tools: composer:v2
 
@@ -40,6 +41,26 @@ jobs:
 
       - name: Install NPM dependencies
         run: npm ci
+
+      - name: Audit Composer dependencies (locked, including development)
+        run: composer audit --locked
+
+      - name: Audit NPM runtime dependencies
+        run: npm audit --omit=dev --audit-level=low
+
+      # Legacy Vite 5 needs a separate major-version migration.
+      # Keep their advisories visible without hiding runtime/test failures.
+      - name: Report NPM development advisories (migration debt)
+        run: npm audit --json > npm-audit.json
+        continue-on-error: true
+
+      - name: Upload dependency audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-dependency-audit
+          path: npm-audit.json
+          if-no-files-found: warn
 
       - name: Create environment file
         run: cp .env.example .env
@@ -74,22 +95,16 @@ jobs:
       - name: Wait for Server to be Ready
         run: sleep 3
 
-      - name: Run PHP tests
-        run: php artisan test
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-
-      - name: Generate PHPUnit Coverage
-        run: php artisan test --coverage --min=80
-        continue-on-error: true
+      # Enforce test success; establish a PHP coverage baseline before adding a
+      # percentage gate. The old soft 80% step did not enforce anything.
+      - name: Run PHP tests with coverage
+        run: php artisan test --coverage --coverage-clover=storage/app/coverage/phpunit/clover.xml --coverage-html=storage/app/coverage/phpunit/html
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
 
       - name: Generate Vitest Coverage
         run: npm run test -- --coverage
-        continue-on-error: true
 
       - name: Upload Coverage Reports
         if: always()
@@ -98,6 +113,9 @@ jobs:
           name: coverage-reports
           path: storage/app/coverage/
           if-no-files-found: warn
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
 
       - name: Run Visual Regression Tests
         run: npx playwright test visual-regression --config=tests/e2e/playwright.config.ts --project=chromium
@@ -125,12 +143,6 @@ jobs:
       - name: Run docs & skills drift check
         run: npm run check:docs
 
-      - name: Run Vitest frontend tests
-        run: npm run test
-
-      - name: Install Playwright browsers
-        run: npx playwright install chromium
-
       - name: Run Playwright a11y tests
         run: npm run test:a11y
         env:
@@ -148,5 +160,13 @@ jobs:
         run: npm run test:e2e -- --project=chromium
         env:
           APP_ENV: local
+
+      - name: Upload E2E failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: test-results/
+          if-no-files-found: warn
 
 

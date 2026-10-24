@@ -29,7 +29,24 @@
 ### Phase 4 — بازبینی، commit و تأیید GitHub (2026-10-24)
 
 - [x] بازبینی مرز مجوز منبع، pin اتصال و سقف پروب، رقابت session/XSRF، زیرنویس، backoff و patchهای وابستگی انجام شد؛ کنترل‌های محلی fast موفق‌اند. تغییر قبلی TASK کاربر و .freebuff در commit امنیتی وارد نمی‌شوند.
-- [ ] تکمیل commit انتشار/CI، push همین شاخه و تأیید همه بررسی‌های GitHub برای SHA نهایی؛ merge و تولید خارج از مجوز هستند.
+- [x] تنظیم CI برای push شاخه remediation و نگهداری artifact شکست E2E تکمیل شد؛ ترتیب بررسی‌ها/دروازه‌های امنیت و coverage حفظ شدند. اسکریپت بسته‌ساز فقط محلی است و هیچ اتصال یا فرمان تولیدی اجرا نمی‌کند.
+- [x] بازبینی انتشار و UI، کنترل‌های fast نهایی (388 PHPUnit / 2610 assertions، 342 Vitest، contrast 8/8، lint/type/format/docs)، بررسی نبود migration جدید و برنامه staging انجام شد. health checker محلیِ ignored برای proxy خاموش اصلاح و چهار حالت آن آزموده شد؛ Registry تغییر نکرد.
+- [ ] push همین شاخه و تأیید همه بررسی‌های GitHub برای SHA نهایی؛ merge و تولید خارج از مجوز هستند.
+
+### Phase 3 — اصلاح امنیت و پایداری؛ فقط محلی و commit‌نشده (2026-10-24)
+
+- [x] تغییر منبع فقط از مسیر owner؛ payload منبع در sync حتی با null/آرایه رد می‌شود. کنترل play/pause/seek اعضا و مهمان حفظ شده؛ sync دیگر منبع همزمان تازه را بازنویسی نمی‌کند.
+- [x] بررسی دستی تمام redirectها (حداکثر پنج hop)، مسدودسازی مقصدهای غیرعمومی، pin مقصد اتصال در cURL و stream با حفظ Host/TLS identity؛ سقف واقعی buffer پروب 64KiB و deadline انتقال، مستقل از Range/Content-Length.
+- [x] حذف کامل Set-Cookie نشست از پاسخ‌های پس‌زمینه اتاق؛ پوشش پاسخ ناشناس و پاسخ معتبر قدیمی/beacon. کوکی XSRF قدیمی نیز در همین مسیرها حذف می‌شود؛ ورود/خروج و join چرخه عادی نشست دارند. تمدید lifetime کوکی در ناوبری عادی انجام می‌شود؛ تماشای طولانی بدون ناوبری در staging بررسی شود.
+- [x] زیرنویس با UUID، بررسی نتیجه نوشتن، خطای قابل‌فهم و پاک‌سازی فایل تازه در شکست ثبت DB؛ تست نوشتن false/exception و بارگذاری هم‌نام.
+- [x] Composer: Laravel 13.38.0، CommonMark 2.10.4، HttpFoundation/Yaml 8.1.9 و Prompts 0.3.26؛ audit بدون هشدار. npm runtime بدون هشدار؛ Axios 1.20.0، Zod 4.6.7، Vitest 4.1.12 و patchهای سازگار. پلاگین مستقل قدیمی Compiler حذف شد؛ قواعد رسمی React Hooks 7 حفظ شده‌اند. React/Inertia/Headless UI به dependencies زمان اجرا منتقل شدند.
+- [x] Pusher monitoring: یک تلاش، backoff پایدار ۵ تا ۶۰ دقیقه، reset پس از موفقیت، log بدون متن حساس؛ broadcast transport تغییر نکرد. پشتیبانی پاسخ object در شمارش کانال‌ها اصلاح شد.
+- [x] CI آماده: audit اجباری Composer و npm runtime، گزارش بدهی dev، پوشش Vitest اجباری (statements/lines 70، branches/functions 65)، PCOV/گزارش PHP بدون gate درصدی تا تعیین baseline، نصب مرورگر پیش از visual. این workflow هنوز برای تغییرات جدید روی GitHub اجرا نشده است.
+- [x] بسته ZIP با ریشه build/ و manifest/فایل‌های معتبر، عدم بازنویسی artifact قبلی؛ build انتشار محلی و fixture بسته‌ساز موفق. راهنمای استقرار و rollback محدود به مسیر تماشاروم بازنویسی شد؛ endpoint عمومی OPcache لازم نیست.
+- [x] سربرگ موبایل بدون overlap، حذف لینک‌های ساختگی footer، description/canonical/Open Graph در HTML اولیه بدون JavaScript و Head کلاینت با کلید مشترک؛ بررسی 320/390/768px موفق.
+- [x] **تأیید نهایی:** PHPUnit **388/388** با **2610 assertions**؛ Vitest **342/342** در **35 فایل**؛ coverage: statements **74.52%**، branches **68.04%**، functions **68.72%**، lines **76.63%**. کنتراست **8/8** بعد از اصلاح رقابت نشست و کنارگذاری overlay توسعه Herd در تست محلی؛ Welcome a11y/mobile نیز هدفمند بررسی شد. Pint/ESLint/tsc/Prettier/docs-drift و build موفق؛ نصب جداگانه npm ci با ignore-scripts از lockfile موفق.
+- [ ] پیش از انتشار: بازبینی diff، commit/push فقط با درخواست کاربر، CI سبز همان SHA شامل E2E/full-a11y و بازبینی/به‌روزرسانی snapshot تغییر عمدی landing در Linux، smoke واقعی Pusher/proxy/session طولانی در staging، backup/restore و روش OPcache خصوصی. هیچ commit/push/deploy یا تغییر تولید/ZizoLearn در Phase 3 انجام نشده است.
+- [ ] بدهی باقی‌مانده: دو گروه هشدار dev در Vite 5/esbuild؛ ارتقای اصلی Vite جداگانه لازم است. npm ls ناسازگاری peer اختیاری esbuild در Vite 8 داخلی Vitest را هم گزارش می‌کند؛ نصب، تست و build فعلی موفق‌اند. PHP coverage محلی به دلیل نبود driver اجرا نشد. سلامت محلی: HTTPS 200 ولی ProxyOverride ویندوز فاقد *.test است؛ تنظیم عمومی تغییر نکرد.
 
 ### Chat/Room Moderation MVP (2026-08-30)
 

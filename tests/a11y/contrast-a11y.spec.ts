@@ -132,6 +132,16 @@ async function revealPlayerControls(page: Page): Promise<void> {
 }
 
 test.describe("Color-contrast audit (WCAG AA, both themes)", () => {
+    test.beforeEach(async ({ page, baseURL }) => {
+        // Herd injects a development overlay over room controls. Exclude only
+        // that local tool; the application's DOM and accessibility remain intact.
+        if (baseURL && new URL(baseURL).hostname === "tamasharoom.test") {
+            await page.route("**/herd-studio/loader.js", (route) =>
+                route.fulfill({ contentType: "application/javascript", body: "" }),
+            );
+        }
+    });
+
     test("Welcome landing page", async ({ page }) => {
         await page.goto("/");
         await page.waitForLoadState("networkidle");

@@ -15,9 +15,14 @@
 
     Upload flow (cPanel File Manager):
       1. Upload `deploy-assets.zip` to `public_html/tamasharoom/public/`.
-      2. Extract there, replacing the existing `build/` directory.
+      2. Extract there, retaining previous hashed assets for open tabs and rollback.
       3. Delete the zip from the server.
 #>
+
+param(
+    [switch]$SkipBuild,
+    [string]$OutputPath = 'deploy-assets.zip'
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -40,17 +45,18 @@ while ($depth -lt 5) {
     $projectRoot = $parent
     $depth++
 }
-if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "artisan"))) {
+if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "artisan")) -or -not (Test-Path -LiteralPath (Join-Path $projectRoot "package.json"))) {
     Write-Error "Could not locate the project root (no artisan/package.json found walking up from $((Get-Location).Path)). Run this script from inside the TamashaRoom checkout."
     exit 1
 }
 Set-Location -LiteralPath $projectRoot
 
-Write-Host "Building frontend assets..."
-npm run build
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "npm run build failed - fix the build before packaging."
-    exit 1
+if (-not $SkipBuild) {
+    Write-Host "Building release assets (VITE_* values must be reviewed before production use)..."
+    npm run build
+    if ($LASTEXITCODE -ne 0) {
+        throw "npm run build failed - fix the build before packaging."
+    }
 }
 
 $buildDir = Join-Path $projectRoot "public/build"
@@ -59,22 +65,49 @@ if (-not (Test-Path -LiteralPath $buildDir)) {
     exit 1
 }
 
-$zipPath = Join-Path $projectRoot "deploy-assets.zip"
-if (Test-Path -LiteralPath $zipPath) {
-    Remove-Item -LiteralPath $zipPath -Force
+$manifestPath = Join-Path $buildDir 'manifest.json'
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+    throw 'public/build/manifest.json is missing; refusing to package an incomplete build.'
+}
+$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+if (@($manifest.PSObject.Properties).Count -eq 0) {
+    throw 'Build manifest is empty.'
+}
+foreach ($entry in $manifest.PSObject.Properties) {
+    if (-not (Test-Path -LiteralPath (Join-Path $buildDir $entry.Value.file) -PathType Leaf)) {
+        throw "Build manifest references a missing asset: $($entry.Name)"
+    }
 }
 
-# Zip the CONTENTS of public/build (so extraction drops files directly
-# into public/build/ on the server, no extra nesting level).
-$entries = Get-ChildItem -LiteralPath $buildDir
-Compress-Archive -Path $entries.FullName -DestinationPath $zipPath -Force
+$zipPath = if ([IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else { Join-Path $projectRoot $OutputPath }
+$zipPath = [IO.Path]::GetFullPath($zipPath)
+if ($zipPath.StartsWith([IO.Path]::GetFullPath($buildDir) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'The output archive must be outside public/build/.'
+}
+if (Test-Path -LiteralPath $zipPath) {
+    throw 'Output already exists; choose a new -OutputPath to preserve the earlier release artifact.'
+}
+
+# Extraction into the verified public/ root must create build/manifest.json.
+Compress-Archive -LiteralPath $buildDir -DestinationPath $zipPath
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+    $names = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
+    if ($names -notcontains 'build/manifest.json' -or @($names | Where-Object { -not $_.StartsWith('build/') }).Count -gt 0) {
+        throw 'Unexpected archive layout; do not upload this artifact.'
+    }
+} finally {
+    $archive.Dispose()
+}
 
 $sizeMB = "{0:N2}" -f ((Get-Item -LiteralPath $zipPath).Length / 1MB)
 Write-Host ""
-Write-Host "Created deploy-assets.zip ($sizeMB MB) from public/build/."
+Write-Host "Created $zipPath ($sizeMB MB) with build/manifest.json."
 Write-Host ""
 Write-Host "Next steps (cPanel File Manager):"
-Write-Host "  1. Upload deploy-assets.zip to public_html/tamasharoom/public/"
-Write-Host "  2. Extract it there, replacing the existing build/ directory."
-Write-Host "  3. Delete the zip from the server."
-Write-Host "  4. Verify: load the site and check the new UI + version."
+Write-Host "  1. After release approval, upload $(Split-Path -Leaf $zipPath) to public_html/tamasharoom/public/"
+Write-Host "  2. Extract there (build/ root); retain previous hashed assets for open tabs and rollback."
+Write-Host "  3. Remove the uploaded zip from the web root."
+Write-Host "  4. Run the smoke checks and record the code SHA + artifact checksum."

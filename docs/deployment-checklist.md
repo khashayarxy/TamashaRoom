@@ -1,238 +1,128 @@
-# TamashaRoom — Deployment Checklist
+# راهنمای انتشار کنترل‌شده تماشاروم
 
-> Run these steps in order on your production server.
+این سند برای انتشار آینده است؛ اجرای Phase 3 فقط محلی است. نسخه مرجع این راهنما جایگزین دستورهای قدیمی `git pull` بدون SHA یا ساخت Node روی cPanel می‌شود. استقرار در این هاست به پنجره نگهداری کوتاه نیاز دارد؛ بدون قطعی تضمین نشده است.
 
-**Web root:** the cPanel document root must point at `public/`. Built frontend
-assets live in `public/build/` (output of `npm run build`); upload the whole project
-so `public/build` sits inside the web root.
+## مرز عملیات
 
-**Node.js is a build-time tool only.** `npm ci` and `npm run build` may be run
-off-server (any machine with Node 22+) before uploading. cPanel needs only the
-resulting `public/build/` assets — Node.js does **not** need to be installed on
-production hosting.
+| مورد | مسیر تأییدشده |
+|---|---|
+| ریشه برنامه | `/home/zizolear/public_html/tamasharoom` |
+| ریشه وب | `/home/zizolear/public_html/tamasharoom/public` |
+| محیط تولید | `/home/zizolear/public_html/tamasharoom/.env` |
+| پوشه مشترک حساب؛ خارج از محدوده تغییر | `/home/zizolear/public_html` |
 
----
-
-## 1. Environment Configuration
+زیزولرن، پوشه‌های ربات/پرداخت، دیتابیس‌های دیگر و تنظیمات عمومی حساب در محدوده انتشار تماشاروم نیستند. از حذف، همگام‌سازی با `--delete`، تغییر مجوز بازگشتی یا جایگزینی ریشه مشترک استفاده نکنید. پیش از هر فرمانِ تغییر، مسیر واقعی را کنترل کنید:
 
 ```bash
-cp .env.example .env
-# Edit .env — set these values:
+cd /home/zizolear/public_html/tamasharoom || exit 1
+[ "$(pwd -P)" = '/home/zizolear/public_html/tamasharoom' ] || exit 1
 ```
 
-| Variable | Required Value | Notes |
-|---|---|---|
-| `APP_ENV` | `production` | Disables debug mode |
-| `APP_DEBUG` | `false` | Hides stack traces |
-| `APP_KEY` | (generate) | `php artisan key:generate --force` — **only** on a new install; never regenerate an existing production key |
-| `SESSION_SECURE_COOKIE` | `true` | HTTPS-only session cookies (required — see TAM-008) |
-| `SESSION_DRIVER` | `database` | DB-backed sessions — required on a single server |
-| `QUEUE_CONNECTION` | `database` | Queue drained by the scheduler; no persistent worker |
-| `CACHE_STORE` | `database` | DB cache store — required (Laravel 13 uses `CACHE_STORE`, not `CACHE_DRIVER`) |
-| `BROADCAST_CONNECTION` | `pusher` | Pusher push transport (primary), Apinator backup (dormant), database queue + cron fallback. Polling remains as fallback when `null` (CI) or unconfigured. Future: Laravel Reverb self-hosted when scaling beyond 500 concurrent |
-| `LOG_CHANNEL` | `daily` | Rotated logs — recommended for production instead of `stack`/`single` so long-running uploads/proxy streams don't bloat one file |
-| `LOG_DAILY_DAYS` | `3` | Retention for the `daily` channel — keep low on shared hosting so rotated logs cannot exhaust the disk quota (`config/logging.php` default is 14) |
-| `DB_*` | Your production DB credentials | — |
-| `SENTRY_DSN` | (optional) | For error monitoring |
+اگر مسیر واقعی متفاوت است یا برنامه symlink شده، توقف و بازبینی کنید؛ فرمان را برای دور زدن کنترل تغییر ندهید. همه فرمان‌های بعدی فقط در همین مسیر اجرا می‌شوند.
 
----
+## پیش‌نیازهای انتشار
 
-## 2. Database
+- مجوز مستقل استقرار، SHA کامل تأییدشده و CI سبز همان SHA؛ این مرحله commit یا push نمی‌کند.
+- staging با PHP 8.4، افزونه cURL، Composer و تنظیمات مشابه تولید. Node فقط روی ماشین ساخت است؛ نسخه CI فعلاً Node 24 است.
+- بازبینی diff بین SHA واقعاً مستقر و نسخه هدف؛ `89e0bcd` صرفاً خط مبنای ممیزی قبلی است و باید دوباره بررسی شود.
+- ثبت SHA قبلی، `git status --short` و هر تغییر مخصوص میزبان. تغییر ناشناخته یا dirty tree را با force/reset پاک نکنید.
+- بکاپ خارج از web root و ترجیحاً خارج از حساب: دیتابیس اختصاصی تماشاروم، `.env` با APP_KEY فعلی، storage خصوصی، کد و lockfile قبلی، manifest و دارایی‌های همان انتشار. بکاپ اسرار باید خصوصی بماند.
+- آزمون واقعی بازیابی بکاپ در محیط جداگانه. داشتن فایل بکاپ به‌تنهایی اثبات بازیابی نیست.
+- بررسی فضای آزاد و inode؛ ممیزی قبلی سهمیه حساب را ۵GB و مصرف حدود ۶۴٪ گزارش کرد. قبل از انتشار مقدار زنده را بررسی کنید؛ بکاپ‌ها و دو نسخه دارایی نباید سهمیه مشترک را پر کنند.
+- بررسی فهرست migrationها و سازگاری بازگشت. Phase 3 migration جدید ندارد؛ drift نسخه تولید ممکن است migration دیگری داشته باشد. `migrate --pretend` صرفاً برای migrationهای بازبینی‌شده در staging است.
+
+## فایل‌های پایدار و فایل‌های میزبان
+
+- `.env` و APP_KEY موجود را حفظ کنید؛ از `cp .env.example .env` و `key:generate` روی نصب موجود استفاده نکنید.
+- کل `storage/`، به‌خصوص `storage/app/private/subtitles/`، session/queue/cache دیتابیس و بکاپ‌های خصوصی حفظ شوند. لینک عمومی storage برای زیرنویس لازم نیست.
+- تغییرات تولید در `.htaccess`، `public/.htaccess`، `.user.ini` و `php.ini` را قبل از جایگزینی بررسی کنید. بلوک PHP تولیدشده توسط cPanel و قواعد امنیتی/هدرهای برنامه باید آگاهانه ادغام شوند.
+- کش‌های `bootstrap/cache/` را بین نسخه‌ها کپی نکنید؛ برای کد و محیط همان انتشار بازتولید کنید. `storage/` و `bootstrap/cache/` باید برای حساب PHP قابل نوشتن باشند؛ مجوز 777 ندهید.
+- `public/index.php` استاندارد Laravel باقی می‌ماند؛ انتقال `.env` یا تغییر entrypoint برای حل مسیرها لازم نیست.
+
+## ساخت و بسته دارایی؛ خارج از سرور
+
+1. در checkout تمیز SHA هدف، `composer install` و `npm ci` از lockfile اجرا شود؛ آزمون‌ها و auditها موفق باشند.
+2. مقادیر عمومی `VITE_*` مخصوص محیط هدف را پیش از ساخت بررسی کنید. کلید خصوصی Pusher یا توکن سرویس نباید وارد bundle شود.
+3. `scripts/deploy-package.ps1` ساخت انتشار را اجرا می‌کند. برای بسته‌بندی build ازپیش‌تأییدشده می‌توان `-SkipBuild` داد؛ این گزینه تازگی فایل‌ها را اثبات نمی‌کند.
+4. ZIP باید فقط زیرشاخه `build/` داشته باشد، از جمله `build/manifest.json` و `build/assets/*`. بسته‌ساز این ساختار و فایل‌های manifest را کنترل می‌کند و artifact قبلی را بازنویسی نمی‌کند؛ `-OutputPath` جدید انتخاب کنید.
+5. SHA منبع، checksum بسته و زمان ساخت را خارج از web root ثبت کنید. بسته آزمایشی Phase 3 با محیط محلی ساخته شده و آماده بارگذاری تولید محسوب نمی‌شود.
+6. بسته در **ریشه وب تأییدشده تماشاروم** استخراج می‌شود تا `public/build/manifest.json` ایجاد شود. manifest را قبل از کامل‌شدن upload دارایی‌های جدید فعال نکنید. hashهای قدیمی را برای تب‌های باز و rollback نگه دارید؛ حذف بعدی باید با فهرست صریح فایل‌های همان برنامه و پس از پایان مهلت پشتیبانی انجام شود. ZIP را پس از انتقال از web root بردارید.
+
+## ترتیب اعمال در پنجره نگهداری
+
+پس از کنترل مسیر و بکاپ، پیش از جایگزینی فایل‌های زنده، ترافیک تماشاروم را وارد حالت نگهداری کنید:
+
+```bash
+php artisan down --retry=60
+```
+
+cron فعلی را حذف یا ویرایش نکنید. Laravel به‌صورت پیش‌فرض schedule و queue را هنگام maintenance اجرا نمی‌کند؛ پایان batch در حال اجرا (تا ۳۰ ثانیه) را بررسی کنید. سپس:
+
+1. کد SHA هدفِ بررسی‌شده و دارایی‌های همان SHA را با حفظ فایل‌های پایدار مستقر کنید. روی dirty tree توقف کنید. `git pull` متحرک یا force checkout جای SHA صریح را نمی‌گیرد.
+2. داخل ریشه تأییدشده فقط وابستگی PHP همان lockfile را نصب کنید:
+
+```bash
+composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+composer check-platform-reqs --no-dev
+```
+
+3. `.env` موجود باید `APP_ENV=production`، `APP_DEBUG=false`، `APP_URL=https://tamasharoom.ir`، `SESSION_SECURE_COOKIE=true`، `SESSION_DRIVER=database`، `CACHE_STORE=database` و `QUEUE_CONNECTION=database` داشته باشد. مقدار broadcasting و credentialها با محیط فعلی و artifact هماهنگ باشد؛ تغییر سرویس broadcasting جزو این اصلاح نیست.
+4. فقط migrationهای تأییدشده در backup/staging را اجرا کنید:
 
 ```bash
 php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan schedule:list
 ```
 
-This runs all 14 migrations: 3 framework base files (users + password_reset_tokens + sessions, cache + cache_locks, jobs + job_batches + failed_jobs) plus 11 application migrations (rooms, room_members, chat_messages, playback state version, subtitle_tracks, presence fields, is_locked, playback_mode, last_activity_at index, active_subtitle_track_id on rooms, personal_access_tokens).
+5. نگاشت document root و مسیر private subtitle را کنترل کنید. OPcache را طبق بخش بعد تأیید کنید؛ سپس:
 
-**Expected output:** `Migration table created successfully.` then all migrations marked as `[OK]`.
-
----
-
-## 3. Private Subtitle Storage
-
-Subtitle files use Laravel's private `local` disk under `storage/app/private/` and
-are served only through authenticated, room-scoped endpoints. No
-`public/storage` symlink is required for subtitle uploads.
-
-**Verify:** the PHP/web-server account can write to `storage/app/private/` and
-an authenticated room member can load a subtitle through
-`/subtitles/{room}/{track}`.
-
----
-
-## 4. Background Work (no persistent worker)
-
-TamashaRoom has **no persistent queue worker and no daemon process** — shared hosting
-cannot keep one running reliably, and the host disallows it. Subtitle uploads are
-handled synchronously inside the request; nothing is queued for them.
-
-`routes/console.php` schedules `queue:work --stop-when-empty --max-time=30` every minute
-(without overlapping), so any queued job is drained in small batches by the same
-`schedule:run` cron entry that runs the scheduled tasks. **No separate worker,
-supervisor, or wrapper script is needed.**
-
-| Task | Frequency | How it runs |
-|---|---|---|
-| `queue:work --stop-when-empty` | Every minute | Drained by the scheduled `schedule:run` cron |
-| `presence:timeout` | Every minute | Same `schedule:run` cron |
-| `rooms:prune-inactive` | Daily | Same `schedule:run` cron |
-
-**Verify:** `php artisan schedule:list` confirms all three are registered.
-
-### Video proxy execution-time budget
-
-The video proxy relay (`VideoProxyService::streamChunks`) resets PHP's execution
-time budget (`set_time_limit(0)`) on every relayed chunk so long streams aren't
-truncated mid-relay. **However, some shared cPanel hosts disable `set_time_limit`
-via `disable_functions`**, in which case the call is a no-op and PHP's
-`max_execution_time` ini default (often 30s) applies — a long video would then be
-cut off mid-stream.
-
-**Verify on the target host:** check `php -i | grep max_execution_time` and that
-`set_time_limit` is not in `disable_functions`. If it is disabled, raise
-`max_execution_time` (e.g. 0/unlimited or 300s) in the host's PHP configuration
-for the account so proxied streams are not truncated. Also confirm the upstream
-read timeout (`READ_TIMEOUT`, currently 30s) is adequate for the slowest
-expected source.
-
-## 5. Scheduled Tasks (cron)
-
-Add ONE cron entry for `schedule:run`:
-
+```bash
+php artisan up
 ```
+
+6. پس از smoke موفق، SHA واقعی کد و checksum artifact را در رکورد خصوصی انتشار ثبت کنید. اگر کد از Git deploy شده، `git rev-parse HEAD` باید SHA هدف باشد؛ HEAD فایل ZIP یا تغییرات commitنشده را اثبات نمی‌کند. رکورد باید نام artifact و سلامت smoke را هم داشته باشد.
+
+## OPcache؛ بدون endpoint عمومی
+
+ممیزی قبلی فایل تولیدی و خارج از Gitِ `/home/zizolear/public_html/tamasharoom/public/clear-opcache.php` را یافت که بدون احراز هویت `opcache_reset()` فراخوانی می‌کند. برای اجرای برنامه لازم نیست و پاک‌سازی cache به درخواست ناشناس می‌تواند به مصرف CPU/اختلال منجر شود.
+
+**اقدام تولیدِ جداگانه و هنوز انجام‌نشده:** پس از مجوز استقرار، اپراتور فقط همان فایل را از ریشه وب تماشاروم خارج کند؛ قبل از حذف، فهرست و نسخه خصوصی آن ثبت شود. هرگز URL را برای تست یا پاک‌کردن cache صدا نزنید. هیچ endpoint جایگزین HTTP نسازید.
+
+`opcache_reset()` در PHP CLI الزاماً cache مربوط به PHP وب را پاک نمی‌کند. رفتار واقعی web SAPI، `opcache.validate_timestamps` و فاصله revalidate باید با ابزار خصوصی میزبان بررسی شود. اگر بازبینی timestamp فعال است، فرصت بازبینی و مشاهده نسخه جدید کافی است. اگر غیرفعال است، روش پشتیبانی میزبان برای invalidation فایل‌های همین برنامه یا reload اختصاصی همین سایت لازم است. اگر تنها reload مشترک حساب وجود دارد، این انتشار نباید خودسرانه زیزولرن را restart کند؛ پیش از انتشار هماهنگی مستقل لازم است. هیچ phpinfo یا ابزار reset عمومی آپلود نکنید.
+
+## Cron، شبکه و پایش
+
+cron هر دقیقه موجود را حفظ کنید؛ تکراری نسازید:
+
+```text
 * * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1
 ```
 
-| Task | Frequency | What it does |
-|---|---|---|
-| `presence:timeout` | Every minute | Marks stale members (90s+ no heartbeat) as offline |
-| `rooms:prune-inactive --days=7` | Daily | Deletes rooms inactive 7+ days + their files/messages/members |
-| `queue:work --stop-when-empty --max-time=30` | Every minute | Drains any queued jobs in batches |
+`schedule:list` باید queue، presence، prune، Pusher usage، integrity و backup را نشان دهد. صف با `--stop-when-empty --max-time=30` تخلیه می‌شود؛ daemon لازم نیست. Pusher monitoring یک تلاش در هر نوبت مجاز انجام می‌دهد؛ بعد از خطا backoff برابر ۵، ۱۰، ۲۰، ۴۰ و حداکثر ۶۰ دقیقه دارد و موفقیت آن را صفر می‌کند. این backoff فقط برای monitoring است، نه broadcasting. DNS timeout میزبان با تغییر برنامه اثباتاً برطرف نشده؛ از مسیر پشتیبانی میزبان بررسی شود.
 
-**Verify:** Run `php artisan schedule:list` to confirm **all three** tasks above are registered.
+رله ویدیو به cURL برای probe و HTTP/TLS stream برای انتقال نیاز دارد. انتخاب IP مقصد و Host/SNI را با دامنه عمومی کنترل‌شده در staging تأیید کنید؛ هر hop دوباره اعتبارسنجی می‌شود. مدت استریم به `max_execution_time`، `set_time_limit` و سیاست میزبان وابسته است؛ تنظیم عمومی حساب را برای حل آن تغییر ندهید.
 
----
+Cloudflare Speed Brain خاموش بماند؛ هدر `Speculation-Rules: "/speculation-rules"` و پاسخ خالی قوانین را کنترل کنید. مسیرهای hashدار build تغییرناپذیرند؛ purge محدود مسیرهای همان دامنه در صورت نیاز کافی است، نه تغییر حساب مشترک.
 
-## 6. Security Hardening
+## Smoke و معیار توقف
 
-```bash
-# Generate APP_KEY ONLY on a new installation with no existing production APP_KEY:
-php artisan key:generate --force
-# Never regenerate an existing production APP_KEY during normal deployment or
-# rollback — doing so invalidates all active sessions, cookies, and signed data.
+- صفحه نخست و login با HTTPS، بدون خطای JS، asset 404 یا manifest mismatch؛ canonical/OG از APP_URL صحیح.
+- ورود در دو تب و پاسخ polling دیررس: نشست سالم باقی بماند.
+- پاسخ‌های پس‌زمینه اتاق، کوکی session یا XSRF را تمدید نمی‌کنند؛ تمدید عادی در ورود/ناوبری صفحه باقی است. تماشای بدون ناوبری بیش از `SESSION_LIFETIME` را در staging بررسی کنید؛ این اصلاح مهلت امنیتی نشست را افزایش نمی‌دهد.
+- با کاربران آزمایشی مجاز: owner منبع را تغییر دهد؛ member/guest فقط play/pause/seek کند و payload منبع در sync، حتی null، با 422 رد شود؛ فرد خارج اتاق دسترسی نگیرد.
+- پخش مستقیم و proxy، Range/seek و ادامه پخش با لینک عمومی مجاز؛ SSRF را روی تولید امتحان نکنید.
+- دو بار زیرنویس هم‌نام بدون overwrite، فقط دسترسی اعضا، حذف track و فایل متعلق به آن.
+- پیام/presence و پخش با دو مرورگر، Pusher واقعی و fallback مورد انتظار؛ health عمومی فقط مکمل است.
+- بررسی logهای daily و pusher، queue failures، مصرف CPU/ورودی پردازش و فضای دیسک؛ monitoring خطادار به معنای اثبات شکست همه broadcastها نیست.
+- Sentry در ممیزی قبلی DSN نداشت؛ در صورت نیاز تنظیم و تست مستقل با مجوز انجام شود. داده/توکن در گزارش smoke منتشر نشود.
 
-# Cache config & routes for performance
-php artisan config:cache
-php artisan route:cache
+هر 500، افزایش 401 ناخواسته، اشتباه مسیر، آسیب به فایل پایدار، دارایی مفقود یا عقب‌ماندن پخش معیار توقف است.
 
-# View caching (if using Blade views — not strictly required for Inertia)
-php artisan view:cache
-```
+## بازگشت
 
-**Note:** After `php artisan config:cache`, changes to `.env` are ignored until you re-run `config:cache`. Use `config:clear` during development.
+در نگهداری بمانید یا همان برنامه را مجدداً down کنید. SHA و lockfile قبلی را همراه با **manifest و build همان نسخه** برگردانید، Composer را از همان lockfile نصب کنید، کش‌های config/route/view را بازتولید و OPcache وب را به روش خصوصی بررسی کنید؛ سپس up و smoke.
 
----
-
-## 6b. Cloudflare Settings (tamasharoom.ir)
-
-- **Speed Brain must stay OFF** (Speed → Optimization → Content Optimization).
-  Cloudflare auto-enabled it zone-wide in 2025: it injects a
-  `Speculation-Rules: "/cdn-cgi/speculation"` response header and the browser
-  hover-prefetches linked pages — each prefetch is a full PHP render on the
-  1-core LVE budget. The app defends itself in code
-  (`SecurityHeadersMiddleware` sets its own `Speculation-Rules` header
-  pointing at `/speculation-rules`, an empty-rules endpoint — CF never
-  overrides an origin-set header), but keep the toggle off anyway so the
-  extra `/cdn-cgi/speculation` request disappears entirely.
-- **Web Analytics beacon** (`/cdn-cgi/beacon.min.js`): injected only if
-  Cloudflare Web Analytics is enabled for the zone (Analytics & Logs →
-  Web Analytics). Remove the site entry there if the beacon is not wanted —
-  it is one extra script per page load and executes under CSP `'self'`.
-- **Cache purge after each deploy** (Caching → Configuration → Purge
-  Everything): HTML is never edge-cached (`cf-cache-status: DYNAMIC`, origin
-  sends `Cache-Control: no-cache, private`), but `/build/assets/*` IS cached
-  by default — purging clears edge-cached copies (and any cached 404s for
-  chunk hashes retired by the deploy).
-- Verify after deploy: `curl -sI https://tamasharoom.ir/login | grep -i speculation`
-  → `Speculation-Rules: "/speculation-rules"` (ours), and
-  `curl -s https://tamasharoom.ir/speculation-rules` →
-  `{"prefetch":[],"prerender":[]}`.
-
----
-
-## 7. Verify Deployment
-
-| Check | How |
-|---|---|
-| App loads | `curl -s -o /dev/null -w "%{http_code}" https://yourdomain.com` → `200` |
-| Inertia renders | Page source contains `<div id="app" data-page="...">` |
-| Login works | Visit `/login` — form renders in Persian |
-| Registration works | Create a test account |
-| Subtitle access control | Authenticated room members can load `/subtitles/{room}/{track}`; the file is not publicly served from `/storage/` |
-| Queue drained | `php artisan queue:failed` → no failed jobs (jobs table stays empty) |
-| Cron is running | Create a room, wait 1+ minute, verify `presence:timeout` worked |
-| Rate limiting | Login with wrong password 6+ times → `429 Too Many Requests` |
-| Security headers | `curl -s -I https://yourdomain.com | grep -i 'content-security-policy'` → CSP present |
-| Asset caching | `curl -s -o /dev/null -D - https://yourdomain.com/build/assets/$(ls public/build/assets \| grep '^app-.*\.js$' \| head -1) \| grep -i cache-control` → `public, max-age=31536000, immutable` (Vite assets are content-hashed; served by `public/.htaccess`) |
-
----
-
-## 8. Rollback Plan
-
-If a deployment fails:
-
-- **Database:** restore the pre-deployment backup taken before `migrate --force`
-  (see below), **or** apply a specifically reviewed corrective migration. Do not run
-  `php artisan migrate:rollback` against production — an unrestricted rollback can
-  drop data added after the last `migrate` and is not safe on shared hosting.
-- **Code/assets:** deploy the previous build's `public/build/` assets and revert any
-  code changes.
-
-```bash
-# Clear caches after rollback
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
-```
-
-**Before every deployment**, take a database backup (mysqldump via cPanel) so a
-rollback has a restore point.
-
----
-
-## 9. Post-Deployment Monitoring
-
-- **Sentry** (if configured): Monitor error rate in the first 24h
-- **Laravel log**: `tail -f storage/logs/laravel.log`
-- **Queue failures**: `php artisan queue:failed` — retry with `php artisan queue:retry all`
-- **Disk usage**: `du -sh storage/app/private/subtitles/` — subtitle files accumulate
-
----
-
-## 10. Summary of Commands (in order)
-
-```bash
-# 1. Set up
-composer install --no-dev --optimize-autoloader --classmap-authoritative
-# php artisan key:generate --force   # ONLY on a new install (no existing production APP_KEY)
-
-# 2. Database
-php artisan migrate --force
-
-# 3. Add cron entry
-#    * * * * * php /home/zizolear/public_html/tamasharoom/artisan schedule:run >> /dev/null 2>&1
-#    (runs scheduled tasks + drains the queue in batches — no separate worker needed)
-
-# 4. Cache
-php artisan config:cache
-php artisan route:cache
-
-# 5. Build frontend (no Node.js on the server: build OFF-server, upload only public/build/ to cPanel)
-npm ci
-npm run build
-# Shortcut (Windows dev machine): .\scripts\deploy-package.ps1 rebuilds and
-# zips public/build/ into deploy-assets.zip — upload + extract it into
-# public_html/tamasharoom/public/. IMPORTANT: VITE_* values are baked at build
-# time, so the local .env VITE_* keys must match production's before packaging.
-```
+اگر migration ناسازگار با نسخه قبلی اجرا شده، بازگشت کد به‌تنهایی کافی نیست. بازگردانی فقط دیتابیس تماشاروم از بکاپ آزموده‌شده یا migration اصلاحی بازبینی‌شده لازم است؛ از `migrate:rollback` نامحدود استفاده نکنید. restore داده‌های جدید پس از بکاپ را از دست می‌دهد و نیازمند تصمیم صریح اپراتور است. session/queue/cache و فایل‌های خصوصی تازه را کورکورانه با نسخه قدیمی جایگزین نکنید. هیچ backup یا restore کل حساب مشترک در این روند مجاز نیست.

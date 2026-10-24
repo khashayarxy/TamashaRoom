@@ -26,9 +26,11 @@ import { Section } from "@/Components/ui/section";
 import { toPersianDigits } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
 
-import type { PageProps } from "@/types";
+import type { User } from "@/types";
 
-export default function Welcome({ auth }: PageProps) {
+type WelcomeProps = { auth: { user: User | null }; canonicalUrl: string };
+
+export default function Welcome({ auth, canonicalUrl }: WelcomeProps) {
     const { dark, toggle } = useThemeStore();
 
     const primaryCta = auth.user
@@ -45,32 +47,54 @@ export default function Welcome({ auth }: PageProps) {
 
     return (
         <ErrorBoundary fallback={<PageErrorFallback />}>
-            <Head title="تماشاروم – با هم ببینید" />
-
-            <button
-                onClick={toggle}
-                className="fixed end-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label={dark ? "حالت روشن" : "حالت تاریک"}
-                type="button"
-            >
-                {dark ? (
-                    <Sun className="h-5 w-5 text-primary" />
-                ) : (
-                    <Moon className="h-5 w-5 text-primary" />
-                )}
-            </button>
+            <Head title="تماشاروم – با هم ببینید">
+                <meta
+                    head-key="description"
+                    name="description"
+                    content="با تماشاروم در اتاق خصوصی، ویدیو را همزمان با دوستانتان ببینید؛ همراه با چت و زیرنویس فارسی."
+                />
+                <link
+                    head-key="canonical"
+                    rel="canonical"
+                    href={canonicalUrl}
+                />
+                <meta
+                    head-key="og:title"
+                    property="og:title"
+                    content="تماشاروم – با هم ببینید"
+                />
+                <meta
+                    head-key="og:description"
+                    property="og:description"
+                    content="تماشای همزمان ویدیو با دوستان، در اتاق خصوصی همراه با چت و زیرنویس."
+                />
+                <meta
+                    head-key="og:url"
+                    property="og:url"
+                    content={canonicalUrl}
+                />
+                <meta head-key="og:type" property="og:type" content="website" />
+                <meta
+                    head-key="og:locale"
+                    property="og:locale"
+                    content="fa_IR"
+                />
+            </Head>
 
             <div className="min-h-screen bg-background text-foreground antialiased">
                 {/* Header */}
                 <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-md">
-                    <Container className="flex items-center justify-between py-4">
-                        <div className="flex items-center gap-2 text-xl font-bold">
+                    <Container className="flex flex-wrap items-center justify-between gap-3 py-4">
+                        <div className="flex items-center gap-2 text-lg font-bold sm:text-xl">
                             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                                 <Tv className="h-4 w-4" />
                             </span>
                             <span>تماشاروم</span>
                         </div>
-                        <nav className="flex items-center gap-3">
+                        <nav
+                            aria-label="ناوبری اصلی"
+                            className="flex items-center gap-2 sm:gap-3"
+                        >
                             {auth.user ? (
                                 <Link
                                     href={route("dashboard")}
@@ -103,6 +127,18 @@ export default function Welcome({ auth }: PageProps) {
                                     </Link>
                                 </>
                             )}
+                            <button
+                                onClick={toggle}
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                aria-label={dark ? "حالت روشن" : "حالت تاریک"}
+                                type="button"
+                            >
+                                {dark ? (
+                                    <Sun className="h-5 w-5 text-primary" />
+                                ) : (
+                                    <Moon className="h-5 w-5 text-primary" />
+                                )}
+                            </button>
                         </nav>
                     </Container>
                 </header>
@@ -364,26 +400,6 @@ export default function Welcome({ auth }: PageProps) {
                             تماشاروم &copy; {new Date().getFullYear()} — همه
                             حقوق محفوظ است.
                         </span>
-                        <nav className="flex items-center gap-4">
-                            <a
-                                href="#"
-                                className="hover:text-foreground hover:underline underline-offset-4"
-                            >
-                                درباره ما
-                            </a>
-                            <a
-                                href="#"
-                                className="hover:text-foreground hover:underline underline-offset-4"
-                            >
-                                حریم خصوصی
-                            </a>
-                            <a
-                                href="#"
-                                className="hover:text-foreground hover:underline underline-offset-4"
-                            >
-                                قوانین
-                            </a>
-                        </nav>
                     </Container>
                 </footer>
             </div>
