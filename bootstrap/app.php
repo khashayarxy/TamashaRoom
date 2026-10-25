@@ -9,9 +9,11 @@ use App\Models\Room;
 use App\Policies\ChatMessagePolicy;
 use App\Policies\RoomPolicy;
 use App\Services\RoomRequestDiagnosticsService;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
@@ -83,6 +85,8 @@ return Application::configure(basePath: dirname(__DIR__))
             $status = match (true) {
                 $e instanceof HttpExceptionInterface => $e->getStatusCode(),
                 $e instanceof ValidationException => 422,
+                $e instanceof AuthenticationException => 401,
+                $e instanceof HttpResponseException => $e->getResponse()->getStatusCode(),
                 default => 500,
             };
 
@@ -98,7 +102,11 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (Throwable $e, Request $request) {
-            if ($request->expectsJson() && config('app.debug') === false && ! ($e instanceof HttpExceptionInterface)) {
+            if ($request->expectsJson() && config('app.debug') === false
+                && ! ($e instanceof HttpExceptionInterface)
+                && ! ($e instanceof ValidationException)
+                && ! ($e instanceof AuthenticationException)
+                && ! ($e instanceof HttpResponseException)) {
                 return response()->json([
                     'message' => 'Server Error',
                 ], 500);
