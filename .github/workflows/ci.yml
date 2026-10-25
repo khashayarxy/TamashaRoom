@@ -74,6 +74,10 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
+      - name: Validate release package boundaries
+        shell: pwsh
+        run: ./scripts/test-deploy-package.ps1
+
       - name: Set up database for server
         run: php artisan migrate --force
 
@@ -95,10 +99,9 @@ jobs:
       - name: Wait for Server to be Ready
         run: sleep 3
 
-      # Enforce test success; establish a PHP coverage baseline before adding a
-      # percentage gate. The old soft 80% step did not enforce anything.
+      # The measured baseline is 86.6%; enforce an 80% minimum.
       - name: Run PHP tests with coverage
-        run: php artisan test --coverage --coverage-clover=storage/app/coverage/phpunit/clover.xml --coverage-html=storage/app/coverage/phpunit/html
+        run: php artisan test --coverage --min=80 --coverage-clover=storage/app/coverage/phpunit/clover.xml --coverage-html=storage/app/coverage/phpunit/html
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'

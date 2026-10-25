@@ -33,7 +33,8 @@
 - [x] بازبینی انتشار و UI، کنترل‌های fast نهایی (388 PHPUnit / 2610 assertions، 342 Vitest، contrast 8/8، lint/type/format/docs)، بررسی نبود migration جدید و برنامه staging انجام شد. health checker محلیِ ignored برای proxy خاموش اصلاح و چهار حالت آن آزموده شد؛ Registry تغییر نکرد.
 - [x] دو commit اولیه 4313116 و 576d37f روی شاخه remediation push شدند. CI اول (run 40076871670) با 388 PHPUnit و coverage 86.6%، 342 Vitest و audit/build موفق، فقط در snapshot صفحه نخست متوقف شد؛ E2E/full-a11y آن اجرا نشدند.
 - [x] تصویر واقعی و diff Linux بررسی شد: جابه‌جایی صحیح کنترل پوسته به nav، رفع overlap ثبت‌نام و افزایش عمدی ارتفاع header از 64 به 72px؛ بقیه صفحه 8px پایین آمده است. فقط baseline landing از تصویر واقعی همان CI به‌روزرسانی شد؛ threshold و تصاویر room/chat تغییر نکردند. artifactهای failure به step مربوط محدود شدند.
-- [ ] push اصلاح تصویری و تأیید همه بررسی‌های GitHub برای SHA نهایی؛ merge و تولید خارج از مجوز هستند.
+- [x] اصلاح تصویری c03ce068d06c03fd0395933ad49c94a5668dc038 push شد؛ تمام مراحل CI run 40077261040 شامل visual، full-a11y و E2E موفق شدند. merge و تولید خارج از مجوز هستند.
+- [x] بازبینی تکمیلی (2026-10-25): بسته‌ساز به checkout مالک اسکریپت مقید شد؛ ZIP مسیرهای استاندارد / دارد. regression مستقل روی PowerShell 7 و Windows PowerShell 5.1 برای مالکیت، layout، overwrite، مرز خروجی و manifest نامعتبر موفق است و به CI اضافه شد. baseline واقعی PHP برابر 86.6% مبنای gate اجباری 80% شد؛ CI مجدد SHA شامل این اصلاحات نیز الزامی است.
 
 ### Phase 3 — اصلاح امنیت و پایداری؛ فقط محلی و commit‌نشده (2026-10-24)
 

@@ -26,28 +26,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Resolve the project root by walking up from the working directory until the
-# Laravel markers are found. This works in every invocation style (direct
-# call, -File, ISE, double-click) and never depends on $PSScriptRoot, which
-# is empty under some nested/automation shells.
-$projectRoot = (Get-Location).Path
-$depth = 0
-while ($depth -lt 5) {
-    $hasArtisan = Test-Path -LiteralPath (Join-Path $projectRoot "artisan")
-    $hasPackageJson = Test-Path -LiteralPath (Join-Path $projectRoot "package.json")
-    if ($hasArtisan -and $hasPackageJson) {
-        break
-    }
-    $parent = Split-Path -Parent $projectRoot
-    if (-not $parent -or $parent -eq $projectRoot) {
-        break
-    }
-    $projectRoot = $parent
-    $depth++
+# Never infer ownership from the caller's directory: another Laravel project
+# on the same machine must not be built or packaged by this script.
+if (-not $PSCommandPath) {
+    throw 'Run the saved TamashaRoom scripts/deploy-package.ps1 file directly.'
 }
+$projectRoot = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $PSCommandPath) '..'))
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "artisan")) -or -not (Test-Path -LiteralPath (Join-Path $projectRoot "package.json"))) {
-    Write-Error "Could not locate the project root (no artisan/package.json found walking up from $((Get-Location).Path)). Run this script from inside the TamashaRoom checkout."
-    exit 1
+    throw 'The owning TamashaRoom checkout is incomplete (artisan/package.json missing).'
 }
 Set-Location -LiteralPath $projectRoot
 
@@ -89,9 +75,18 @@ if (Test-Path -LiteralPath $zipPath) {
 }
 
 # Extraction into the verified public/ root must create build/manifest.json.
-Compress-Archive -LiteralPath $buildDir -DestinationPath $zipPath
-
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression
+$outputArchive = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($asset in Get-ChildItem -LiteralPath $buildDir -File -Recurse) {
+        $relativePath = $asset.FullName.Substring($buildDir.Length).TrimStart([char[]]@('/', '\')).Replace('\', '/')
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($outputArchive, $asset.FullName, ('build/' + $relativePath)) | Out-Null
+    }
+} finally {
+    $outputArchive.Dispose()
+}
+
 $archive = [IO.Compression.ZipFile]::OpenRead($zipPath)
 try {
     $names = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
