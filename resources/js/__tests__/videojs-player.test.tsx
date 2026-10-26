@@ -514,6 +514,55 @@ describe("SyncedVideoJsPlayer", () => {
         expect(mockSync).not.toHaveBeenCalled();
     });
 
+    it.each([true, false])(
+        "ignores delayed programmatic seek completion while playing=%s and preserves the next user seek",
+        (isPlaying) => {
+            vi.useFakeTimers();
+            testState.currentTime = 100;
+            vi.mocked(usePlaybackSync).mockReturnValue({
+                state: makeState({ isPlaying, positionSeconds: 40 }),
+                sync: mockSync,
+                syncImmediate: mockSyncImmediate,
+                loading: false,
+                error: null,
+            });
+            render(<SyncedVideoJsPlayer roomId={1} canControl />);
+
+            act(() => testState.props?.onReady?.());
+            act(() => vi.advanceTimersByTime(250));
+            act(() => testState.props?.onSeeked?.());
+
+            expect(mockSyncImmediate).not.toHaveBeenCalled();
+
+            testState.currentTime = 200;
+            act(() => testState.props?.onSeeked?.());
+            expect(mockSyncImmediate).toHaveBeenCalledExactlyOnceWith({
+                positionSeconds: 200,
+            });
+        },
+    );
+
+    it("preserves a different user seek while a drift correction is pending", () => {
+        vi.useFakeTimers();
+        testState.currentTime = 100;
+        vi.mocked(usePlaybackSync).mockReturnValue({
+            state: makeState({ isPlaying: true }),
+            sync: mockSync,
+            syncImmediate: mockSyncImmediate,
+            loading: false,
+            error: null,
+        });
+        render(<SyncedVideoJsPlayer roomId={1} canControl />);
+        act(() => testState.props?.onReady?.());
+        act(() => vi.advanceTimersByTime(250));
+
+        testState.currentTime = 200;
+        act(() => testState.props?.onSeeked?.());
+        expect(mockSyncImmediate).toHaveBeenCalledExactlyOnceWith({
+            positionSeconds: 200,
+        });
+    });
+
     it("does not correct the leader's position", () => {
         testState.currentTime = 100;
         vi.mocked(usePlaybackSync).mockReturnValue({

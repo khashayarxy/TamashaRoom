@@ -97,6 +97,7 @@ export function SyncedVideoJsPlayer({
     // native media events those calls trigger must not be mistaken for a user
     // gesture, or the host loops: play → sync → poll → apply → play → …
     const applyingRef = useRef(false);
+    const pendingSeekTargetRef = useRef<number | null>(null);
     const [ready, setReady] = useState(false);
     const [ended, setEnded] = useState(false);
     const [autoplayBlocked, setAutoplayBlocked] = useState(false);
@@ -131,6 +132,10 @@ export function SyncedVideoJsPlayer({
         state.playbackMode === "direct" || proxyFailed
             ? videoUrl || undefined
             : proxyUrl(roomId, versionState.version);
+
+    useEffect(() => {
+        pendingSeekTargetRef.current = null;
+    }, [sourceUrl]);
 
     const handleVideoError = useCallback(() => {
         if (!proxyFailed && state.videoUrl) {
@@ -183,6 +188,7 @@ export function SyncedVideoJsPlayer({
                     // doesn't bounce the corrected position back to the
                     // server; the play() guard below clears the flag.
                     applyingRef.current = true;
+                    pendingSeekTargetRef.current = expected;
                     player.seekTo(expected);
                 }
             }
@@ -221,6 +227,7 @@ export function SyncedVideoJsPlayer({
                 );
                 if (diff > DRIFT_THRESHOLD) {
                     applyingRef.current = true;
+                    pendingSeekTargetRef.current = state.positionSeconds;
                     player.seekTo(state.positionSeconds);
                 }
             }
@@ -268,9 +275,20 @@ export function SyncedVideoJsPlayer({
 
     const handleSeeked = useCallback(() => {
         if (!canControl) return;
+        const positionSeconds = playerRef.current?.getCurrentTime() ?? 0;
+        const pendingTarget = pendingSeekTargetRef.current;
+        pendingSeekTargetRef.current = null;
+        // Buffered seeks can finish after the short play/pause guard expires.
+        // Suppress only that correction; a different user target still syncs.
+        if (
+            pendingTarget !== null &&
+            Math.abs(positionSeconds - pendingTarget) <= DRIFT_THRESHOLD
+        ) {
+            return;
+        }
         if (applyingRef.current) return;
         syncImmediate({
-            positionSeconds: playerRef.current?.getCurrentTime() ?? 0,
+            positionSeconds,
         });
     }, [canControl, syncImmediate]);
 

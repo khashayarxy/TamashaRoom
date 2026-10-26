@@ -26,6 +26,13 @@
 
 ## Completed
 
+### Phase 8 — delayed automatic-seek feedback (2026-10-26)
+
+- [x] Reproduced follower playback writes without user input when native seek completion arrives after the short apply guard. Track the pending correction target until completion; preserve a different intentional member seek and clear pending targets on source changes.
+- [x] Regression coverage for delayed playing/paused corrections and intentional seeking; focused player/sync tests 79 passed, full Vitest 345 passed. No dependency, hosting, session-lifetime or generated-instruction changes.
+- [ ] Exact-SHA CI, uninterrupted long-duration qualification and hosted FPM/Pusher/OPcache evidence remain separate release gates; private Phase 8 artifacts record actual outcomes. No production deployment or merge authorized.
+
+
 ### Phase 4 — بازبینی، commit و تأیید GitHub (2026-10-24)
 
 - [x] بازبینی مرز مجوز منبع، pin اتصال و سقف پروب، رقابت session/XSRF، زیرنویس، backoff و patchهای وابستگی انجام شد؛ کنترل‌های محلی fast موفق‌اند. تغییر قبلی TASK کاربر و .freebuff در commit امنیتی وارد نمی‌شوند.
